@@ -1,0 +1,323 @@
+:root {
+  color: #17211d;
+  background: #f6f7f2;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+.button,
+select,
+input {
+  min-height: 44px;
+  border: 1px solid #b8c0b2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17211d;
+  font: inherit;
+  padding: 0.65rem 0.9rem;
+}
+
+button,
+.button {
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 2.8vw, 3rem);
+  margin-bottom: 0;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.shell {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin-bottom: 4px;
+  color: #607066;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.launcher,
+.metrics,
+.analyticsGrid,
+.checkoutGrid,
+.customerGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.launcher {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.launcher a {
+  min-height: 96px;
+  border: 1px solid #d8ddd2;
+  border-radius: 8px;
+  background: #fff;
+  color: #17211d;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.customerGrid {
+  grid-template-columns: 180px minmax(0, 1fr) 340px;
+  align-items: start;
+}
+
+.menuGrid,
+.ticketGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.panel,
+.itemCard,
+.ticket,
+.task,
+.metrics article {
+  border: 1px solid #d8ddd2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.panel {
+  padding: 14px;
+}
+
+.panel button,
+.cart button {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.itemCard {
+  display: grid;
+  grid-template-rows: 150px 1fr auto;
+  overflow: hidden;
+}
+
+.itemCard img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+
+.itemCard > div {
+  padding: 14px;
+}
+
+.itemCard > button {
+  margin: 0 14px 14px;
+}
+
+.price {
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.tag,
+.notice,
+.warning,
+.status {
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  font-weight: 700;
+}
+
+.tag {
+  background: #edf4f8;
+  color: #24495a;
+}
+
+.notice {
+  background: #e6f5ed;
+  color: #17633a;
+}
+
+.warning {
+  background: #fff1d8;
+  color: #7a4a00;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #e7eae3;
+}
+
+.line input {
+  width: 72px;
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  font-size: 1.1rem;
+}
+
+.totals dd {
+  margin: 0;
+  font-weight: 900;
+}
+
+.primary,
+.selected {
+  background: #1d6b52;
+  border-color: #1d6b52;
+  color: #fff;
+}
+
+.segmented {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ticket,
+.task {
+  padding: 14px;
+}
+
+.ticket header,
+.ticket footer,
+.task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ticket header strong {
+  font-size: 1.4rem;
+}
+
+.ticket.ordered {
+  border-left: 8px solid #5c7896;
+}
+
+.ticket.accepted {
+  border-left: 8px solid #8d6a32;
+}
+
+.ticket.cooking {
+  border-left: 8px solid #b9402f;
+}
+
+.ticket.ready {
+  border-left: 8px solid #1d6b52;
+}
+
+.taskList {
+  display: grid;
+  gap: 12px;
+}
+
+.task > div {
+  flex: 1;
+}
+
+.checkoutGrid {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+}
+
+.metrics {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  margin-bottom: 16px;
+}
+
+.metrics article {
+  padding: 16px;
+}
+
+.metrics span {
+  display: block;
+  color: #607066;
+  font-weight: 800;
+}
+
+.metrics strong {
+  display: block;
+  font-size: 1.6rem;
+  margin-top: 6px;
+}
+
+.analyticsGrid {
+  grid-template-columns: 1.3fr 0.7fr;
+}
+
+.dateRange {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+  .toolbar,
+  .task {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customerGrid,
+  .checkoutGrid,
+  .analyticsGrid,
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    order: initial;
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "cafe-order-system-nyanql",
+  "port": 8890,
+  "database": {
+    "client": "postgresql",
+    "connectionEnv": "DATABASE_URL"
+  },
+  "auth": {
+    "type": "basic",
+    "usernameEnv": "NYANQL_USER",
+    "passwordEnv": "NYANQL_PASSWORD"
+  }
+}

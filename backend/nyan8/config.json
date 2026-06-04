@@ -1,0 +1,12 @@
+{
+  "name": "cafe-order-system-nyan8",
+  "port": 8889,
+  "cors": {
+    "origin": ["http://localhost:5173"]
+  },
+  "env": {
+    "nyanqlBaseUrl": "NYANQL_BASE_URL",
+    "nyanqlUser": "NYANQL_USER",
+    "nyanqlPassword": "NYANQL_PASSWORD"
+  }
+}
