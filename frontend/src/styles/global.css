@@ -1,6 +1,6 @@
 :root {
-  color: #17211d;
-  background: #f6f7f2;
+  color: #2e2018;
+  background: #f7efe1;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
 }
@@ -18,10 +18,10 @@ button,
 select,
 input {
   min-height: 44px;
-  border: 1px solid #b8c0b2;
+  border: 1px solid #cdbb9f;
   border-radius: 8px;
-  background: #ffffff;
-  color: #17211d;
+  background: #fffaf0;
+  color: #2e2018;
   font: inherit;
   padding: 0.65rem 0.9rem;
 }
@@ -69,11 +69,13 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
+  border-bottom: 2px solid #d7c3a5;
+  padding-bottom: 16px;
 }
 
 .eyebrow {
   margin-bottom: 4px;
-  color: #607066;
+  color: #60705a;
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -95,10 +97,10 @@ h2 {
 
 .launcher a {
   min-height: 96px;
-  border: 1px solid #d8ddd2;
+  border: 1px solid #d7c3a5;
   border-radius: 8px;
-  background: #fff;
-  color: #17211d;
+  background: #fffaf0;
+  color: #2e2018;
   display: grid;
   place-items: center;
   font-weight: 800;
@@ -122,9 +124,10 @@ h2 {
 .ticket,
 .task,
 .metrics article {
-  border: 1px solid #d8ddd2;
+  border: 1px solid #d7c3a5;
   border-radius: 8px;
-  background: #fff;
+  background: #fffaf0;
+  box-shadow: 0 8px 24px rgba(58, 39, 28, 0.08);
 }
 
 .panel {
@@ -172,18 +175,39 @@ h2 {
 }
 
 .tag {
-  background: #edf4f8;
-  color: #24495a;
+  background: #e6eddf;
+  color: #3f5d39;
 }
 
 .notice {
-  background: #e6f5ed;
-  color: #17633a;
+  background: #e6eddf;
+  color: #3f5d39;
 }
 
 .warning {
   background: #fff1d8;
   color: #7a4a00;
+}
+
+.error {
+  border-radius: 8px;
+  background: #f9ded8;
+  color: #7b2418;
+  font-weight: 800;
+  padding: 0.65rem 0.8rem;
+}
+
+.empty {
+  border: 1px dashed #cdbb9f;
+  border-radius: 8px;
+  color: #6d5a49;
+  font-weight: 700;
+  padding: 1rem;
+}
+
+.status {
+  background: #f0dfc2;
+  color: #4a321f;
 }
 
 .line {
@@ -192,7 +216,7 @@ h2 {
   gap: 8px;
   align-items: center;
   padding: 10px 0;
-  border-bottom: 1px solid #e7eae3;
+  border-bottom: 1px solid #eadcc5;
 }
 
 .line input {
@@ -213,9 +237,14 @@ h2 {
 
 .primary,
 .selected {
-  background: #1d6b52;
-  border-color: #1d6b52;
+  background: #4f6f4a;
+  border-color: #4f6f4a;
   color: #fff;
+}
+
+.primary:hover:not(:disabled),
+.selected:hover:not(:disabled) {
+  background: #425e3e;
 }
 
 .segmented {
@@ -243,19 +272,19 @@ h2 {
 }
 
 .ticket.ordered {
-  border-left: 8px solid #5c7896;
+  border-left: 8px solid #6f8c9f;
 }
 
 .ticket.accepted {
-  border-left: 8px solid #8d6a32;
+  border-left: 8px solid #c7843a;
 }
 
 .ticket.cooking {
-  border-left: 8px solid #b9402f;
+  border-left: 8px solid #c76532;
 }
 
 .ticket.ready {
-  border-left: 8px solid #1d6b52;
+  border-left: 8px solid #4f6f4a;
 }
 
 .taskList {

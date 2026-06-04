@@ -18,6 +18,7 @@
     { "name": "checkout_summary", "method": "GET", "path": "/checkout/summary", "sql": "sql/checkout_summary.sql", "description": "席ごとの未精算明細と合計を取得する" },
     { "name": "insert_payment", "method": "POST", "path": "/payments", "sql": "sql/insert_payment.sql", "description": "支払い記録を作成する" },
     { "name": "close_session", "method": "POST", "path": "/sessions/close", "sql": "sql/close_session.sql", "description": "精算済みにして注文を締める" },
+    { "name": "complete_table_cleanup", "method": "POST", "path": "/sessions/cleanup-complete", "sql": "sql/complete_table_cleanup.sql", "description": "片付け完了後に席を空席へ戻す" },
     { "name": "analytics_summary", "method": "GET", "path": "/analytics/summary", "sql": "sql/analytics_summary.sql", "description": "売上分析サマリを取得する" },
     { "name": "analytics_item_ranking", "method": "GET", "path": "/analytics/item-ranking", "sql": "sql/analytics_item_ranking.sql", "description": "商品別売上ランキングを取得する" },
     { "name": "audit_log", "method": "POST", "path": "/audit-logs", "sql": "sql/audit_log.sql", "description": "監査ログを登録する" }

@@ -12,8 +12,18 @@ const nextActions: Partial<Record<OrderItemStatus, Array<{ label: string; status
 export function KitchenPage() {
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [filter, setFilter] = useState<OrderItemStatus | 'all'>('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [busyId, setBusyId] = useState('');
 
-  const load = () => void cafeApi.kitchenTickets().then((data) => setTickets(data.tickets));
+  const load = () => {
+    setError('');
+    return cafeApi.kitchenTickets()
+      .then((data) => setTickets(data.tickets))
+      .catch((event: Error) => setError(event.message))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => {
     load();
     const timer = window.setInterval(load, 5000);
@@ -26,7 +36,7 @@ export function KitchenPage() {
     <main className="shell">
       <section className="toolbar">
         <div>
-          <p className="eyebrow">Kitchen</p>
+          <p className="eyebrow">カフェ・ルポ / Cafe Repos</p>
           <h1>注文一覧</h1>
         </div>
         <div className="segmented">
@@ -35,7 +45,11 @@ export function KitchenPage() {
           ))}
         </div>
       </section>
+      {loading && <p className="notice">読み込み中です。</p>}
+      {message && <p className="notice">{message}</p>}
+      {error && <p className="error">{error}</p>}
       <section className="ticketGrid">
+        {visible.length === 0 && !loading && <p className="empty">対象の注文明細はありません。</p>}
         {visible.map((ticket) => (
           <article className={`ticket ${ticket.status}`} key={ticket.order_item_id}>
             <header>
@@ -49,7 +63,17 @@ export function KitchenPage() {
             <footer>
               <span className="status">{ticket.status}</span>
               {(nextActions[ticket.status] || []).map((action) => (
-                <button key={action.status} onClick={() => void cafeApi.kitchenStatus(ticket.order_item_id, action.status).then(load)}>{action.label}</button>
+                <button disabled={busyId === ticket.order_item_id} key={action.status} onClick={() => {
+                  setBusyId(ticket.order_item_id);
+                  setError('');
+                  void cafeApi.kitchenStatus(ticket.order_item_id, action.status)
+                    .then(() => {
+                      setMessage(`${ticket.item_name} を ${action.label} にしました`);
+                      return load();
+                    })
+                    .catch((event: Error) => setError(event.message))
+                    .finally(() => setBusyId(''));
+                }}>{busyId === ticket.order_item_id ? '更新中' : action.label}</button>
               ))}
             </footer>
           </article>

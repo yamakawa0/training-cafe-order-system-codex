@@ -17,5 +17,6 @@ module.exports = async function customerOpenSession(request) {
     table_code: input.table_code,
     guest_count: Number(input.guest_count || 1)
   }));
+  if (!session) throw Object.assign(new Error('table is not available'), { status: 409 });
   return ok({ session });
 };

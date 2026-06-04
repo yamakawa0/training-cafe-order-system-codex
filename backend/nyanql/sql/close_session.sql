@@ -1,7 +1,8 @@
 WITH updated_session AS (
     UPDATE table_sessions
-    SET status = 'paid', closed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+    SET status = 'paid', updated_at = CURRENT_TIMESTAMP
     WHERE id = :session_id
+      AND status = 'payment_requested'
     RETURNING id, table_id
 ),
 updated_orders AS (

@@ -10,3 +10,12 @@
 - Nyan8 から NyanQL を内部 HTTP 呼び出しする構成とし、顧客端末から NyanQL は直接呼ばない。
 - 会計処理ではフロントエンドから金額を送らず、Nyan8 が NyanQL の精算明細から合計を再計算する。
 - `customer_submit_order.js` ではメニュー価格とオプション価格を NyanQL から再取得して注文金額を算出する。
+
+## 2026-06-05 MVP 安定化
+
+- `schema.sql` に開発用の `DROP TABLE IF EXISTS ... CASCADE` を追加し、同じ DB へ再投入できるようにした。
+- セッション開始時に席を `occupied` にし、片付け完了時にセッションを `closed`、席を `available` に戻す `complete_table_cleanup` API を追加した。
+- 注文明細がすべて `served` または `cancelled` になった時点で、注文ヘッダの状態を `served` / `cancelled` に集約するようにした。精算時は注文ヘッダを `closed` にする。
+- レジ精算は `payment_requested` のセッションだけを対象にし、精算済みセッションの再精算を拒否する。
+- フロントエンドに loading、error、success、空データ表示、二重送信防止を追加した。
+- Vite が 5173 から 5174 にフォールバックする開発環境を考慮し、Nyan8 CORS に `http://localhost:5174` を追加した。

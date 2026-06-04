@@ -16,6 +16,9 @@ module.exports = async function checkoutSettle(request) {
   assertTerminal(terminal, 'checkout');
   const rawRows = rows(await nyanql('GET', '/checkout/summary', { table_code: input.table_code }));
   if (rawRows.length === 0) throw Object.assign(new Error('checkout target not found'), { status: 404 });
+  if (rawRows[0].session_status !== 'payment_requested') {
+    throw Object.assign(new Error('payment has not been requested or is already settled'), { status: 409 });
+  }
   const subtotal = rawRows.reduce((sum, row) => sum + Number(row.line_subtotal || 0), 0);
   const taxAmount = rawRows.reduce((sum, row) => sum + Number(row.line_tax || 0), 0);
   const totalAmount = subtotal + taxAmount;
@@ -30,6 +33,7 @@ module.exports = async function checkoutSettle(request) {
     total_amount: totalAmount
   }));
   const closed = first(await nyanql('POST', '/sessions/close', { session_id: sessionId }));
+  if (!closed) throw Object.assign(new Error('session is already settled'), { status: 409 });
   await nyanql('POST', '/hall/tasks', {
     id: newId('task'),
     task_type: 'clean_table',

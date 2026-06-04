@@ -31,6 +31,11 @@ module.exports = async function hallUpdateTaskStatus(request) {
       status: 'served'
     });
   }
+  if (updated.task_type === 'clean_table' && input.status === 'done') {
+    await nyanql('POST', '/sessions/cleanup-complete', {
+      session_id: updated.session_id
+    });
+  }
   await audit({ actorType: 'terminal', actorId: terminal.id, action: 'hall.task.status', targetType: 'hall_task', targetId: input.task_id, payload: { status: input.status, note: input.note || '' } });
   return ok({ task: updated });
 };

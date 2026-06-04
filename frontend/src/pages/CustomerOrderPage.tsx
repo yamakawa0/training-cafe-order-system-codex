@@ -14,14 +14,22 @@ export function CustomerOrderPage({ tableCode }: Props) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [history, setHistory] = useState<unknown[]>([]);
   const [message, setMessage] = useState('');
-  const paymentLocked = session?.status === 'payment_requested';
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const orderLocked = Boolean(session && !['seated', 'ordering'].includes(session.status));
 
   useEffect(() => {
-    void cafeApi.menu(tableCode).then((data) => {
-      setCategories(data.categories);
-      setActiveCategoryId(data.categories[0]?.id || '');
-    });
-    void cafeApi.openSession(tableCode).then((data) => setSession(data.session));
+    setLoading(true);
+    setError('');
+    Promise.all([
+      cafeApi.menu(tableCode),
+      cafeApi.openSession(tableCode)
+    ]).then(([menuData, sessionData]) => {
+      setCategories(menuData.categories);
+      setActiveCategoryId(menuData.categories[0]?.id || '');
+      setSession(sessionData.session);
+    }).catch((event: Error) => setError(event.message)).finally(() => setLoading(false));
   }, [tableCode]);
 
   useEffect(() => {
@@ -50,43 +58,64 @@ export function CustomerOrderPage({ tableCode }: Props) {
   }, [cart]);
 
   function addItem(menuItem: MenuItem) {
-    if (menuItem.soldOut || paymentLocked) return;
+    if (menuItem.soldOut || orderLocked) return;
     const choiceIds = menuItem.options.flatMap((option) => option.required ? [option.choices[0]?.id].filter(Boolean) as string[] : []);
     setCart((current) => [...current, { localId: crypto.randomUUID(), menuItem, quantity: 1, choiceIds, customerNote: '' }]);
   }
 
   async function submit() {
-    if (cart.length === 0) return;
-    const result = await cafeApi.submitOrder(tableCode, cart.map((item) => ({
-      menu_item_id: item.menuItem.id,
-      quantity: item.quantity,
-      choice_ids: item.choiceIds,
-      customer_note: item.customerNote
-    })));
-    setCart([]);
-    setMessage(`${result.orderNo} を送信しました`);
+    if (cart.length === 0 || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await cafeApi.submitOrder(tableCode, cart.map((item) => ({
+        menu_item_id: item.menuItem.id,
+        quantity: item.quantity,
+        choice_ids: item.choiceIds,
+        customer_note: item.customerNote
+      })));
+      setCart([]);
+      setMessage(`${result.orderNo} を送信しました`);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : '注文送信に失敗しました');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function requestPayment() {
-    await cafeApi.requestPayment(tableCode);
-    const current = await cafeApi.currentSession(tableCode);
-    setSession(current.session);
-    setMessage('会計を依頼しました');
+    if (submitting || !session || orderLocked) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await cafeApi.requestPayment(tableCode);
+      const current = await cafeApi.currentSession(tableCode);
+      setSession(current.session);
+      setCart([]);
+      setMessage('会計を依頼しました');
+    } catch (event) {
+      setError(event instanceof Error ? event.message : '会計依頼に失敗しました');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <main className="shell customer">
       <section className="toolbar">
         <div>
-          <p className="eyebrow">Customer Terminal</p>
+          <p className="eyebrow">カフェ・ルポ / Cafe Repos</p>
           <h1>{tableCode} 注文</h1>
         </div>
-        <button onClick={() => void cafeApi.staffCall(tableCode, '席端末から呼び出し').then(() => setMessage('スタッフを呼び出しました'))}>スタッフ呼出</button>
+        <button disabled={submitting || loading} onClick={() => void cafeApi.staffCall(tableCode, '席端末から呼び出し').then(() => setMessage('スタッフを呼び出しました')).catch((event: Error) => setError(event.message))}>スタッフ呼出</button>
       </section>
+      {loading && <p className="notice">読み込み中です。</p>}
       {message && <p className="notice">{message}</p>}
-      {paymentLocked && <p className="warning">会計依頼済みのため、新規注文はできません。</p>}
+      {error && <p className="error">{error}</p>}
+      {orderLocked && <p className="warning">会計依頼後または精算済みのため、新規注文はできません。</p>}
       <section className="customerGrid">
         <aside className="panel">
+          {categories.length === 0 && !loading && <p className="empty">表示できるカテゴリがありません。</p>}
           {categories.map((category) => (
             <button className={category.id === activeCategoryId ? 'selected' : ''} key={category.id} onClick={() => setActiveCategoryId(category.id)}>
               {category.name}
@@ -94,6 +123,7 @@ export function CustomerOrderPage({ tableCode }: Props) {
           ))}
         </aside>
         <section className="menuGrid">
+          {visibleItems.length === 0 && !loading && <p className="empty">表示できる商品がありません。</p>}
           {visibleItems.map((item) => (
             <article className="itemCard" key={item.id}>
               {item.imageUrl && <img src={item.imageUrl} alt="" />}
@@ -103,12 +133,13 @@ export function CustomerOrderPage({ tableCode }: Props) {
                 <p className="price">{yen(item.price)}</p>
                 {item.allergyNote && <p className="tag">アレルギー: {item.allergyNote}</p>}
               </div>
-              <button disabled={item.soldOut || paymentLocked} onClick={() => addItem(item)}>{item.soldOut ? '売切' : '追加'}</button>
+              <button disabled={item.soldOut || orderLocked || submitting} onClick={() => addItem(item)}>{item.soldOut ? '売切' : '追加'}</button>
             </article>
           ))}
         </section>
         <aside className="panel cart">
           <h2>カート</h2>
+          {cart.length === 0 && <p className="empty">カートは空です。</p>}
           {cart.map((item) => (
             <div className="line" key={item.localId}>
               <span>{item.menuItem.name}</span>
@@ -120,10 +151,10 @@ export function CustomerOrderPage({ tableCode }: Props) {
             </div>
           ))}
           <dl className="totals"><dt>小計</dt><dd>{yen(totals.subtotal)}</dd><dt>税</dt><dd>{yen(totals.tax)}</dd><dt>合計</dt><dd>{yen(totals.total)}</dd></dl>
-          <button className="primary" disabled={cart.length === 0 || paymentLocked} onClick={() => void submit()}>注文確定</button>
-          <button onClick={() => void requestPayment()}>会計へ進む</button>
+          <button className="primary" disabled={cart.length === 0 || orderLocked || submitting} onClick={() => void submit()}>{submitting ? '送信中' : '注文確定'}</button>
+          <button disabled={!session || orderLocked || submitting} onClick={() => void requestPayment()}>会計へ進む</button>
           <h2>注文履歴</h2>
-          <p>{history.length} 件の明細</p>
+          <p>{history.length > 0 ? `${history.length} 件の明細` : '注文履歴はありません。'}</p>
         </aside>
       </section>
     </main>

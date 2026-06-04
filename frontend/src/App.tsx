@@ -17,7 +17,7 @@ export function App() {
     <main className="shell">
       <section className="toolbar">
         <div>
-          <p className="eyebrow">Cafe Order System</p>
+          <p className="eyebrow">カフェ・ルポ / Cafe Repos</p>
           <h1>端末を選択</h1>
         </div>
       </section>

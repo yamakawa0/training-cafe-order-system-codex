@@ -105,7 +105,9 @@ module.exports = async function customerSubmitOrder(request) {
     id: newId('ord'),
     session_id: session.id,
     order_no: businessNo('ORD'),
-    ...totals
+    subtotal: totals.subtotal,
+    tax_amount: totals.taxAmount,
+    total_amount: totals.totalAmount
   }));
 
   for (const line of lines) {
