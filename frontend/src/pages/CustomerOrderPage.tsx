@@ -109,13 +109,13 @@ export function CustomerOrderPage({ tableCode }: Props) {
         </div>
         <button disabled={submitting || loading} onClick={() => void cafeApi.staffCall(tableCode, '席端末から呼び出し').then(() => setMessage('スタッフを呼び出しました')).catch((event: Error) => setError(event.message))}>スタッフ呼出</button>
       </section>
-      {loading && <p className="notice">読み込み中です。</p>}
+      {loading && <p className="notice">メニューを読み込み中です</p>}
       {message && <p className="notice">{message}</p>}
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">API エラー: {error}</p>}
       {orderLocked && <p className="warning">会計依頼後または精算済みのため、新規注文はできません。</p>}
       <section className="customerGrid">
         <aside className="panel">
-          {categories.length === 0 && !loading && <p className="empty">表示できるカテゴリがありません。</p>}
+          {categories.length === 0 && !loading && !error && <p className="empty">表示できるメニューがありません</p>}
           {categories.map((category) => (
             <button className={category.id === activeCategoryId ? 'selected' : ''} key={category.id} onClick={() => setActiveCategoryId(category.id)}>
               {category.name}
@@ -123,7 +123,7 @@ export function CustomerOrderPage({ tableCode }: Props) {
           ))}
         </aside>
         <section className="menuGrid">
-          {visibleItems.length === 0 && !loading && <p className="empty">表示できる商品がありません。</p>}
+          {categories.length > 0 && visibleItems.length === 0 && !loading && !error && <p className="empty">このカテゴリには商品がありません</p>}
           {visibleItems.map((item) => (
             <article className="itemCard" key={item.id}>
               {item.imageUrl && <img src={item.imageUrl} alt="" />}

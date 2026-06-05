@@ -7,17 +7,18 @@ export class ApiError extends Error {
 const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = {
+    ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(init?.headers || {})
+  };
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {})
-    }
+    headers
   });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok || data?.success === false) {
-    throw new ApiError(data?.message || `API error: ${path}`, response.status);
+    throw new ApiError(data?.message || `API error: ${path} (${response.status})`, response.status);
   }
   return (data && Object.prototype.hasOwnProperty.call(data, 'result') ? data.result : data) as T;
 }

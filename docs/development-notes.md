@@ -28,3 +28,13 @@
 - NyanQL の `success/status/result` 形式を扱えるように Nyan8 側の `rows()` / `first()` 相当処理を更新した。
 - 片付け完了APIは `cleanup_complete.sql` / `sessions/cleanup-complete` に統一した。
 - 実行補助として `scripts/check-runtime.sh`, `scripts/start-nyanql.sh`, `scripts/start-nyan8.sh`, `scripts/dev-reset-db.sh`, `scripts/smoke-nyanql.sh`, `scripts/smoke-e2e.sh` を追加した。
+
+## 2026-06-05 顧客メニュー表示経路の確認
+
+- DB 直接確認では `menu_categories` が 4 件、`menu_items` が 6 件あり、全カテゴリ・全商品が `active = TRUE` だった。`menu_items.category_id` はすべて `menu_categories.id` と一致していた。
+- `backend/nyanql/sql/list_menu.sql` は `menu_categories` と `menu_items` の JOIN 後、オプション選択肢の展開を含めて 9 行を返すことを確認した。DB 側にカテゴリ不足、非 active、category_id 不一致はなかった。
+- NyanQL `/menu` の実レスポンスは HTTP 200 の `{"success":true,"status":200,"result":[...]}` 形式で、SQL 結果行は `result` 配列に入る。
+- Nyan8 `/api/customer/menu?terminal_code=customer-T01` の実レスポンスは HTTP 200 の `{"success":true,"status":200,"result":{"categories":[...]}}` 形式で、`client.ts` の `result` unwrap 後に `data.categories` が存在する。
+- ブラウザから Nyan8 を別 origin で呼ぶ場合、GET に `Content-Type: application/json` を付けると CORS preflight の OPTIONS が発生し、Nyan8 が通常 API として扱って `terminal_code is required` 相当の 400 を返す。GET では `Content-Type` を送らず、body があるリクエストだけ JSON ヘッダーを付けるようにした。
+- `CustomerOrderPage` は API 失敗、カテゴリ 0 件、選択カテゴリの商品 0 件を画面上で判別できる文言へ調整した。
+- メニュー経路専用の確認用に `scripts/smoke-menu.sh` を追加した。
