@@ -7,5 +7,5 @@ SELECT
     ct.display_name AS table_name
 FROM terminals t
 LEFT JOIN cafe_tables ct ON ct.id = t.table_id
-WHERE t.terminal_code = :terminal_code
+WHERE t.terminal_code = /*terminal_code*/'customer-T01'
   AND t.active = TRUE;

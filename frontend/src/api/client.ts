@@ -16,10 +16,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
-  if (!response.ok) {
+  if (!response.ok || data?.success === false) {
     throw new ApiError(data?.message || `API error: ${path}`, response.status);
   }
-  return data as T;
+  return (data && Object.prototype.hasOwnProperty.call(data, 'result') ? data.result : data) as T;
 }
 
 export function get<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {

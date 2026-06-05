@@ -1,26 +1,90 @@
 {
-  "apis": [
-    { "name": "bootstrap", "method": "GET", "path": "/bootstrap", "sql": "sql/bootstrap.sql", "description": "端末コードから端末情報を取得する" },
-    { "name": "list_menu", "method": "GET", "path": "/menu", "sql": "sql/list_menu.sql", "description": "有効な顧客向けメニューを取得する" },
-    { "name": "get_current_session", "method": "GET", "path": "/sessions/current", "sql": "sql/get_current_session.sql", "description": "席の未完了セッションを取得する" },
-    { "name": "insert_table_session", "method": "POST", "path": "/sessions", "sql": "sql/insert_table_session.sql", "description": "席セッションを開始する" },
-    { "name": "insert_order", "method": "POST", "path": "/orders", "sql": "sql/insert_order.sql", "description": "注文ヘッダを登録する" },
-    { "name": "insert_order_item", "method": "POST", "path": "/order-items", "sql": "sql/insert_order_item.sql", "description": "注文明細を登録する" },
-    { "name": "insert_order_item_option", "method": "POST", "path": "/order-item-options", "sql": "sql/insert_order_item_option.sql", "description": "注文明細オプションを登録する" },
-    { "name": "list_order_history", "method": "GET", "path": "/orders/history", "sql": "sql/list_order_history.sql", "description": "席セッションの注文履歴を取得する" },
-    { "name": "list_kitchen_tickets", "method": "GET", "path": "/kitchen/tickets", "sql": "sql/list_kitchen_tickets.sql", "description": "キッチン向け注文明細一覧を取得する" },
-    { "name": "get_order_item_context", "method": "GET", "path": "/order-items/context", "sql": "sql/get_order_item_context.sql", "description": "注文明細の席・セッション情報を取得する" },
-    { "name": "update_order_item_status", "method": "POST", "path": "/order-items/status", "sql": "sql/update_order_item_status.sql", "description": "注文明細の状態を更新する" },
-    { "name": "insert_hall_task", "method": "POST", "path": "/hall/tasks", "sql": "sql/insert_hall_task.sql", "description": "ホールタスクを作成する" },
-    { "name": "list_hall_tasks", "method": "GET", "path": "/hall/tasks", "sql": "sql/list_hall_tasks.sql", "description": "ホールタスク一覧を取得する" },
-    { "name": "update_hall_task_status", "method": "POST", "path": "/hall/tasks/status", "sql": "sql/update_hall_task_status.sql", "description": "ホールタスク状態を更新する" },
-    { "name": "request_payment", "method": "POST", "path": "/sessions/payment-request", "sql": "sql/request_payment.sql", "description": "席セッションを会計依頼状態にする" },
-    { "name": "checkout_summary", "method": "GET", "path": "/checkout/summary", "sql": "sql/checkout_summary.sql", "description": "席ごとの未精算明細と合計を取得する" },
-    { "name": "insert_payment", "method": "POST", "path": "/payments", "sql": "sql/insert_payment.sql", "description": "支払い記録を作成する" },
-    { "name": "close_session", "method": "POST", "path": "/sessions/close", "sql": "sql/close_session.sql", "description": "精算済みにして注文を締める" },
-    { "name": "complete_table_cleanup", "method": "POST", "path": "/sessions/cleanup-complete", "sql": "sql/complete_table_cleanup.sql", "description": "片付け完了後に席を空席へ戻す" },
-    { "name": "analytics_summary", "method": "GET", "path": "/analytics/summary", "sql": "sql/analytics_summary.sql", "description": "売上分析サマリを取得する" },
-    { "name": "analytics_item_ranking", "method": "GET", "path": "/analytics/item-ranking", "sql": "sql/analytics_item_ranking.sql", "description": "商品別売上ランキングを取得する" },
-    { "name": "audit_log", "method": "POST", "path": "/audit-logs", "sql": "sql/audit_log.sql", "description": "監査ログを登録する" }
-  ]
+  "bootstrap": {
+    "sql": ["./sql/bootstrap.sql"],
+    "description": "端末コードから端末情報を取得する"
+  },
+  "menu": {
+    "sql": ["./sql/list_menu.sql"],
+    "description": "有効な顧客向けメニューを取得する"
+  },
+  "sessions/current": {
+    "sql": ["./sql/get_current_session.sql"],
+    "description": "席の未完了セッションを取得する"
+  },
+  "sessions": {
+    "sql": ["./sql/insert_table_session.sql"],
+    "description": "席セッションを開始する"
+  },
+  "orders": {
+    "sql": ["./sql/insert_order.sql"],
+    "description": "注文ヘッダを登録する"
+  },
+  "order-items": {
+    "sql": ["./sql/insert_order_item.sql"],
+    "description": "注文明細を登録する"
+  },
+  "order-item-options": {
+    "sql": ["./sql/insert_order_item_option.sql"],
+    "description": "注文明細オプションを登録する"
+  },
+  "orders/history": {
+    "sql": ["./sql/list_order_history.sql"],
+    "description": "席セッションの注文履歴を取得する"
+  },
+  "kitchen/tickets": {
+    "sql": ["./sql/list_kitchen_tickets.sql"],
+    "description": "キッチン向け注文明細一覧を取得する"
+  },
+  "order-items/context": {
+    "sql": ["./sql/get_order_item_context.sql"],
+    "description": "注文明細の席・セッション情報を取得する"
+  },
+  "order-items/status": {
+    "sql": ["./sql/update_order_item_status.sql"],
+    "description": "注文明細の状態を更新する"
+  },
+  "hall/tasks": {
+    "sql": ["./sql/insert_hall_task.sql"],
+    "description": "ホールタスクを作成する"
+  },
+  "hall/tasks/list": {
+    "sql": ["./sql/list_hall_tasks.sql"],
+    "description": "ホールタスク一覧を取得する"
+  },
+  "hall/tasks/status": {
+    "sql": ["./sql/update_hall_task_status.sql"],
+    "description": "ホールタスク状態を更新する"
+  },
+  "sessions/payment-request": {
+    "sql": ["./sql/request_payment.sql"],
+    "description": "席セッションを会計依頼状態にする"
+  },
+  "checkout/summary": {
+    "sql": ["./sql/checkout_summary.sql"],
+    "description": "席ごとの未精算明細と合計を取得する"
+  },
+  "payments": {
+    "sql": ["./sql/insert_payment.sql"],
+    "description": "支払い記録を作成する"
+  },
+  "sessions/close": {
+    "sql": ["./sql/close_session.sql"],
+    "description": "精算済みにして注文を締める"
+  },
+  "sessions/cleanup-complete": {
+    "sql": ["./sql/cleanup_complete.sql"],
+    "description": "片付け完了後に席を空席へ戻す"
+  },
+  "analytics/summary": {
+    "sql": ["./sql/analytics_summary.sql"],
+    "description": "売上分析サマリを取得する"
+  },
+  "analytics/item-ranking": {
+    "sql": ["./sql/analytics_item_ranking.sql"],
+    "description": "商品別売上ランキングを取得する"
+  },
+  "audit-logs": {
+    "sql": ["./sql/audit_log.sql"],
+    "description": "監査ログを登録する"
+  }
 }

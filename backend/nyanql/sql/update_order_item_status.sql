@@ -1,14 +1,14 @@
 WITH updated_item AS (
     UPDATE order_items
     SET
-        status = :status,
-        accepted_at = CASE WHEN :status = 'accepted' THEN CURRENT_TIMESTAMP ELSE accepted_at END,
-        cooking_started_at = CASE WHEN :status = 'cooking' THEN CURRENT_TIMESTAMP ELSE cooking_started_at END,
-        ready_at = CASE WHEN :status = 'ready' THEN CURRENT_TIMESTAMP ELSE ready_at END,
-        served_at = CASE WHEN :status = 'served' THEN CURRENT_TIMESTAMP ELSE served_at END,
-        cancelled_at = CASE WHEN :status = 'cancelled' THEN CURRENT_TIMESTAMP ELSE cancelled_at END,
+        status = /*status*/'accepted',
+        accepted_at = CASE WHEN /*status*/'accepted' = 'accepted' THEN CURRENT_TIMESTAMP ELSE accepted_at END,
+        cooking_started_at = CASE WHEN /*status*/'accepted' = 'cooking' THEN CURRENT_TIMESTAMP ELSE cooking_started_at END,
+        ready_at = CASE WHEN /*status*/'accepted' = 'ready' THEN CURRENT_TIMESTAMP ELSE ready_at END,
+        served_at = CASE WHEN /*status*/'accepted' = 'served' THEN CURRENT_TIMESTAMP ELSE served_at END,
+        cancelled_at = CASE WHEN /*status*/'accepted' = 'cancelled' THEN CURRENT_TIMESTAMP ELSE cancelled_at END,
         updated_at = CURRENT_TIMESTAMP
-    WHERE id = :order_item_id
+    WHERE id = /*order_item_id*/'oi-dev'
     RETURNING id, order_id, status, ready_at, served_at, cancelled_at
 ),
 order_rollup AS (

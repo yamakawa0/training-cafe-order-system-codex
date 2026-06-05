@@ -10,7 +10,7 @@ SELECT
     ts.closed_at
 FROM table_sessions ts
 JOIN cafe_tables ct ON ct.id = ts.table_id
-WHERE ct.table_code = :table_code
+WHERE ct.table_code = /*table_code*/'T01'
   AND ts.status IN ('seated', 'ordering', 'payment_requested', 'paid')
 ORDER BY ts.opened_at DESC
 LIMIT 1;

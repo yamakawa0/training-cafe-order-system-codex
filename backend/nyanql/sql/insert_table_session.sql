@@ -1,12 +1,12 @@
 WITH target_table AS (
     SELECT id
     FROM cafe_tables
-    WHERE table_code = :table_code
+    WHERE table_code = /*table_code*/'T01'
       AND status = 'available'
 ),
 inserted_session AS (
     INSERT INTO table_sessions (id, table_id, status, guest_count)
-    SELECT :id, id, 'seated', :guest_count
+    SELECT /*id*/'sess-dev', id, 'seated', /*guest_count*/1
     FROM target_table
     RETURNING id, table_id, status, guest_count, opened_at
 ),

@@ -13,8 +13,8 @@ LEFT JOIN (
     GROUP BY order_item_id
 ) opt ON opt.order_item_id = oi.id
 WHERE p.status = 'paid'
-  AND p.paid_at::date BETWEEN :from_date::date AND :to_date::date
+  AND p.paid_at::date BETWEEN /*from_date*/'2026-06-05'::date AND /*to_date*/'2026-06-05'::date
   AND oi.status <> 'cancelled'
 GROUP BY oi.menu_item_id, oi.item_name
 ORDER BY sales_total DESC, quantity DESC
-LIMIT COALESCE(:limit, 10);
+LIMIT COALESCE(/*limit*/10, 10);

@@ -12,4 +12,4 @@ FROM order_items oi
 JOIN orders o ON o.id = oi.order_id
 JOIN table_sessions ts ON ts.id = o.session_id
 JOIN cafe_tables ct ON ct.id = ts.table_id
-WHERE oi.id = :order_item_id;
+WHERE oi.id = /*order_item_id*/'oi-dev';

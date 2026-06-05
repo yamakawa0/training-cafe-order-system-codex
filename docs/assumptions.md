@@ -12,3 +12,5 @@
 - 消費税は明細ごとに `tax_rate` を使って四捨五入し、精算時にも DB 取得明細から再計算する。
 - 開発用の席状態は `available` / `occupied` を使用し、精算後の片付け完了で `available` に戻す。
 - レジ精算は顧客が会計依頼した `payment_requested` セッションだけを対象にする。
+- Nyan8 のAPIキー `api/customer/menu` は実行時URL `/api/customer/menu` として公開される前提で構成する。
+- Nyan8 から NyanQL への Basic 認証付き呼び出しは、開発用に `http://user:password@host:port` 形式の URL を使う。

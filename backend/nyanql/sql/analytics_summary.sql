@@ -13,9 +13,9 @@ SELECT
         FROM order_items
         WHERE ready_at IS NOT NULL
           AND cooking_started_at IS NOT NULL
-          AND created_at::date BETWEEN :from_date::date AND :to_date::date
+          AND created_at::date BETWEEN /*from_date*/'2026-06-05'::date AND /*to_date*/'2026-06-05'::date
     ), 0)::INTEGER AS average_cooking_seconds,
     COUNT(DISTINCT p.session_id)::INTEGER AS table_turns
 FROM payments p
 WHERE p.status = 'paid'
-  AND p.paid_at::date BETWEEN :from_date::date AND :to_date::date;
+  AND p.paid_at::date BETWEEN /*from_date*/'2026-06-05'::date AND /*to_date*/'2026-06-05'::date;

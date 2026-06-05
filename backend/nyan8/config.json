@@ -1,12 +1,23 @@
 {
-  "name": "cafe-order-system-nyan8",
-  "port": 8889,
-  "cors": {
-    "origin": ["http://localhost:5173", "http://localhost:5174"]
+  "name": "Cafe Order System Nyan8",
+  "profile": "development",
+  "version": "v1.0.0",
+  "Port": 8889,
+  "certPath": "",
+  "keyPath": "",
+  "javascript_include": [
+    "./javascript/lib/runtime.js"
+  ],
+  "log": {
+    "Filename": "./logs/nyan8.log",
+    "MaxSize": 5,
+    "MaxBackups": 3,
+    "MaxAge": 7,
+    "Compress": true,
+    "EnableLogging": true
   },
-  "env": {
-    "nyanqlBaseUrl": "NYANQL_BASE_URL",
-    "nyanqlUser": "NYANQL_USER",
-    "nyanqlPassword": "NYANQL_PASSWORD"
+  "push_receiver": {
+    "enabled": false,
+    "secret": "change-me"
   }
 }

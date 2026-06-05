@@ -1,21 +1,87 @@
 {
-  "apis": [
-    { "method": "GET", "path": "/api/bootstrap", "script": "javascript/apis/bootstrap.js", "description": "端末情報取得" },
-    { "method": "GET", "path": "/api/customer/menu", "script": "javascript/apis/customer_menu.js", "description": "顧客向けメニュー取得" },
-    { "method": "POST", "path": "/api/customer/session/open", "script": "javascript/apis/customer_open_session.js", "description": "席セッション開始" },
-    { "method": "GET", "path": "/api/customer/session/current", "script": "javascript/apis/customer_current_session.js", "description": "席セッション取得" },
-    { "method": "POST", "path": "/api/customer/order/submit", "script": "javascript/apis/customer_submit_order.js", "description": "注文確定" },
-    { "method": "GET", "path": "/api/customer/order/history", "script": "javascript/apis/customer_order_history.js", "description": "注文履歴" },
-    { "method": "POST", "path": "/api/customer/payment/request", "script": "javascript/apis/customer_request_payment.js", "description": "会計依頼" },
-    { "method": "POST", "path": "/api/customer/staff-call", "script": "javascript/apis/customer_staff_call.js", "description": "スタッフ呼び出し" },
-    { "method": "GET", "path": "/api/kitchen/tickets", "script": "javascript/apis/kitchen_tickets.js", "description": "キッチン注文一覧" },
-    { "method": "POST", "path": "/api/kitchen/item/status", "script": "javascript/apis/kitchen_update_item_status.js", "description": "調理状態更新" },
-    { "method": "GET", "path": "/api/hall/tasks", "script": "javascript/apis/hall_tasks.js", "description": "ホールタスク一覧" },
-    { "method": "POST", "path": "/api/hall/task/status", "script": "javascript/apis/hall_update_task_status.js", "description": "ホールタスク状態更新" },
-    { "method": "GET", "path": "/api/checkout/summary", "script": "javascript/apis/checkout_summary.js", "description": "精算明細取得" },
-    { "method": "POST", "path": "/api/checkout/settle", "script": "javascript/apis/checkout_settle.js", "description": "精算確定" },
-    { "method": "GET", "path": "/api/analytics/summary", "script": "javascript/apis/analytics_summary.js", "description": "分析サマリ" },
-    { "method": "GET", "path": "/api/analytics/item-ranking", "script": "javascript/apis/analytics_item_ranking.js", "description": "商品別ランキング" },
-    { "method": "GET", "path": "/api/analytics/export-sales-csv", "script": "javascript/apis/analytics_export_sales_csv.js", "description": "売上 CSV 出力" }
-  ]
+  "api/bootstrap": {
+    "type": "api",
+    "script": "./javascript/apis/bootstrap.js",
+    "description": "端末情報取得"
+  },
+  "api/customer/menu": {
+    "type": "api",
+    "script": "./javascript/apis/customer_menu.js",
+    "description": "顧客向けメニュー取得"
+  },
+  "api/customer/session/open": {
+    "type": "api",
+    "script": "./javascript/apis/customer_open_session.js",
+    "description": "席セッション開始"
+  },
+  "api/customer/session/current": {
+    "type": "api",
+    "script": "./javascript/apis/customer_current_session.js",
+    "description": "席セッション取得"
+  },
+  "api/customer/order/submit": {
+    "type": "api",
+    "script": "./javascript/apis/customer_submit_order.js",
+    "description": "注文確定"
+  },
+  "api/customer/order/history": {
+    "type": "api",
+    "script": "./javascript/apis/customer_order_history.js",
+    "description": "注文履歴"
+  },
+  "api/customer/payment/request": {
+    "type": "api",
+    "script": "./javascript/apis/customer_request_payment.js",
+    "description": "会計依頼"
+  },
+  "api/customer/staff-call": {
+    "type": "api",
+    "script": "./javascript/apis/customer_staff_call.js",
+    "description": "スタッフ呼び出し"
+  },
+  "api/kitchen/tickets": {
+    "type": "api",
+    "script": "./javascript/apis/kitchen_tickets.js",
+    "description": "キッチン注文一覧"
+  },
+  "api/kitchen/item/status": {
+    "type": "api",
+    "script": "./javascript/apis/kitchen_update_item_status.js",
+    "description": "調理状態更新"
+  },
+  "api/hall/tasks": {
+    "type": "api",
+    "script": "./javascript/apis/hall_tasks.js",
+    "description": "ホールタスク一覧"
+  },
+  "api/hall/task/status": {
+    "type": "api",
+    "script": "./javascript/apis/hall_update_task_status.js",
+    "description": "ホールタスク状態更新"
+  },
+  "api/checkout/summary": {
+    "type": "api",
+    "script": "./javascript/apis/checkout_summary.js",
+    "description": "精算明細取得"
+  },
+  "api/checkout/settle": {
+    "type": "api",
+    "script": "./javascript/apis/checkout_settle.js",
+    "description": "精算確定"
+  },
+  "api/analytics/summary": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_summary.js",
+    "description": "分析サマリ"
+  },
+  "api/analytics/item-ranking": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_item_ranking.js",
+    "description": "商品別ランキング"
+  },
+  "api/analytics/export-sales-csv": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_export_sales_csv.js",
+    "description": "売上 CSV 出力"
+  }
 }

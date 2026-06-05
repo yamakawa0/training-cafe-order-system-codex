@@ -18,6 +18,6 @@ SELECT
 FROM orders o
 JOIN order_items oi ON oi.order_id = o.id
 LEFT JOIN order_item_options oio ON oio.order_item_id = oi.id
-WHERE o.session_id = :session_id
+WHERE o.session_id = /*session_id*/'sess-dev'
 GROUP BY o.id, oi.id
 ORDER BY o.submitted_at DESC, oi.created_at ASC;
