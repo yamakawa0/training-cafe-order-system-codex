@@ -75,3 +75,22 @@
 - `cd frontend && npm run build`: 成功。
 - 未確認として残す項目: `checkout_support` タスクの業務副作用、実ブラウザでの CSV ファイル保存ダイアログ、複数オプション価格を含む CSV 行、長時間運用時のポーリング競合、同一席での二重セッション開始競合。
 - 次に対応すべき課題: Phase 3 では在庫・売切更新の管理 API、CSV direct download が必要な場合の Nyan8 ランタイム拡張可否、`checkout_support` の仕様化、複数端末同時操作時の競合制御を検討する。
+
+## 2026-06-10 Phase 3 フロントエンド品質改善・UI デザイン反映
+
+- UI 改善した画面: `frontend/src/pages/CustomerOrderPage.tsx`, `KitchenPage.tsx`, `HallPage.tsx`, `CheckoutPage.tsx`, `AnalyticsPage.tsx`。
+- 追加した共通コンポーネント: `frontend/src/components/ui.tsx` に `AppHeader`, `Badge`, `StatusPill`, `EmptyState`, `Banner`, `SectionTitle`, `SummaryCard`, `TerminalIndicator` を追加した。
+- CSS / スタイル構成: `frontend/src/styles/global.css` を共通 UI、顧客注文、キッチンカンバン、ホールフロアマップ、レシート、分析ダッシュボード向けに再構成した。色は cream / warm beige / dark brown / muted green / accent orange / error red / status blue-green-yellow を使用した。
+- 顧客注文画面: 店舗名、テーブル番号、セッション状態、カテゴリピル、商品カード、売切・アレルギー・オプションバッジ、商品詳細モーダル、必須/任意オプション選択、顧客メモ、カート数量 `+` / `-`、削除、小計/税/合計、注文確定、会計依頼、注文履歴明細を表示するようにした。会計依頼後または精算済みは注文操作を視覚的にロックする。
+- キッチン画面: `ordered`, `accepted`, `cooking`, `ready` の 4 列カンバンに変更し、テーブル番号、商品名、数量、オプション、顧客メモ、アレルギー、経過時間、状態、受付/調理開始/調理完了/取消ボタンをカードにまとめた。長時間経過は warning / danger 表示にする。更新中カードだけ disabled 表示にする。
+- ホール画面: 配膳、片付け、スタッフ呼び出し、会計サポートを種別ごとに分け、タスクカードにテーブル、種別、メモ、経過時間、優先度、状態、対応開始/完了/取消を表示した。簡易フロアマップで `available`, `occupied`, `cleaning`, `payment_requested`, `staff_call` 相当の状態を推定表示する。
+- レジ精算画面: T01-T04 のテーブル選択をカード型にし、会計依頼済み席を優先選択する。精算対象明細をレシート風に表示し、支払い方法 `cash/card/qr` をカード型ボタンにした。精算完了後は receipt number を表示する。
+- 分析画面: 本日売上、会計件数、注文件数、平均客単価の KPI カード、商品ランキングのバー表示、支払い方法別集計、最終更新時刻、CSV ダウンロード成功/失敗メッセージを追加した。
+- 共通エラー表示: `frontend/src/api/client.ts` で通信エラー、JSON parse エラー、Nyan8 業務エラーを画面向け文言へ整形し、`Failed to run JavaScript` のような低レベルエラーをそのまま出しにくくした。
+- 手動確認結果: Vite dev server `http://localhost:5173` で `/customer/T01`, `/customer/T02`, `/kitchen`, `/hall`, `/checkout`, `/analytics` をブラウザ確認した。T01 は会計後ロック表示と注文履歴、T02 は商品カードとオプションモーダル、キッチンは 4 列カンバン、ホールはフロアマップと片付けタスク、レジは 4 席カードとレシート領域、分析は KPI / ランキング / 支払い方法別集計を確認した。1280px 前後の横幅で不要な水平スクロールは発生しなかった。
+- CSV 手動確認: `/analytics` の `CSV ダウンロード` ボタン押下後、`CSV をダウンロードしました: sales-2026-06-10-2026-06-10.csv` の成功バナーを確認した。
+- smoke script 再実行結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` はすべて成功した。初回 `smoke-menu.sh` は NyanQL 未起動で失敗したため、`./scripts/start-nyanql.sh` と `./scripts/start-nyan8.sh` を起動して再実行し成功した。
+- `npm install`: 成功。依存追加なし。既存同様、`pyenv: cannot rehash`、npm ログ作成権限警告、Node 16 に対する `node-releases` engine warning が出た。
+- `npm run build`: 成功。TypeScript build と Vite build が成功した。
+- 未対応の UI 課題: 完了済みホールタスクは現在の `GET /api/hall/tasks` が未完了タスクのみ返すため、フィルタでの表示切替は未実装。レジの席一覧は T01-T04 固定で、テーブル一覧 API からの動的取得は未実装。分析の注文件数は専用 API 項目がないため、商品ランキング数量を fallback として表示している。画像の外部 CDN 読み込み失敗時の専用プレースホルダーは未実装。
+- 次に対応すべき課題: テーブル一覧 API の追加または bootstrap からの動的席取得、完了済みホールタスク履歴 API、分析サマリの `order_count` 追加、画像 fallback、複数端末同時操作時の楽観更新/競合表示。

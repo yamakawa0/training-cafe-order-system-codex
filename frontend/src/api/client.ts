@@ -11,16 +11,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
     ...(init?.headers || {})
   };
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers
-  });
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!response.ok || data?.success === false) {
-    throw new ApiError(data?.message || `API error: ${path} (${response.status})`, response.status);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers
+    });
+  } catch {
+    throw new ApiError('通信に失敗しました。端末の接続状態を確認してください。', 0);
   }
-  return (data && Object.prototype.hasOwnProperty.call(data, 'result') ? data.result : data) as T;
+  const text = await response.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new ApiError('サーバーから不正な応答を受信しました。', response.status);
+  }
+  const body = data as { success?: boolean; message?: string; status?: number } | null;
+  if (!response.ok || body?.success === false) {
+    const fallback = response.status >= 500
+      ? 'サーバー処理に失敗しました。しばらくしてから再実行してください。'
+      : '操作を完了できませんでした。';
+    const message = body?.message && !body.message.includes('Failed to run JavaScript') ? body.message : fallback;
+    throw new ApiError(message, body?.status || response.status);
+  }
+  const record = data as Record<string, unknown> | null;
+  return (record && Object.prototype.hasOwnProperty.call(record, 'result') ? record.result : data) as T;
 }
 
 export function get<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
