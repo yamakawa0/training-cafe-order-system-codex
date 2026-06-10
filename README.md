@@ -167,6 +167,26 @@ npm run dev
 
 `scripts/smoke-e2e.sh` は Node.js と `psql` / `curl` を使用します。`jq` は不要です。各 API の HTTP ステータス、JSON の `success`、主要 ID、状態遷移、不正操作拒否、分析反映を検証します。
 
+境界条件の確認には、次の追加 smoke script を使用します。いずれも `jq` には依存せず、Node.js で JSON を検証します。
+
+```bash
+./scripts/smoke-order-multiple-items.sh
+./scripts/smoke-multiple-tables.sh
+./scripts/smoke-cancel-flow.sh
+./scripts/smoke-staff-call.sh
+./scripts/smoke-checkout-csv.sh
+./scripts/smoke-invalid-operations.sh
+```
+
+- `smoke-order-multiple-items.sh`: 同一注文の複数明細、注文集約、全明細会計、商品ランキング反映を確認する。
+- `smoke-multiple-tables.sh`: T01 / T02 の同時進行、タスク・精算・席状態の取り違えがないことを確認する。
+- `smoke-cancel-flow.sh`: キャンセル可能状態、ready 以降のキャンセル拒否、キャンセル明細の会計・分析除外を確認する。
+- `smoke-staff-call.sh`: 注文なしセッションでの staff_call 作成、ホール対応、完了済み再完了拒否を確認する。
+- `smoke-checkout-csv.sh`: 精算後の売上 CSV データ、フロントエンドの CSV ダウンロード処理を確認する。
+- `smoke-invalid-operations.sh`: 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否を確認する。
+
+推奨実行順は、まず既存 happy path を確認し、その後に境界条件 smoke を順番に実行します。各 script は DB 初期化を含むため並列実行しないでください。
+
 ## 主要 URL
 
 - 顧客注文: `http://localhost:5173/customer/T01`
@@ -230,6 +250,41 @@ Nyan8 経由の業務フローは次で確認します。
 9. 端末種別違い、存在しない ID、不正遷移、売切商品の拒否確認
 10. 分析サマリと商品ランキングへの反映確認
 
+境界条件まで含めた確認は次で実行します。
+
+```bash
+./scripts/dev-reset-db.sh
+./scripts/smoke-menu.sh
+./scripts/smoke-e2e.sh
+./scripts/smoke-order-multiple-items.sh
+./scripts/smoke-multiple-tables.sh
+./scripts/smoke-cancel-flow.sh
+./scripts/smoke-staff-call.sh
+./scripts/smoke-checkout-csv.sh
+./scripts/smoke-invalid-operations.sh
+cd frontend
+npm install
+npm run build
+```
+
+## CSV API 仕様
+
+`GET /api/analytics/export-sales-csv` は Nyan8 ランタイムが JavaScript 戻り値を JSON として処理する制約に合わせ、CSV 本文を直接返さず JSON API として返します。
+
+```json
+{
+  "success": true,
+  "status": 200,
+  "result": {
+    "contentType": "text/csv",
+    "filename": "sales-YYYY-MM-DD-YYYY-MM-DD.csv",
+    "csv": "paid_date,payment_no,method,table_code,menu_item_id,item_name,quantity,sales_total\n..."
+  }
+}
+```
+
+フロントエンドの `/analytics` は `result.csv` を Blob 化し、`contentType` と `filename` を使って CSV ファイルとしてダウンロードします。
+
 ## 既知の制約
 
 - WebSocket Push は未実装で、MVP では 5 秒ポーリングで代替しています。
@@ -239,6 +294,8 @@ Nyan8 経由の業務フローは次で確認します。
 - 精算はダミー決済です。金額はフロントエンド送信値ではなく、DB の注文明細から Nyan8 側で再計算します。
 - API ランタイムが起動していない場合、フロントエンドには API エラーメッセージが表示されます。
 - Nyan8 から NyanQL への呼び出し先は `backend/nyan8/javascript/lib/runtime.js` の `NYANQL_BASE_URL` で定義しています。開発既定値は `http://nyanql:change-me@localhost:8890` です。
+- Nyan8 は業務エラー JSON の `status` を HTTP ステータスにも反映できることを実ランタイムで確認済みです。API エラーは `{"success":false,"status":400/403/404/409,"message":"..."}` 形式に統一しています。
+- CSV エクスポートは Nyan8 の戻り値 parse 制約により、HTTP `Content-Type: text/csv` の直接レスポンスではなく JSON ラップ形式です。
 
 ## トラブルシューティング
 

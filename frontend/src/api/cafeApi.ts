@@ -72,6 +72,9 @@ export const cafeApi = {
     from_date: fromDate,
     to_date: toDate
   }),
-  salesCsvUrl: (fromDate: string, toDate: string) =>
-    `/api/analytics/export-sales-csv?terminal_code=${terminals.analytics}&from_date=${fromDate}&to_date=${toDate}`
+  exportSalesCsv: (fromDate: string, toDate: string) => get<{ contentType: string; filename: string; csv: string }>('/api/analytics/export-sales-csv', {
+    terminal_code: terminals.analytics,
+    from_date: fromDate,
+    to_date: toDate
+  })
 };

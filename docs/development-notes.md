@@ -55,3 +55,23 @@
 - `cd frontend && npm run build` は TypeScript build と Vite build に成功した。
 - 未確認項目: 複数明細・複数席の同時進行、キャンセルを含む注文集約、`staff_call` / `checkout_support` タスクの副作用、実ブラウザでの CSV ダウンロード内容、Nyan8 が JSON 内の `status` を HTTP ステータスへ反映するかは未確認。
 - 次に対応すべき課題: Nyan8 業務エラーの HTTP ステータス反映可否をランタイム仕様で確認する。E2E 後にテスト用の追加セッションが残らないよう、売切商品拒否検証を独立テーブルまたは DB トランザクション相当に分離する。複数明細時の `orders.status` 集約と片付け完了の境界条件を追加 smoke で確認する。
+
+## 2026-06-10 Phase 2.5 MVP 境界条件・複数データ検証
+
+- 追加した smoke script: `scripts/lib/smoke-lib.sh`, `scripts/smoke-order-multiple-items.sh`, `scripts/smoke-multiple-tables.sh`, `scripts/smoke-cancel-flow.sh`, `scripts/smoke-staff-call.sh`, `scripts/smoke-checkout-csv.sh`, `scripts/smoke-invalid-operations.sh`。
+- `./scripts/smoke-menu.sh`: 成功。
+- `./scripts/smoke-e2e.sh`: 既存 happy path は引き続き成功。
+- `./scripts/smoke-order-multiple-items.sh`: 成功。同一注文で `orders=1`, `order_items=2`、片方 ready では `orders.status <> served`、全 served 後 `orders.status=served`、会計 `subtotal=950`, `tax=95`, `total=1045`、商品ランキング 2 商品を確認した。
+- `./scripts/smoke-multiple-tables.sh`: 成功。T01 / T02 の同時セッションと注文、T01 のみ配膳・精算・片付け、T01 だけ `available`、T02 は `occupied` のままを確認した。
+- `./scripts/smoke-cancel-flow.sh`: 成功。`ordered/accepted/cooking -> cancelled` を許可、`ready -> cancelled` を拒否、全キャンセル時 `orders.status=cancelled`、一部 served / 一部 cancelled 時 `orders.status=served`、キャンセル明細の会計・分析除外を確認した。
+- `./scripts/smoke-staff-call.sh`: 成功。注文なしでも席セッションがあれば staff_call 作成可能、ホール API 取得、`todo -> doing -> done`、完了済み再完了拒否、存在しない table_code と顧客端末以外の拒否を確認した。
+- `./scripts/smoke-checkout-csv.sh`: 成功。精算後に CSV データとして `paid_date,payment_no,method,table_code,menu_item_id,item_name,quantity,sales_total` ヘッダーと売上行を確認した。
+- `./scripts/smoke-invalid-operations.sh`: 成功。端末種別違反、`ordered -> ready`, `ready -> accepted`, `served -> cooking`, `cancelled -> cooking`、完了済み hall task 再完了、精算済み再精算、会計依頼後追加注文、存在しない ID / table_code / terminal_code の拒否を確認した。
+- 失敗したステップ: 初回 CSV direct response 実装で `/api/analytics/export-sales-csv` が HTTP 500 `Failed to parse JavaScript response` になった。
+- 原因: Nyan8 ランタイムが JavaScript 戻り値を JSON として parse するため、CSV 本文を直接返すと parse エラーになる。
+- 修正内容: CSV API を `success/status/result` の JSON ラップ仕様へ統一し、`result.contentType`, `result.filename`, `result.csv` を返すようにした。フロントエンド `/analytics` は API から取得した CSV 文字列を Blob 化してダウンロードする。
+- Nyan8 の HTTP ステータス反映: `success:false` の JSON 内 `status` が HTTP ステータスにも反映されることを、403/404/409 の実レスポンスで確認した。
+- `cd frontend && npm install`: 成功。既存同様、`pyenv: cannot rehash` と npm ログ作成権限、Node 16 に対する `node-releases` の engine warning が出た。
+- `cd frontend && npm run build`: 成功。
+- 未確認として残す項目: `checkout_support` タスクの業務副作用、実ブラウザでの CSV ファイル保存ダイアログ、複数オプション価格を含む CSV 行、長時間運用時のポーリング競合、同一席での二重セッション開始競合。
+- 次に対応すべき課題: Phase 3 では在庫・売切更新の管理 API、CSV direct download が必要な場合の Nyan8 ランタイム拡張可否、`checkout_support` の仕様化、複数端末同時操作時の競合制御を検討する。

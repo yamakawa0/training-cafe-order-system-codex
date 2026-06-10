@@ -23,6 +23,15 @@ function run(handler) {
   }
 }
 
+function runText(handler) {
+  try {
+    return handler();
+  } catch (event) {
+    if (event && event.success === false) return JSON.stringify(event);
+    return JSON.stringify(error(500, event && event.message ? event.message : String(event)));
+  }
+}
+
 function requireField(value, name) {
   if (value === undefined || value === null || value === "") throw error(400, name + " is required");
 }
@@ -388,6 +397,7 @@ function checkoutSummary() {
   requireField(input.terminal_code, "terminal_code");
   requireField(input.table_code, "table_code");
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "checkout");
+  if (!first(nyanqlGet("tables/detail", { table_code: input.table_code }))) throw error(404, "table not found");
   return ok({ summary: summarizeCheckout(rows(nyanqlGet("checkout/summary", { table_code: input.table_code }))) });
 }
 
@@ -437,14 +447,17 @@ function analyticsExportSalesCsv() {
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "analytics");
   var fromDate = input.from_date || today();
   var toDate = input.to_date || today();
-  var ranking = rows(nyanqlGet("analytics/item-ranking", { from_date: fromDate, to_date: toDate, limit: 100 }));
-  var lines = [["menu_item_id", "item_name", "quantity", "sales_total"]].concat(ranking.map(function(item) { return [item.menu_item_id, item.item_name, item.quantity, item.sales_total]; }));
-  return lines.map(function(line) {
+  var salesRows = rows(nyanqlGet("analytics/sales-csv", { from_date: fromDate, to_date: toDate }));
+  var lines = [["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total"]].concat(salesRows.map(function(item) {
+    return [item.paid_date, item.payment_no, item.method, item.table_code, item.menu_item_id, item.item_name, item.quantity, item.sales_total];
+  }));
+  var csv = lines.map(function(line) {
     return line.map(function(value) {
       var text = String(value === undefined || value === null ? "" : value);
       return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
     }).join(",");
   }).join("\n");
+  return ok({ contentType: "text/csv", filename: "sales-" + fromDate + "-" + toDate + ".csv", csv: csv });
 }
 
 function bootstrap() {

@@ -30,6 +30,22 @@ export function AnalyticsPage() {
     load();
   }, [fromDate, toDate]);
 
+  async function downloadCsv() {
+    try {
+      setError('');
+      const data = await cafeApi.exportSalesCsv(fromDate, toDate);
+      const blob = new Blob([data.csv], { type: data.contentType || 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = data.filename || `sales-${fromDate}-${toDate}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : 'CSV 出力に失敗しました');
+    }
+  }
+
   return (
     <main className="shell">
       <section className="toolbar">
@@ -40,7 +56,7 @@ export function AnalyticsPage() {
         <div className="dateRange">
           <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
           <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
-          <a className="button" href={cafeApi.salesCsvUrl(fromDate, toDate)}>CSV</a>
+          <button onClick={() => void downloadCsv()}>CSV</button>
         </div>
       </section>
       {loading && <p className="notice">読み込み中です。</p>}
