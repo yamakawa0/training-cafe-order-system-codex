@@ -1,1 +1,1 @@
-JSON.stringify(bootstrap());
+run(bootstrap);

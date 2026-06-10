@@ -1,1 +1,1 @@
-JSON.stringify(customerStaffCall());
+run(customerStaffCall);

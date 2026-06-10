@@ -1,1 +1,1 @@
-JSON.stringify(hallTasks());
+run(hallTasks);

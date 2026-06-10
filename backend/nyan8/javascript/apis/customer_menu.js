@@ -1,1 +1,1 @@
-JSON.stringify(customerMenu());
+run(customerMenu);

@@ -14,6 +14,15 @@ function error(status, message) {
   return { success: false, status: status, message: message, result: null };
 }
 
+function run(handler) {
+  try {
+    return JSON.stringify(handler());
+  } catch (event) {
+    if (event && event.success === false) return JSON.stringify(event);
+    return JSON.stringify(error(500, event && event.message ? event.message : String(event)));
+  }
+}
+
 function requireField(value, name) {
   if (value === undefined || value === null || value === "") throw error(400, name + " is required");
 }
@@ -286,6 +295,7 @@ function customerRequestPayment() {
   var session = first(nyanqlGet("sessions/current", { table_code: input.table_code }));
   if (!session) throw error(404, "session not found");
   var updated = first(nyanqlPost("sessions/payment-request", { session_id: session.id }));
+  if (!updated) throw error(409, "payment request is not allowed for this session");
   audit({ actorType: "terminal", actorId: terminal.id, action: "customer.payment.request", targetType: "session", targetId: session.id, payload: {} });
   return ok({ session: updated });
 }
@@ -323,6 +333,7 @@ function kitchenUpdateItemStatus() {
   if (!context) throw error(404, "order item not found");
   assertTransition(context.status, input.status, transitions);
   var updated = first(nyanqlPost("order-items/status", { order_item_id: input.order_item_id, status: input.status }));
+  if (!updated) throw error(404, "order item not found");
   var task = null;
   if (input.status === "ready") {
     task = first(nyanqlPost("hall/tasks", { id: newId("task"), task_type: "serve_item", session_id: context.session_id, table_id: context.table_id, order_item_id: input.order_item_id, priority: 10, title: context.table_code + " " + context.item_name + " 配膳", note: "" }));
@@ -350,8 +361,15 @@ function hallUpdateTaskStatus() {
   if (!task) throw error(404, "task not found or already closed");
   assertTransition(task.status, input.status, transitions);
   var updated = first(nyanqlPost("hall/tasks/status", { task_id: input.task_id, status: input.status, note: input.note || null, assigned_to: input.assigned_to || null }));
-  if (updated.task_type === "serve_item" && input.status === "done" && updated.order_item_id) nyanqlPost("order-items/status", { order_item_id: updated.order_item_id, status: "served" });
-  if (updated.task_type === "clean_table" && input.status === "done") nyanqlPost("sessions/cleanup-complete", { session_id: updated.session_id });
+  if (!updated) throw error(404, "task not found");
+  if (updated.task_type === "serve_item" && input.status === "done" && updated.order_item_id) {
+    var served = first(nyanqlPost("order-items/status", { order_item_id: updated.order_item_id, status: "served" }));
+    if (!served) throw error(409, "serve task completed but order item was not updated");
+  }
+  if (updated.task_type === "clean_table" && input.status === "done") {
+    var cleaned = first(nyanqlPost("sessions/cleanup-complete", { session_id: updated.session_id }));
+    if (!cleaned) throw error(409, "clean task completed but session was not closed");
+  }
   audit({ actorType: "terminal", actorId: terminal.id, action: "hall.task.status", targetType: "hall_task", targetId: input.task_id, payload: { status: input.status, note: input.note || "" } });
   return ok({ task: updated });
 }

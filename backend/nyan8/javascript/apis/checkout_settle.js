@@ -1,1 +1,1 @@
-JSON.stringify(checkoutSettle());
+run(checkoutSettle);

@@ -1,1 +1,1 @@
-JSON.stringify(analyticsSummary());
+run(analyticsSummary);

@@ -1,1 +1,1 @@
-JSON.stringify(analyticsExportSalesCsv());
+run(analyticsExportSalesCsv);

@@ -1,1 +1,1 @@
-JSON.stringify(customerOrderHistory());
+run(customerOrderHistory);

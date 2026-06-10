@@ -1,1 +1,1 @@
-JSON.stringify(kitchenUpdateItemStatus());
+run(kitchenUpdateItemStatus);

@@ -1,1 +1,1 @@
-JSON.stringify(kitchenTickets());
+run(kitchenTickets);

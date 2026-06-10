@@ -1,1 +1,1 @@
-JSON.stringify(hallUpdateTaskStatus());
+run(hallUpdateTaskStatus);

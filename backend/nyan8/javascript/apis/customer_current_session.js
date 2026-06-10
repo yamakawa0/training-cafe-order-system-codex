@@ -1,1 +1,1 @@
-JSON.stringify(customerCurrentSession());
+run(customerCurrentSession);

@@ -38,3 +38,20 @@
 - ブラウザから Nyan8 を別 origin で呼ぶ場合、GET に `Content-Type: application/json` を付けると CORS preflight の OPTIONS が発生し、Nyan8 が通常 API として扱って `terminal_code is required` 相当の 400 を返す。GET では `Content-Type` を送らず、body があるリクエストだけ JSON ヘッダーを付けるようにした。
 - `CustomerOrderPage` は API 失敗、カテゴリ 0 件、選択カテゴリの商品 0 件を画面上で判別できる文言へ調整した。
 - メニュー経路専用の確認用に `scripts/smoke-menu.sh` を追加した。
+
+## 2026-06-10 Phase 2 MVP 業務フロー完成
+
+- `./scripts/check-runtime.sh` は `.local/bin/nyanql` と `.local/bin/nyan8` を検出して成功した。
+- `./scripts/dev-reset-db.sh` はローカル PostgreSQL に対して `schema.sql` / `seed.sql` を再投入し、成功した。
+- `./scripts/smoke-nyanql.sh` は `bootstrap`, `menu`, `sessions/current`, `checkout/summary`, `analytics/summary` の NyanQL 疎通に成功した。
+- `./scripts/smoke-menu.sh` は `psql` の `list_menu.sql`、NyanQL `/menu`、Nyan8 `/api/customer/menu` のメニュー経路に成功した。
+- `./scripts/smoke-e2e.sh` は注文、キッチン受付、調理開始、調理完了、配膳、会計依頼、レジ精算、片付け、席の空席復帰、分析反映まで成功した。最終確認では `sales_total=495`, `payment_count=1`, 商品ランキング 1 件を確認した。
+- 失敗したステップ: 初回の不正遷移確認で、`assertTransition` が投げた業務エラーオブジェクトを Nyan8 が JavaScript 実行エラーとして扱い、HTTP 500 の `{"error":"Failed to run JavaScript"}` を返した。
+- 原因: 各 Nyan8 API エントリが `JSON.stringify(handler())` を直接実行しており、`throw error(...)` を API レスポンスへ正規化する共通 catch がなかった。
+- 修正内容: `backend/nyan8/javascript/lib/runtime.js` に `run(handler)` を追加し、全 API エントリを `run(...)` 経由へ変更した。業務エラーは `success:false`, `status`, `message`, `result:null` として返る。会計依頼、注文明細更新、配膳完了、片付け完了では DB 更新結果が空の場合に明示エラーを返すようにした。
+- `scripts/smoke-e2e.sh` を強化し、各ステップ名、HTTP ステータス、`success`、`result` unwrap、必須 ID、`order_item_id` / `serve_task_id` / `clean_task_id` / `payment_id`、直前レスポンス表示、分析値検証、不正操作拒否検証を追加した。`jq` には依存せず、Node.js で JSON を検証する。
+- ブラウザ手動確認結果: `/customer/T01` で商品表示、カート追加、注文確定、注文履歴 1 件、会計依頼、会計依頼後の追加注文 disabled を確認した。`/kitchen` で `ordered -> accepted -> cooking -> ready` を確認した。`/hall` で配膳タスクと片付けタスクの開始・完了を確認した。`/checkout` で T01 の明細、小計 450 円、税 45 円、合計 495 円、card 精算、精算後の再精算不可を確認した。`/analytics` で売上 495 円、会計件数 1 件、ブレンドコーヒーランキング、card 1 件 / 495 円を確認した。
+- `cd frontend && npm install` は成功したが、ローカル環境の `pyenv: cannot rehash` と npm ログ作成権限の警告が出た。依存関係は up to date だった。
+- `cd frontend && npm run build` は TypeScript build と Vite build に成功した。
+- 未確認項目: 複数明細・複数席の同時進行、キャンセルを含む注文集約、`staff_call` / `checkout_support` タスクの副作用、実ブラウザでの CSV ダウンロード内容、Nyan8 が JSON 内の `status` を HTTP ステータスへ反映するかは未確認。
+- 次に対応すべき課題: Nyan8 業務エラーの HTTP ステータス反映可否をランタイム仕様で確認する。E2E 後にテスト用の追加セッションが残らないよう、売切商品拒否検証を独立テーブルまたは DB トランザクション相当に分離する。複数明細時の `orders.status` 集約と片付け完了の境界条件を追加 smoke で確認する。

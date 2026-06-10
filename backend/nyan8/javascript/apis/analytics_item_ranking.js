@@ -1,1 +1,1 @@
-JSON.stringify(analyticsItemRanking());
+run(analyticsItemRanking);

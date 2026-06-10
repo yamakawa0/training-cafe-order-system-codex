@@ -1,1 +1,1 @@
-JSON.stringify(customerSubmitOrder());
+run(customerSubmitOrder);

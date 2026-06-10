@@ -1,1 +1,1 @@
-JSON.stringify(checkoutSummary());
+run(checkoutSummary);
