@@ -194,6 +194,7 @@ npm run dev
 - ホール: `http://localhost:5173/hall`
 - レジ精算: `http://localhost:5173/checkout`
 - 分析: `http://localhost:5173/analytics`
+- メニュー管理: `http://localhost:5173/admin/menu`
 
 ## 画面概要
 
@@ -202,6 +203,7 @@ npm run dev
 - ホール画面: 配膳、片付け、スタッフ呼び出し、会計サポートをタスク種別ごとに表示します。簡易フロアマップで席ごとの状態を確認できます。
 - レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法を表示します。会計依頼済みの席だけ精算できます。
 - 分析画面: KPI、商品ランキング、支払い方法別集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV を保存できます。
+- メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
 
 ## サンプル端末コード
 
@@ -211,6 +213,8 @@ npm run dev
 - `hall-main`
 - `checkout-main`
 - `analytics-manager`
+
+`analytics-manager` は現時点の簡易管理者端末コードです。本格認証・権限管理は未実装で、`/api/admin/*` は `terminal_code=analytics-manager` の場合だけ許可します。
 
 ## 動作確認シナリオ
 
@@ -232,6 +236,7 @@ npm run dev
 - ホール: `GET /api/hall/tasks`, `POST /api/hall/task/status`
 - レジ: `GET /api/checkout/summary`, `POST /api/checkout/settle`
 - 分析: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
+- 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
 
 NyanQL 単体の疎通は次で確認します。
 
@@ -244,6 +249,14 @@ Nyan8 経由の業務フローは次で確認します。
 ```bash
 ./scripts/smoke-e2e.sh
 ```
+
+メニュー管理機能は次で確認します。
+
+```bash
+./scripts/smoke-admin-menu.sh
+```
+
+この script は DB 初期化、管理者端末でのカテゴリ・商品一覧取得、商品追加、商品編集、売切化、非表示化、顧客メニュー API への反映、非管理端末の拒否、既存 `smoke-menu.sh` / `smoke-e2e.sh` の成功を確認します。
 
 `smoke-e2e.sh` は次の流れを実行します。
 

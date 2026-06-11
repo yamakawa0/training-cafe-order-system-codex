@@ -1,0 +1,43 @@
+INSERT INTO menu_items (
+    id,
+    category_id,
+    name,
+    description,
+    price,
+    tax_rate,
+    kitchen_station,
+    allergy_note,
+    sold_out,
+    active,
+    display_order,
+    created_at,
+    updated_at
+)
+VALUES (
+    /*id*/'item-admin',
+    /*category_id*/'cat-coffee',
+    /*name*/'新商品',
+    COALESCE(/*description*/'', ''),
+    /*price*/0,
+    /*tax_rate*/10,
+    COALESCE(NULLIF(/*kitchen_station*/'main', ''), 'main'),
+    COALESCE(/*allergy_note*/'', ''),
+    COALESCE(/*sold_out*/FALSE, FALSE),
+    COALESCE(/*active*/TRUE, TRUE),
+    /*display_order*/0,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+)
+RETURNING
+    id,
+    category_id,
+    (SELECT name FROM menu_categories WHERE id = menu_items.category_id) AS category_name,
+    name,
+    description,
+    price,
+    tax_rate,
+    display_order,
+    active,
+    sold_out,
+    allergy_note,
+    updated_at;

@@ -7,6 +7,34 @@
     "sql": ["./sql/list_menu.sql"],
     "description": "有効な顧客向けメニューを取得する"
   },
+  "admin/menu/categories": {
+    "sql": ["./sql/admin_list_menu_categories.sql"],
+    "description": "管理画面向けメニューカテゴリ一覧を取得する"
+  },
+  "admin/menu/items": {
+    "sql": ["./sql/admin_list_menu_items.sql"],
+    "description": "管理画面向けメニュー商品一覧を取得する"
+  },
+  "admin/menu/items/create": {
+    "sql": ["./sql/admin_create_menu_item.sql"],
+    "description": "管理画面からメニュー商品を作成する"
+  },
+  "admin/menu/items/update": {
+    "sql": ["./sql/admin_update_menu_item.sql"],
+    "description": "管理画面からメニュー商品を更新する"
+  },
+  "admin/menu/items/toggle-active": {
+    "sql": ["./sql/admin_toggle_menu_item_active.sql"],
+    "description": "管理画面からメニュー商品の表示状態を切り替える"
+  },
+  "admin/menu/items/toggle-sold-out": {
+    "sql": ["./sql/admin_toggle_menu_item_sold_out.sql"],
+    "description": "管理画面からメニュー商品の売切状態を切り替える"
+  },
+  "admin/menu/items/move": {
+    "sql": ["./sql/admin_move_menu_item.sql"],
+    "description": "管理画面からメニュー商品の表示順を変更する"
+  },
   "sessions/current": {
     "sql": ["./sql/get_current_session.sql"],
     "description": "席の未完了セッションを取得する"

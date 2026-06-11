@@ -46,6 +46,41 @@ export interface MenuCategory {
   items: MenuItem[];
 }
 
+export interface AdminMenuCategory {
+  id: string;
+  name: string;
+  displayOrder: number;
+  active: boolean;
+}
+
+export interface AdminMenuItem {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  name: string;
+  description: string;
+  price: number;
+  taxRate: number;
+  displayOrder: number;
+  active: boolean;
+  soldOut: boolean;
+  allergyNote: string | null;
+  updatedAt: string;
+}
+
+export type AdminMenuItemInput = {
+  item_id?: string;
+  category_id: string;
+  name: string;
+  description: string;
+  price: number;
+  tax_rate: number;
+  display_order: number;
+  active: boolean;
+  sold_out: boolean;
+  allergy_note: string;
+};
+
 export interface CartItem {
   localId: string;
   menuItem: MenuItem;

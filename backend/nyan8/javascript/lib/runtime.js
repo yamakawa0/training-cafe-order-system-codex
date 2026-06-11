@@ -40,9 +40,37 @@ function assertTerminal(terminal, expectedType) {
   if (!terminal || terminal.terminal_type !== expectedType) throw error(403, expectedType + " terminal is required");
 }
 
+function assertAdminTerminal(input) {
+  requireField(input.terminal_code, "terminal_code");
+  if (input.terminal_code !== "analytics-manager") throw error(403, "管理者端末ではありません");
+  var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+  if (!terminal || terminal.terminal_type !== "analytics") throw error(403, "管理者端末ではありません");
+  return terminal;
+}
+
 function assertQuantity(quantity) {
   var number = Number(quantity);
   if (!Number.isInteger(number) || number < 1 || number > 99) throw error(400, "quantity must be 1-99");
+}
+
+function booleanValue(value, defaultValue) {
+  if (value === undefined || value === null || value === "") return defaultValue;
+  if (typeof value === "boolean") return value;
+  if (value === "true" || value === "1") return true;
+  if (value === "false" || value === "0") return false;
+  return Boolean(value);
+}
+
+function integerValue(value, name, min) {
+  var number = Number(value);
+  if (!Number.isInteger(number) || (min !== undefined && number < min)) throw error(400, name + " must be an integer");
+  return number;
+}
+
+function numberValue(value, name, min) {
+  var number = Number(value);
+  if (!Number.isFinite(number) || (min !== undefined && number < min)) throw error(400, name + " must be a number");
+  return number;
 }
 
 function assertTransition(currentStatus, nextStatus, transitions) {
@@ -458,6 +486,124 @@ function analyticsExportSalesCsv() {
     }).join(",");
   }).join("\n");
   return ok({ contentType: "text/csv", filename: "sales-" + fromDate + "-" + toDate + ".csv", csv: csv });
+}
+
+function adminCategory(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    displayOrder: Number(row.display_order),
+    active: Boolean(row.active)
+  };
+}
+
+function adminMenuItem(row) {
+  return {
+    id: row.id,
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    name: row.name,
+    description: row.description || "",
+    price: Number(row.price),
+    taxRate: Number(row.tax_rate),
+    displayOrder: Number(row.display_order),
+    active: Boolean(row.active),
+    soldOut: Boolean(row.sold_out),
+    allergyNote: row.allergy_note || "",
+    updatedAt: row.updated_at
+  };
+}
+
+function validateAdminMenuItemInput(input, requireId) {
+  if (requireId) requireField(input.item_id, "item_id");
+  requireField(input.name, "name");
+  requireField(input.category_id, "category_id");
+  var name = String(input.name).trim();
+  if (!name) throw error(400, "商品名は必須です");
+  return {
+    item_id: input.item_id,
+    category_id: String(input.category_id),
+    name: name,
+    description: String(input.description || ""),
+    price: integerValue(input.price, "価格", 0),
+    tax_rate: numberValue(input.tax_rate, "税率", 0),
+    display_order: integerValue(input.display_order, "表示順"),
+    active: booleanValue(input.active, true),
+    sold_out: booleanValue(input.sold_out, false),
+    allergy_note: String(input.allergy_note || "")
+  };
+}
+
+function adminListMenuCategories() {
+  var input = params();
+  assertAdminTerminal(input);
+  return ok({ categories: rows(nyanqlGet("admin/menu/categories")).map(adminCategory) });
+}
+
+function adminListMenuItems() {
+  var input = params();
+  assertAdminTerminal(input);
+  var query = {
+    category_id: input.category_id || "",
+    keyword: input.keyword || "",
+    active: input.active === undefined ? "" : input.active,
+    sold_out: input.sold_out === undefined ? "" : input.sold_out
+  };
+  return ok({ items: rows(nyanqlGet("admin/menu/items", query)).map(adminMenuItem) });
+}
+
+function adminCreateMenuItem() {
+  var input = params();
+  assertAdminTerminal(input);
+  var values = validateAdminMenuItemInput(input, false);
+  values.id = newId("item");
+  var item = first(nyanqlPost("admin/menu/items/create", values));
+  if (!item) throw error(409, "商品を作成できませんでした");
+  return ok({ item: adminMenuItem(item) });
+}
+
+function adminUpdateMenuItem() {
+  var input = params();
+  assertAdminTerminal(input);
+  var values = validateAdminMenuItemInput(input, true);
+  var item = first(nyanqlPost("admin/menu/items/update", values));
+  if (!item) throw error(404, "商品が見つかりません");
+  return ok({ item: adminMenuItem(item) });
+}
+
+function adminToggleMenuItemActive() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.item_id, "item_id");
+  var item = first(nyanqlPost("admin/menu/items/toggle-active", {
+    item_id: input.item_id,
+    active: input.active === undefined ? null : booleanValue(input.active, false)
+  }));
+  if (!item) throw error(404, "商品が見つかりません");
+  return ok({ item: adminMenuItem(item) });
+}
+
+function adminToggleMenuItemSoldOut() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.item_id, "item_id");
+  var item = first(nyanqlPost("admin/menu/items/toggle-sold-out", {
+    item_id: input.item_id,
+    sold_out: input.sold_out === undefined ? null : booleanValue(input.sold_out, false)
+  }));
+  if (!item) throw error(404, "商品が見つかりません");
+  return ok({ item: adminMenuItem(item) });
+}
+
+function adminMoveMenuItem() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.item_id, "item_id");
+  requireField(input.direction, "direction");
+  if (["up", "down"].indexOf(input.direction) < 0) throw error(400, "direction must be up or down");
+  var item = first(nyanqlPost("admin/menu/items/move", { item_id: input.item_id, direction: input.direction }));
+  if (!item) throw error(404, "商品が見つかりません");
+  return ok({ item: adminMenuItem(item) });
 }
 
 function bootstrap() {

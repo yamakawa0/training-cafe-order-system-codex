@@ -1,4 +1,5 @@
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { AdminMenuPage } from './pages/AdminMenuPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { CustomerOrderPage } from './pages/CustomerOrderPage';
 import { HallPage } from './pages/HallPage';
@@ -13,6 +14,7 @@ export function App() {
   if (path === '/hall') return <HallPage />;
   if (path === '/checkout') return <CheckoutPage />;
   if (path === '/analytics') return <AnalyticsPage />;
+  if (path === '/admin/menu') return <AdminMenuPage />;
   return (
     <main className="shell">
       <section className="toolbar">
@@ -27,6 +29,7 @@ export function App() {
         <a href="/hall">ホール</a>
         <a href="/checkout">レジ精算</a>
         <a href="/analytics">分析</a>
+        <a href="/admin/menu">メニュー管理</a>
       </nav>
     </main>
   );

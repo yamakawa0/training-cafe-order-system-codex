@@ -83,5 +83,35 @@
     "type": "api",
     "script": "./javascript/apis/analytics_export_sales_csv.js",
     "description": "売上 CSV 出力"
+  },
+  "api/admin/menu/categories": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_categories.js",
+    "description": "管理画面向けメニューカテゴリ一覧"
+  },
+  "api/admin/menu/items": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_items.js",
+    "description": "管理画面向けメニュー商品一覧"
+  },
+  "api/admin/menu/items/update": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_update.js",
+    "description": "管理画面向けメニュー商品更新"
+  },
+  "api/admin/menu/items/toggle-active": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_toggle_active.js",
+    "description": "管理画面向けメニュー商品表示状態切替"
+  },
+  "api/admin/menu/items/toggle-sold-out": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_toggle_sold_out.js",
+    "description": "管理画面向けメニュー商品売切状態切替"
+  },
+  "api/admin/menu/items/move": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_move.js",
+    "description": "管理画面向けメニュー商品並び順変更"
   }
 }

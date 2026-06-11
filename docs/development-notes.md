@@ -94,3 +94,19 @@
 - `npm run build`: 成功。TypeScript build と Vite build が成功した。
 - 未対応の UI 課題: 完了済みホールタスクは現在の `GET /api/hall/tasks` が未完了タスクのみ返すため、フィルタでの表示切替は未実装。レジの席一覧は T01-T04 固定で、テーブル一覧 API からの動的取得は未実装。分析の注文件数は専用 API 項目がないため、商品ランキング数量を fallback として表示している。画像の外部 CDN 読み込み失敗時の専用プレースホルダーは未実装。
 - 次に対応すべき課題: テーブル一覧 API の追加または bootstrap からの動的席取得、完了済みホールタスク履歴 API、分析サマリの `order_count` 追加、画像 fallback、複数端末同時操作時の楽観更新/競合表示。
+
+## 2026-06-10 Phase 4 メニュー管理機能
+
+- 追加した管理画面: `frontend/src/pages/AdminMenuPage.tsx` と `/admin/menu` ルートを追加した。`/analytics` から「メニュー管理」へ遷移できる導線も追加した。
+- DB スキーマ確認: `menu_categories` と `menu_items` は `id`, `category_id`, `name`, `description`, `price`, `tax_rate`, `display_order`, `active`, `sold_out`, `allergy_note`, `created_at`, `updated_at` を既に満たしていたため、スキーマ変更は行わなかった。
+- 追加した NyanQL API: `admin/menu/categories`, `admin/menu/items`, `admin/menu/items/create`, `admin/menu/items/update`, `admin/menu/items/toggle-active`, `admin/menu/items/toggle-sold-out`, `admin/menu/items/move`。
+- 追加した SQL: `admin_list_menu_categories.sql`, `admin_list_menu_items.sql`, `admin_create_menu_item.sql`, `admin_update_menu_item.sql`, `admin_toggle_menu_item_active.sql`, `admin_toggle_menu_item_sold_out.sql`, `admin_move_menu_item.sql`。
+- 追加した Nyan8 API: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`。
+- 管理者判定: 本格認証は未実装とし、`terminal_code=analytics-manager` かつ analytics 端末の場合だけ `/api/admin/*` を許可する。将来はログイン認証・権限管理へ置き換える。
+- 顧客注文画面との反映: 顧客メニュー API は既に `active=TRUE` のみを返し、`sold_out=TRUE` は表示しつつ注文確定時に拒否するため、管理画面の編集結果が `/customer/T01` に反映される構成とした。商品名、価格、表示順、アレルギーメモも既存レスポンスに含まれる。
+- 追加した smoke script: `scripts/smoke-admin-menu.sh`。DB 初期化、管理者端末でのカテゴリ・商品一覧、商品追加、商品編集、顧客メニュー反映、売切反映、非表示反映、非管理端末拒否、既存 `smoke-menu.sh` / `smoke-e2e.sh` を確認する。
+- 確認結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。
+- フロントエンド確認結果: `cd frontend && npm install` は up to date で成功し、既存同様 `pyenv: cannot rehash`、npm ログ権限警告、Node 16 に対する `node-releases` engine warning が出た。`cd frontend && npm run build` は TypeScript build と Vite build に成功した。
+- ブラウザ確認結果: Vite dev server `http://localhost:5173` で `/admin/menu` を開き、カテゴリ一覧 4 件、商品一覧 6 件、検索ボックス、カテゴリフィルタ、新規商品フォーム、編集/表示/売切/上下ボタン、コンソールエラーなしを確認した。
+- 未対応の管理機能: 本格ログイン認証、権限管理、画像アップロード、在庫数管理、原価管理、複数店舗対応、商品オプション詳細編集、メニューカテゴリのドラッグ&ドロップ並び替え、監査ログ、削除済み商品の復元、席管理、注文管理、スタッフ管理、会員管理、予約、実決済連携。
+- 暫定対応: 商品削除は実装せず、非表示化は `active=false` で扱う。商品並び順変更は MVP として `display_order` の増減で画面上の順序を変える。

@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
+import type { AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -76,5 +76,38 @@ export const cafeApi = {
     terminal_code: terminals.analytics,
     from_date: fromDate,
     to_date: toDate
+  }),
+  adminMenuCategories: () => get<{ categories: AdminMenuCategory[] }>('/api/admin/menu/categories', {
+    terminal_code: terminals.analytics
+  }),
+  adminMenuItems: (filters: { categoryId?: string; keyword?: string; active?: string; soldOut?: string } = {}) => get<{ items: AdminMenuItem[] }>('/api/admin/menu/items', {
+    terminal_code: terminals.analytics,
+    category_id: filters.categoryId,
+    keyword: filters.keyword,
+    active: filters.active,
+    sold_out: filters.soldOut
+  }),
+  adminCreateMenuItem: (input: AdminMenuItemInput) => post<{ item: AdminMenuItem }>('/api/admin/menu/items', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
+  adminUpdateMenuItem: (input: AdminMenuItemInput & { item_id: string }) => post<{ item: AdminMenuItem }>('/api/admin/menu/items/update', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
+  adminToggleMenuItemActive: (itemId: string, active: boolean) => post<{ item: AdminMenuItem }>('/api/admin/menu/items/toggle-active', {
+    terminal_code: terminals.analytics,
+    item_id: itemId,
+    active
+  }),
+  adminToggleMenuItemSoldOut: (itemId: string, soldOut: boolean) => post<{ item: AdminMenuItem }>('/api/admin/menu/items/toggle-sold-out', {
+    terminal_code: terminals.analytics,
+    item_id: itemId,
+    sold_out: soldOut
+  }),
+  adminMoveMenuItem: (itemId: string, direction: 'up' | 'down') => post<{ item: AdminMenuItem }>('/api/admin/menu/items/move', {
+    terminal_code: terminals.analytics,
+    item_id: itemId,
+    direction
   })
 };
