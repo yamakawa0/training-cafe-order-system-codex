@@ -195,6 +195,7 @@ npm run dev
 - レジ精算: `http://localhost:5173/checkout`
 - 分析: `http://localhost:5173/analytics`
 - メニュー管理: `http://localhost:5173/admin/menu`
+- 席・端末管理: `http://localhost:5173/admin/tables`
 
 ## 画面概要
 
@@ -204,6 +205,7 @@ npm run dev
 - レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法を表示します。会計依頼済みの席だけ精算できます。
 - 分析画面: KPI、商品ランキング、支払い方法別集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV を保存できます。
 - メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
+- 席・端末管理画面: 店長 PC から席一覧、席状態、顧客端末紐付け、現在セッション、注文・会計状態、端末一覧を確認できます。注文なしまたは精算済みセッションの強制クローズ、席の `available` / `disabled` 変更、端末の有効 / 無効切り替えを行えます。
 
 ## サンプル端末コード
 
@@ -237,6 +239,7 @@ npm run dev
 - レジ: `GET /api/checkout/summary`, `POST /api/checkout/settle`
 - 分析: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
 - 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
+- 席・端末管理: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
 
 NyanQL 単体の疎通は次で確認します。
 
@@ -257,6 +260,16 @@ Nyan8 経由の業務フローは次で確認します。
 ```
 
 この script は DB 初期化、管理者端末でのカテゴリ・商品一覧取得、商品追加、商品編集、売切化、非表示化、顧客メニュー API への反映、非管理端末の拒否、既存 `smoke-menu.sh` / `smoke-e2e.sh` の成功を確認します。
+
+席・端末管理機能は次で確認します。
+
+```bash
+./scripts/smoke-admin-tables.sh
+```
+
+この script は DB 初期化、管理者端末での席・端末一覧取得、非管理端末拒否、注文なしセッションの強制クローズ、未精算注文ありセッションの強制クローズ拒否、精算済みセッションの強制クローズ、端末無効化と無効端末からの操作拒否、既存 smoke の成功を確認します。
+
+強制クローズは、注文がないセッションまたは精算済みセッションのみ許可します。未精算または未提供の注文があるセッションは拒否します。端末無効化後は、無効端末からの主要操作を `この端末は無効です` で拒否します。`analytics-manager` は簡易管理者端末のため無効化できません。
 
 `smoke-e2e.sh` は次の流れを実行します。
 

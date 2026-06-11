@@ -772,14 +772,14 @@ h3 {
 
 .adminMenuTools {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 180px auto;
+  grid-template-columns: minmax(240px, 1fr) 160px auto auto;
   gap: 8px;
   align-items: center;
 }
 
 .adminMenuGrid {
   display: grid;
-  grid-template-columns: 190px minmax(760px, 1fr) 340px;
+  grid-template-columns: 180px minmax(0, 1fr) 320px;
   gap: 16px;
   align-items: start;
 }
@@ -889,6 +889,136 @@ h3 {
   min-height: auto;
 }
 
+.adminTableTools {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 170px auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.adminTablesGrid {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.tableCardList,
+.terminalPanel {
+  position: sticky;
+  top: 16px;
+}
+
+.tableCardList,
+.terminalList,
+.adminLines {
+  display: grid;
+  gap: 10px;
+}
+
+.tableAdminCard {
+  display: grid;
+  justify-items: stretch;
+  gap: 8px;
+  width: 100%;
+  min-height: 116px;
+  text-align: left;
+  background: #fffdf7;
+}
+
+.tableAdminCard > span:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tableAdminCard strong {
+  font-size: 1.2rem;
+}
+
+.tableAdminCard small,
+.terminalCard span,
+.terminalCard small,
+.adminLine span,
+.adminLine small {
+  color: #74614f;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.detailMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.detailMetricGrid > div {
+  min-height: 76px;
+  border: 1px solid #eadcc5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fffdf7;
+}
+
+.detailMetricGrid span {
+  display: block;
+  color: #74614f;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.detailMetricGrid strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.adminActionBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #eadcc5;
+  padding-bottom: 14px;
+}
+
+.adminLine,
+.terminalCard {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #eadcc5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fffdf7;
+}
+
+.adminLine {
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, auto) minmax(160px, auto);
+  align-items: center;
+}
+
+.terminalCard {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.terminalCard button {
+  grid-column: 1 / -1;
+  min-height: 38px;
+}
+
+.terminalCard strong,
+.terminalCard span,
+.terminalCard small {
+  display: block;
+}
+
+.warningText {
+  color: #8a4f18 !important;
+}
+
 .barTrack {
   height: 12px;
   border-radius: 999px;
@@ -922,14 +1052,30 @@ h3 {
   .checkoutGrid,
   .hallGrid,
   .analyticsGrid,
+  .adminMenuGrid,
+  .adminTablesGrid,
   .metrics {
     grid-template-columns: 1fr;
   }
 
   .cartPanel,
   .categoryPanel,
-  .floorPanel {
+  .floorPanel,
+  .adminCategoryList,
+  .adminEditor,
+  .tableCardList,
+  .terminalPanel {
     position: static;
+  }
+
+  .adminMenuTools,
+  .adminTableTools {
+    grid-template-columns: minmax(220px, 1fr) minmax(150px, auto) auto;
+  }
+
+  .adminMenuTools .button,
+  .adminTableTools .button {
+    grid-column: auto;
   }
 
   .kanbanGrid {
@@ -954,7 +1100,12 @@ h3 {
 
   .kanbanGrid,
   .menuGrid,
-  .taskList {
+  .taskList,
+  .adminMenuTools,
+  .adminTableTools,
+  .detailMetricGrid,
+  .adminLine,
+  .paymentSummaryLine {
     grid-template-columns: 1fr;
   }
 
@@ -962,8 +1113,12 @@ h3 {
     align-items: stretch;
   }
 
+  .adminActionBar > *,
   .dateRange > *,
-  .headerActions > * {
+  .headerActions > *,
+  .adminMenuTools > *,
+  .adminTableTools > * {
     flex: 1;
+    width: 100%;
   }
 }

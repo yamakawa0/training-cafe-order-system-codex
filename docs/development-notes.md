@@ -110,3 +110,18 @@
 - ブラウザ確認結果: Vite dev server `http://localhost:5173` で `/admin/menu` を開き、カテゴリ一覧 4 件、商品一覧 6 件、検索ボックス、カテゴリフィルタ、新規商品フォーム、編集/表示/売切/上下ボタン、コンソールエラーなしを確認した。
 - 未対応の管理機能: 本格ログイン認証、権限管理、画像アップロード、在庫数管理、原価管理、複数店舗対応、商品オプション詳細編集、メニューカテゴリのドラッグ&ドロップ並び替え、監査ログ、削除済み商品の復元、席管理、注文管理、スタッフ管理、会員管理、予約、実決済連携。
 - 暫定対応: 商品削除は実装せず、非表示化は `active=false` で扱う。商品並び順変更は MVP として `display_order` の増減で画面上の順序を変える。
+
+## 2026-06-11 Phase 4 席・端末管理機能
+
+- 追加した管理画面: `frontend/src/pages/AdminTablesPage.tsx` と `/admin/tables` ルートを追加した。`/analytics` と `/admin/menu` から「席・端末管理」へ遷移でき、`/admin/tables` から「メニュー管理」へ戻れる導線を追加した。
+- 追加した Nyan8 API: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`。
+- 追加した NyanQL API: `admin/tables`, `admin/tables/detail`, `admin/tables/status`, `admin/tables/force-close-session`, `admin/terminals`, `admin/terminals/active`。
+- 追加した SQL: `admin_list_tables.sql`, `admin_get_table_detail.sql`, `admin_update_table_status.sql`, `admin_force_close_session.sql`, `admin_list_terminals.sql`, `admin_update_terminal_active.sql`。
+- 追加した smoke script: `scripts/smoke-admin-tables.sh`。席・端末一覧、非管理端末拒否、注文なしセッション強制クローズ、未精算注文ありセッションの拒否、精算済みセッション強制クローズ、端末無効化と無効端末からの操作拒否、既存 smoke 連携を確認する。
+- 既存 API に加えた端末 active チェック: `bootstrap.sql` は無効端末も取得できるようにし、Nyan8 の `assertTerminal` で `active=false` を `この端末は無効です` として拒否する。これにより `POST /api/customer/session/open`, `POST /api/customer/order/submit`, `POST /api/customer/payment/request`, `POST /api/customer/staff-call`, `POST /api/kitchen/item/status`, `POST /api/hall/task/status`, `POST /api/checkout/settle` を含む既存の端末種別チェック付き API に反映される。
+- 席状態: DB の `cafe_tables.status` は既存値を優先し、画面/API 上では現在セッション、会計依頼、精算済み、未完了片付けタスクから `occupied`, `payment_requested`, `paid`, `cleaning` を推定表示する。手動更新対象は `available` と `disabled` に限定した。
+- 強制クローズ: 注文なしセッション、精算済みセッション、または未精算注文が残っていない異常セッションだけ許可する。未完了 `clean_table` タスクは完了扱い、その他の未完了ホールタスクはキャンセル扱いにする。
+- 確認結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。初回に `smoke-staff-call.sh` を他 smoke と並列実行して DB reset が競合し失敗したが、単独再実行では成功した。
+- フロントエンド確認結果: `cd frontend && npm install` は up to date で成功した。既存同様、`pyenv: cannot rehash`、npm ログ権限警告、Node 16 に対する `node-releases` engine warning が出た。`cd frontend && npm run build` は TypeScript build と Vite build に成功した。
+- ブラウザ確認結果: Vite dev server `http://localhost:5173` で `/admin/tables` を開き、席一覧 4 件、席詳細、現在の注文、未提供明細、支払い情報、関連ホールタスク、端末一覧 6 件、`analytics-manager` の無効化ボタン disabled、コンソールエラーなしを確認した。1280px と 390px 幅で主要操作部品の横はみ出しがないことを確認した。
+- 未対応の管理機能: 本格ログイン認証、権限ロール管理、QRコード発行、端末ペアリング処理、席レイアウトのドラッグ&ドロップ編集、複数店舗対応、監査ログ、スタッフシフト管理、予約管理、席の追加・削除、本格端末登録 UI。

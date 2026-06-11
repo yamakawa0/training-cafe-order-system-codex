@@ -113,5 +113,35 @@
     "type": "api",
     "script": "./javascript/apis/admin_menu_item_move.js",
     "description": "管理画面向けメニュー商品並び順変更"
+  },
+  "api/admin/tables": {
+    "type": "api",
+    "script": "./javascript/apis/admin_tables.js",
+    "description": "管理画面向け席一覧"
+  },
+  "api/admin/tables/detail": {
+    "type": "api",
+    "script": "./javascript/apis/admin_table_detail.js",
+    "description": "管理画面向け席詳細"
+  },
+  "api/admin/tables/update-status": {
+    "type": "api",
+    "script": "./javascript/apis/admin_table_update_status.js",
+    "description": "管理画面向け席状態更新"
+  },
+  "api/admin/tables/force-close-session": {
+    "type": "api",
+    "script": "./javascript/apis/admin_table_force_close_session.js",
+    "description": "管理画面向けセッション強制クローズ"
+  },
+  "api/admin/terminals": {
+    "type": "api",
+    "script": "./javascript/apis/admin_terminals.js",
+    "description": "管理画面向け端末一覧"
+  },
+  "api/admin/terminals/update-active": {
+    "type": "api",
+    "script": "./javascript/apis/admin_terminal_update_active.js",
+    "description": "管理画面向け端末有効状態更新"
   }
 }

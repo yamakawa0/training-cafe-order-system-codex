@@ -38,6 +38,7 @@ function requireField(value, name) {
 
 function assertTerminal(terminal, expectedType) {
   if (!terminal || terminal.terminal_type !== expectedType) throw error(403, expectedType + " terminal is required");
+  if (terminal.active === false) throw error(403, "この端末は無効です");
 }
 
 function assertAdminTerminal(input) {
@@ -45,6 +46,7 @@ function assertAdminTerminal(input) {
   if (input.terminal_code !== "analytics-manager") throw error(403, "管理者端末ではありません");
   var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
   if (!terminal || terminal.terminal_type !== "analytics") throw error(403, "管理者端末ではありません");
+  if (terminal.active === false) throw error(403, "管理者端末ではありません");
   return terminal;
 }
 
@@ -604,6 +606,126 @@ function adminMoveMenuItem() {
   var item = first(nyanqlPost("admin/menu/items/move", { item_id: input.item_id, direction: input.direction }));
   if (!item) throw error(404, "商品が見つかりません");
   return ok({ item: adminMenuItem(item) });
+}
+
+function parseJsonValue(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (Array.isArray(value) || typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch (event) {
+    return fallback;
+  }
+}
+
+function adminTable(row) {
+  return {
+    tableId: row.table_id,
+    tableCode: row.table_code,
+    tableName: row.table_name,
+    status: row.status,
+    customerTerminalCode: row.customer_terminal_code || null,
+    currentSessionId: row.current_session_id || null,
+    sessionStatus: row.session_status || null,
+    orderCount: Number(row.order_count || 0),
+    unpaidOrderCount: Number(row.unpaid_order_count || 0),
+    unservedItemCount: Number(row.unserved_item_count || 0),
+    openTaskCount: Number(row.open_task_count || 0),
+    updatedAt: row.updated_at || null
+  };
+}
+
+function adminTableDetail(row) {
+  var base = adminTable(row);
+  base.sessionOpenedAt = row.session_opened_at || null;
+  base.paymentRequestedAt = row.payment_requested_at || null;
+  base.closedAt = row.closed_at || null;
+  base.orders = parseJsonValue(row.orders, []);
+  base.orderItems = parseJsonValue(row.order_items, []);
+  base.payments = parseJsonValue(row.payments, []);
+  base.hallTasks = parseJsonValue(row.hall_tasks, []);
+  return base;
+}
+
+function adminTerminal(row) {
+  return {
+    terminalId: row.terminal_id,
+    terminalCode: row.terminal_code,
+    terminalType: row.terminal_type,
+    tableCode: row.table_code || null,
+    active: Boolean(row.active),
+    description: row.description || null,
+    updatedAt: row.updated_at || null
+  };
+}
+
+function adminListTables() {
+  var input = params();
+  assertAdminTerminal(input);
+  return ok({ tables: rows(nyanqlGet("admin/tables", { status: input.status || "", keyword: input.keyword || "" })).map(adminTable) });
+}
+
+function adminGetTableDetail() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.table_code, "table_code");
+  var detail = first(nyanqlGet("admin/tables/detail", { table_code: input.table_code }));
+  if (!detail) throw error(404, "席が見つかりません");
+  return ok({ table: adminTableDetail(detail) });
+}
+
+function adminUpdateTableStatus() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.table_code, "table_code");
+  requireField(input.status, "status");
+  if (["available", "disabled"].indexOf(input.status) < 0) throw error(400, "status must be available or disabled");
+  var detail = first(nyanqlGet("admin/tables/detail", { table_code: input.table_code }));
+  if (!detail) throw error(404, "席が見つかりません");
+  if (input.status === "available" && detail.current_session_id) {
+    if (Number(detail.unpaid_order_count || 0) > 0 || Number(detail.unserved_item_count || 0) > 0) {
+      throw error(409, "未精算または未提供の注文があるため空席にできません");
+    }
+    var closed = first(nyanqlPost("admin/tables/force-close-session", { session_id: detail.current_session_id }));
+    if (!closed) throw error(409, "セッションをクローズできませんでした");
+    return ok({ table: closed });
+  }
+  var table = first(nyanqlPost("admin/tables/status", { table_code: input.table_code, status: input.status }));
+  if (!table) throw error(404, "席が見つかりません");
+  return ok({ table: table });
+}
+
+function adminForceCloseSession() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.session_id, "session_id");
+  var target = rows(nyanqlGet("admin/tables")).filter(function(table) { return table.current_session_id === input.session_id; })[0];
+  if (!target) throw error(404, "セッションが見つかりません");
+  if (Number(target.unpaid_order_count || 0) > 0 || Number(target.unserved_item_count || 0) > 0) {
+    throw error(409, "未精算または未提供の注文があるため強制クローズできません");
+  }
+  var closed = first(nyanqlPost("admin/tables/force-close-session", { session_id: input.session_id }));
+  if (!closed) throw error(409, "セッションを強制クローズできませんでした");
+  return ok({ session: closed });
+}
+
+function adminListTerminals() {
+  var input = params();
+  assertAdminTerminal(input);
+  return ok({ terminals: rows(nyanqlGet("admin/terminals", { keyword: input.keyword || "" })).map(adminTerminal) });
+}
+
+function adminUpdateTerminalActive() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.target_terminal_code, "target_terminal_code");
+  if (input.target_terminal_code === "analytics-manager") throw error(409, "analytics-manager は無効化できません");
+  var terminal = first(nyanqlPost("admin/terminals/active", {
+    terminal_code: input.target_terminal_code,
+    active: booleanValue(input.active, true)
+  }));
+  if (!terminal) throw error(404, "端末が見つかりません");
+  return ok({ terminal: adminTerminal(terminal) });
 }
 
 function bootstrap() {

@@ -35,6 +35,30 @@
     "sql": ["./sql/admin_move_menu_item.sql"],
     "description": "管理画面からメニュー商品の表示順を変更する"
   },
+  "admin/tables": {
+    "sql": ["./sql/admin_list_tables.sql"],
+    "description": "管理画面向け席一覧を取得する"
+  },
+  "admin/tables/detail": {
+    "sql": ["./sql/admin_get_table_detail.sql"],
+    "description": "管理画面向け席詳細を取得する"
+  },
+  "admin/tables/status": {
+    "sql": ["./sql/admin_update_table_status.sql"],
+    "description": "管理画面から席状態を更新する"
+  },
+  "admin/tables/force-close-session": {
+    "sql": ["./sql/admin_force_close_session.sql"],
+    "description": "管理画面から席セッションを強制クローズする"
+  },
+  "admin/terminals": {
+    "sql": ["./sql/admin_list_terminals.sql"],
+    "description": "管理画面向け端末一覧を取得する"
+  },
+  "admin/terminals/active": {
+    "sql": ["./sql/admin_update_terminal_active.sql"],
+    "description": "管理画面から端末の有効状態を更新する"
+  },
   "sessions/current": {
     "sql": ["./sql/get_current_session.sql"],
     "description": "席の未完了セッションを取得する"

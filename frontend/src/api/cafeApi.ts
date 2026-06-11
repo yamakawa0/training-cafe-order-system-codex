@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
+import type { AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminTableDetail, AdminTableSummary, AdminTerminalSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -109,5 +109,32 @@ export const cafeApi = {
     terminal_code: terminals.analytics,
     item_id: itemId,
     direction
+  }),
+  adminTables: (filters: { status?: string; keyword?: string } = {}) => get<{ tables: AdminTableSummary[] }>('/api/admin/tables', {
+    terminal_code: terminals.analytics,
+    status: filters.status,
+    keyword: filters.keyword
+  }),
+  adminTableDetail: (tableCode: string) => get<{ table: AdminTableDetail }>('/api/admin/tables/detail', {
+    terminal_code: terminals.analytics,
+    table_code: tableCode
+  }),
+  adminUpdateTableStatus: (tableCode: string, status: 'available' | 'disabled') => post<{ table: unknown }>('/api/admin/tables/update-status', {
+    terminal_code: terminals.analytics,
+    table_code: tableCode,
+    status
+  }),
+  adminForceCloseSession: (sessionId: string) => post<{ session: unknown }>('/api/admin/tables/force-close-session', {
+    terminal_code: terminals.analytics,
+    session_id: sessionId
+  }),
+  adminTerminals: (keyword = '') => get<{ terminals: AdminTerminalSummary[] }>('/api/admin/terminals', {
+    terminal_code: terminals.analytics,
+    keyword
+  }),
+  adminUpdateTerminalActive: (targetTerminalCode: string, active: boolean) => post<{ terminal: AdminTerminalSummary }>('/api/admin/terminals/update-active', {
+    terminal_code: terminals.analytics,
+    target_terminal_code: targetTerminalCode,
+    active
   })
 };

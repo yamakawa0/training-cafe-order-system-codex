@@ -81,6 +81,41 @@ export type AdminMenuItemInput = {
   allergy_note: string;
 };
 
+export interface AdminTableSummary {
+  tableId: string;
+  tableCode: string;
+  tableName: string;
+  status: string;
+  customerTerminalCode: string | null;
+  currentSessionId: string | null;
+  sessionStatus: string | null;
+  orderCount: number;
+  unpaidOrderCount: number;
+  unservedItemCount: number;
+  openTaskCount: number;
+  updatedAt: string | null;
+}
+
+export interface AdminTableDetail extends AdminTableSummary {
+  sessionOpenedAt: string | null;
+  paymentRequestedAt: string | null;
+  closedAt: string | null;
+  orders: Array<{ orderId: string; orderNo: string; status: string; subtotal: number; taxAmount: number; totalAmount: number; submittedAt: string }>;
+  orderItems: Array<{ orderItemId: string; orderNo: string; itemName: string; quantity: number; status: string; unitPrice: number; customerNote: string; allergyNote: string }>;
+  payments: Array<{ paymentId: string; paymentNo: string; method: string; status: string; totalAmount: number; paidAt: string }>;
+  hallTasks: Array<{ taskId: string; taskType: string; title: string; note: string; status: string; createdAt: string }>;
+}
+
+export interface AdminTerminalSummary {
+  terminalId: string;
+  terminalCode: string;
+  terminalType: TerminalType;
+  tableCode: string | null;
+  active: boolean;
+  description: string | null;
+  updatedAt: string | null;
+}
+
 export interface CartItem {
   localId: string;
   menuItem: MenuItem;
