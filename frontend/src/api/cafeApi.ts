@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminTableDetail, AdminTableSummary, AdminTerminalSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -119,12 +119,12 @@ export const cafeApi = {
     terminal_code: terminals.analytics,
     table_code: tableCode
   }),
-  adminUpdateTableStatus: (tableCode: string, status: 'available' | 'disabled') => post<{ table: unknown }>('/api/admin/tables/update-status', {
+  adminUpdateTableStatus: (tableCode: string, status: 'available' | 'disabled') => post<{ table: AdminTableStatusResult | AdminForceCloseSessionResult }>('/api/admin/tables/update-status', {
     terminal_code: terminals.analytics,
     table_code: tableCode,
     status
   }),
-  adminForceCloseSession: (sessionId: string) => post<{ session: unknown }>('/api/admin/tables/force-close-session', {
+  adminForceCloseSession: (sessionId: string) => post<{ session: AdminForceCloseSessionResult }>('/api/admin/tables/force-close-session', {
     terminal_code: terminals.analytics,
     session_id: sessionId
   }),

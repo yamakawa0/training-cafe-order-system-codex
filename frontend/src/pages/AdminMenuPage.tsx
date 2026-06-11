@@ -67,6 +67,10 @@ function validate(form: FormState) {
   return '';
 }
 
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleString('ja-JP') : '-';
+}
+
 export function AdminMenuPage() {
   const [categories, setCategories] = useState<AdminMenuCategory[]>([]);
   const [items, setItems] = useState<AdminMenuItem[]>([]);
@@ -173,6 +177,7 @@ export function AdminMenuPage() {
       {loading && <Banner>メニュー管理データを読み込み中です。</Banner>}
       {message && <Banner tone="success">{message}</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
+      <Banner>保存した商品名、価格、表示状態、売切状態は顧客メニューへ反映されます。</Banner>
       <section className="adminMenuGrid">
         <aside className="panel adminCategoryList">
           <SectionTitle title="カテゴリ一覧" subtitle={`${categories.length} 件`} />
@@ -200,7 +205,7 @@ export function AdminMenuPage() {
                 <span><Badge tone={item.active ? 'success' : 'warning'}>{item.active ? '表示' : '非表示'}</Badge></span>
                 <span><Badge tone={item.soldOut ? 'danger' : 'neutral'}>{item.soldOut ? '売切' : '販売可'}</Badge></span>
                 <span>{item.displayOrder}</span>
-                <span>{new Date(item.updatedAt).toLocaleString('ja-JP')}</span>
+                <span>{formatDate(item.updatedAt)}</span>
                 <div className="rowActions">
                   <button onClick={() => setForm(toForm(item))}>編集</button>
                   <button onClick={() => void updateItem(() => cafeApi.adminToggleMenuItemActive(item.id, !item.active), item.active ? '商品を非表示にしました。' : '商品を表示しました。')}>{item.active ? '非表示' : '表示'}</button>

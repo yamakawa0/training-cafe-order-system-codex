@@ -288,6 +288,8 @@ Nyan8 経由の業務フローは次で確認します。
 
 ```bash
 ./scripts/dev-reset-db.sh
+./scripts/smoke-admin-menu.sh
+./scripts/smoke-admin-tables.sh
 ./scripts/smoke-menu.sh
 ./scripts/smoke-e2e.sh
 ./scripts/smoke-order-multiple-items.sh

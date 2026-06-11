@@ -65,7 +65,7 @@ export interface AdminMenuItem {
   active: boolean;
   soldOut: boolean;
   allergyNote: string | null;
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
 export type AdminMenuItemInput = {
@@ -104,6 +104,21 @@ export interface AdminTableDetail extends AdminTableSummary {
   orderItems: Array<{ orderItemId: string; orderNo: string; itemName: string; quantity: number; status: string; unitPrice: number; customerNote: string; allergyNote: string }>;
   payments: Array<{ paymentId: string; paymentNo: string; method: string; status: string; totalAmount: number; paidAt: string }>;
   hallTasks: Array<{ taskId: string; taskType: string; title: string; note: string; status: string; createdAt: string }>;
+}
+
+export interface AdminTableStatusResult {
+  table_id?: string;
+  table_code?: string;
+  table_status?: string;
+  session_id?: string | null;
+}
+
+export interface AdminForceCloseSessionResult {
+  session_id: string;
+  session_status: string;
+  table_id: string;
+  table_code: string;
+  table_status: string;
 }
 
 export interface AdminTerminalSummary {
