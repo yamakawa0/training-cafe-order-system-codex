@@ -3,6 +3,13 @@ export type OrderItemStatus = 'ordered' | 'accepted' | 'cooking' | 'ready' | 'se
 export type HallTaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card' | 'qr';
 
+export interface ApiResponse<T> {
+  success: boolean;
+  status: number;
+  result: T | null;
+  message?: string;
+}
+
 export interface Terminal {
   id: string;
   terminal_code: string;
@@ -44,6 +51,72 @@ export interface MenuCategory {
   name: string;
   displayOrder: number;
   items: MenuItem[];
+}
+
+export interface TableSession {
+  id: string;
+  tableId: string;
+  tableCode?: string;
+  tableName?: string;
+  status: string;
+  guestCount?: number;
+  openedAt?: string;
+  paymentRequestedAt?: string | null;
+  closedAt?: string | null;
+}
+
+export interface Order {
+  id: string;
+  orderNo: string;
+  sessionId: string;
+  status: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  submittedAt: string;
+}
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  itemName: string;
+  quantity: number;
+  status: OrderItemStatus;
+  unitPrice: number;
+  customerNote?: string;
+  allergyNote?: string;
+}
+
+export interface Payment {
+  id: string;
+  paymentNo: string;
+  method: PaymentMethod;
+  status: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  paidAt: string;
+}
+
+export interface AnalyticsSummary {
+  sales_total?: number;
+  payment_count?: number;
+  average_spend?: number;
+  table_turns?: number;
+  cash_total?: number;
+  card_total?: number;
+  qr_total?: number;
+  cash_count?: number;
+  card_count?: number;
+  qr_count?: number;
+  average_cooking_seconds?: number;
+}
+
+export interface ItemRanking {
+  menu_item_id?: string;
+  item_name: string;
+  quantity: number;
+  sales_total: number;
 }
 
 export interface AdminMenuCategory {

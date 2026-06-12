@@ -25,6 +25,11 @@ export const cafeApi = {
     table_code: tableCode,
     session_id: sessionId
   }),
+  orderHistory: (tableCode: string, sessionId: string) => get<{ items: unknown[] }>('/api/customer/order/history', {
+    terminal_code: terminals.customer(tableCode),
+    table_code: tableCode,
+    session_id: sessionId
+  }),
   submitOrder: (tableCode: string, items: Array<{ menu_item_id: string; quantity: number; choice_ids: string[]; customer_note: string }>) =>
     post<{ orderNo: string; subtotal: number; taxAmount: number; totalAmount: number }>('/api/customer/order/submit', {
       terminal_code: terminals.customer(tableCode),
@@ -41,19 +46,36 @@ export const cafeApi = {
     note
   }),
   kitchenTickets: () => get<{ tickets: KitchenTicket[] }>('/api/kitchen/tickets', { terminal_code: terminals.kitchen }),
+  tickets: () => get<{ tickets: KitchenTicket[] }>('/api/kitchen/tickets', { terminal_code: terminals.kitchen }),
   kitchenStatus: (orderItemId: string, status: string) => post('/api/kitchen/item/status', {
     terminal_code: terminals.kitchen,
     order_item_id: orderItemId,
     status
   }),
+  updateItemStatus: (orderItemId: string, status: string) => post('/api/kitchen/item/status', {
+    terminal_code: terminals.kitchen,
+    order_item_id: orderItemId,
+    status
+  }),
   hallTasks: () => get<{ tasks: HallTask[] }>('/api/hall/tasks', { terminal_code: terminals.hall }),
+  tasks: () => get<{ tasks: HallTask[] }>('/api/hall/tasks', { terminal_code: terminals.hall }),
   hallStatus: (taskId: string, status: string, note = '') => post('/api/hall/task/status', {
     terminal_code: terminals.hall,
     task_id: taskId,
     status,
     note
   }),
+  updateTaskStatus: (taskId: string, status: string, note = '') => post('/api/hall/task/status', {
+    terminal_code: terminals.hall,
+    task_id: taskId,
+    status,
+    note
+  }),
   checkoutSummary: (tableCode: string) => get<{ summary: CheckoutSummary }>('/api/checkout/summary', {
+    terminal_code: terminals.checkout,
+    table_code: tableCode
+  }),
+  summary: (tableCode: string) => get<{ summary: CheckoutSummary }>('/api/checkout/summary', {
     terminal_code: terminals.checkout,
     table_code: tableCode
   }),

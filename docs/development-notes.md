@@ -136,3 +136,13 @@
 - smoke script 実行結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。`smoke-admin-tables.sh` の内部 smoke 後に残った検証セッションのため、単独 `smoke-e2e.sh` 初回は `status=ordering` で失敗したが、`./scripts/dev-reset-db.sh` 後の再実行では成功した。DB reset を含む smoke は並列実行せず、独立実行前に初期化する。
 - ブラウザ確認結果: `/admin/menu` でカテゴリ一覧、商品一覧、編集保存、顧客メニュー反映説明、`/admin/tables` 導線、コンソールエラーなしを確認した。`/customer/T01` で管理メニュー保存後も商品表示が継続することを確認した。`/admin/tables` で席一覧、席詳細、端末一覧、`analytics-manager` 無効化 disabled、`customer-T01` の無効化/再有効化、無効化中の `/customer/T01` 操作拒否表示を確認した。`/analytics` から `/admin/menu` と `/admin/tables` への導線を確認した。
 - 未対応項目: 本格ログイン認証、権限ロール管理、管理画面からの非管理者端末コード切替テスト UI、商品画像アップロード、商品オプション編集、席追加/削除、端末登録/ペアリング、監査ログ、注文管理画面は未実装のまま。
+
+## 2026-06-11 Phase 4.6 リポジトリ整合性復旧・ビルド安定化
+
+- 破損確認: 作業開始時点の `git status` と `git diff` は空で、明らかな未コミット破損ファイルはなかった。`frontend/src/App.tsx` は `/`, `/customer/:tableCode`, `/kitchen`, `/hall`, `/checkout`, `/analytics`, `/admin/menu`, `/admin/tables` を正常に分岐していた。`frontend/src/pages/` には各 route の page component が存在した。
+- API / script 参照確認: `backend/nyan8/api.json` の `script` 参照、`backend/nyanql/api.json` の `sql` 参照はすべて実在した。README に記載された `./scripts/*.sh` 参照もすべて実在した。
+- 修正内容: `frontend/src/domain/types.ts` に `ApiResponse`, `TableSession`, `Order`, `OrderItem`, `Payment`, `AnalyticsSummary`, `ItemRanking` を補い、画面・API client が参照しうる主要型を整理した。`frontend/src/api/cafeApi.ts` には既存メソッドを残したまま、復旧指示で求められた命名に近い互換 alias として `orderHistory`, `tickets`, `updateItemStatus`, `tasks`, `updateTaskStatus`, `summary` を追加した。
+- build 結果: `cd frontend && npm install` は up to date で成功した。既存同様、`pyenv: cannot rehash`、npm ログ権限警告、Node 16 に対する `node-releases` engine warning が出た。`cd frontend && npm run build` は TypeScript build と Vite build に成功した。
+- smoke script 結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh` は成功した。管理 smoke 内部でも既存 `smoke-menu.sh` / `smoke-e2e.sh` が継続成功することを確認した。
+- README / assumptions: README は主要 URL、管理画面 URL、起動手順、smoke script 一覧、既知の制約と実在ファイルが一致していたため変更しなかった。仕様上の仮定は変えていないため `docs/assumptions.md` は更新しなかった。
+- 未対応項目: 注文管理画面などの新機能、本格ログイン認証、権限ロール管理、商品画像アップロード、商品オプション編集、席追加/削除、端末登録/ペアリング、監査ログは今回の対象外とした。
