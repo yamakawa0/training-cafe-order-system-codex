@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { cafeApi } from '../api/cafeApi';
+import { getStoredUser } from '../auth/authState';
 import { AppHeader, Badge, Banner, EmptyState, SectionTitle } from '../components/ui';
 import type { AdminUser, UserRole } from '../domain/types';
 
@@ -11,6 +12,8 @@ export function AdminUsersPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({ login_id: '', display_name: '', password: '', role: 'viewer' as UserRole, active: true });
+  const currentUser = getStoredUser();
+  const activeManagerCount = users.filter((user) => user.role === 'manager' && user.active).length;
 
   const load = () => {
     setError('');
@@ -34,6 +37,15 @@ export function AdminUsersPage() {
   };
 
   const update = async (user: AdminUser, patch: Partial<AdminUser> & { password?: string }) => {
+    const nextRole = patch.role ?? user.role;
+    if (user.id === currentUser?.id && nextRole !== 'manager') {
+      setError('自分自身の manager 権限は変更できません。');
+      return;
+    }
+    if (user.role === 'manager' && user.active && nextRole !== 'manager' && activeManagerCount <= 1) {
+      setError('最後の active manager は変更できません。');
+      return;
+    }
     setError('');
     setMessage('');
     try {
@@ -51,6 +63,10 @@ export function AdminUsersPage() {
   };
 
   const toggleActive = async (user: AdminUser) => {
+    if (user.role === 'manager' && user.active && activeManagerCount <= 1) {
+      setError('最後の active manager は無効化できません。');
+      return;
+    }
     setError('');
     setMessage('');
     try {
@@ -64,7 +80,7 @@ export function AdminUsersPage() {
 
   return (
     <main className="shell adminUsers">
-      <AppHeader title="ユーザー管理" subtitle="manager only" actions={(
+      <AppHeader title="ユーザー管理" subtitle={currentUser ? `${currentUser.displayName} / ${currentUser.role}` : 'manager only'} actions={(
         <>
           <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="検索" />
           <a className="button" href="/analytics">分析</a>
@@ -92,7 +108,11 @@ export function AdminUsersPage() {
               <div className="userRow" key={user.id}>
                 <strong>{user.displayName}</strong>
                 <span>{user.loginId}</span>
-                <select value={user.role} onChange={(event) => update(user, { role: event.target.value as UserRole })}>
+                <select
+                  value={user.role}
+                  disabled={user.id === currentUser?.id || (user.role === 'manager' && user.active && activeManagerCount <= 1)}
+                  onChange={(event) => update(user, { role: event.target.value as UserRole })}
+                >
                   {roles.map((role) => <option key={role} value={role}>{role}</option>)}
                 </select>
                 <Badge tone={user.active ? 'success' : 'danger'}>{user.active ? 'active' : 'inactive'}</Badge>
@@ -104,7 +124,10 @@ export function AdminUsersPage() {
                   const password = window.prompt('新しいパスワード');
                   if (password) void update(user, { password });
                 }}>PW</button>
-                <button onClick={() => toggleActive(user)}>{user.active ? '無効化' : '有効化'}</button>
+                <button
+                  disabled={user.role === 'manager' && user.active && activeManagerCount <= 1}
+                  onClick={() => toggleActive(user)}
+                >{user.active ? '無効化' : '有効化'}</button>
               </div>
             ))}
           </div>

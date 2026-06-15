@@ -49,6 +49,10 @@ function jsonText(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
+function actorUserLabel(log: Pick<AuditLogSummary, 'actorUserDisplayName'>) {
+  return log.actorUserDisplayName || '未ログイン端末操作';
+}
+
 export function AdminAuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogSummary[]>([]);
   const [detail, setDetail] = useState<AuditLogDetail | null>(null);
@@ -154,7 +158,7 @@ export function AdminAuditLogsPage() {
                 <span>{formatDate(log.occurredAt)}</span>
                 <span><Badge tone={log.status === 'success' ? 'success' : 'danger'}>{log.status === 'success' ? '成功' : '失敗'}</Badge></span>
                 <strong>{labelOf(actionLabels, log.action)}</strong>
-                <span>{log.actorUserDisplayName || '-'}</span>
+                <span>{actorUserLabel(log)}</span>
                 <span>{log.actorUserRole || '-'}</span>
                 <span>{log.actorTerminalCode || '-'}</span>
                 <span>{labelOf(targetLabels, log.targetType)}</span>
@@ -174,7 +178,7 @@ export function AdminAuditLogsPage() {
                 <div><span>操作日時</span><strong>{formatDate(detail.occurredAt)}</strong></div>
                 <div><span>結果</span><strong>{detail.status === 'success' ? '成功' : '失敗'}</strong></div>
                 <div><span>操作種別</span><strong>{labelOf(actionLabels, detail.action)}</strong></div>
-                <div><span>操作ユーザー</span><strong>{detail.actorUserDisplayName || '-'}</strong></div>
+                <div><span>操作ユーザー</span><strong>{actorUserLabel(detail)}</strong></div>
                 <div><span>ユーザー ID</span><strong>{detail.actorUserId || '-'}</strong></div>
                 <div><span>ロール</span><strong>{detail.actorUserRole || '-'}</strong></div>
                 <div><span>操作端末</span><strong>{detail.actorTerminalCode || '-'}</strong></div>

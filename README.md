@@ -192,6 +192,7 @@ npm run dev
 ## 主要 URL
 
 - 顧客注文: `http://localhost:5173/customer/T01`
+- ログイン: `http://localhost:5173/login`
 - キッチン: `http://localhost:5173/kitchen`
 - ホール: `http://localhost:5173/hall`
 - レジ精算: `http://localhost:5173/checkout`
@@ -199,6 +200,8 @@ npm run dev
 - メニュー管理: `http://localhost:5173/admin/menu`
 - 席・端末管理: `http://localhost:5173/admin/tables`
 - 注文管理: `http://localhost:5173/admin/orders`
+- 操作ログ: `http://localhost:5173/admin/audit-logs`
+- ユーザー管理: `http://localhost:5173/admin/users`
 
 ## 画面概要
 
@@ -220,7 +223,7 @@ npm run dev
 - `checkout-main`
 - `analytics-manager`
 
-`analytics-manager` は現時点の簡易管理者端末コードです。本格認証・権限管理は未実装で、`/api/admin/*` は `terminal_code=analytics-manager` の場合だけ許可します。
+`terminal_code` は端末種別と有効 / 無効の判定に使います。管理者判定の主条件はログイン済みユーザーの `manager` ロールです。`analytics-manager` は管理・分析向け端末コードとして引き続き使用しますが、`/api/admin/*` の利用には `Authorization: Bearer <token>` と manager ロールが必要です。
 
 ## 動作確認シナリオ
 
@@ -242,10 +245,12 @@ npm run dev
 - ホール: `GET /api/hall/tasks`, `POST /api/hall/task/status`
 - レジ: `GET /api/checkout/summary`, `POST /api/checkout/settle`
 - 分析: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
+- 認証: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
 - 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
 - 席・端末管理: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
 - 注文管理: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
 - 操作ログ: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`
+- ユーザー管理: `GET /api/admin/users`, `POST /api/admin/users`, `POST /api/admin/users/update`, `POST /api/admin/users/toggle-active`
 
 NyanQL 単体の疎通は次で確認します。
 
@@ -275,7 +280,7 @@ Nyan8 経由の業務フローは次で確認します。
 
 この script は DB 初期化、管理者端末での席・端末一覧取得、非管理端末拒否、注文なしセッションの強制クローズ、未精算注文ありセッションの強制クローズ拒否、精算済みセッションの強制クローズ、端末無効化と無効端末からの操作拒否、既存 smoke の成功を確認します。
 
-強制クローズは、注文がないセッションまたは精算済みセッションのみ許可します。未精算または未提供の注文があるセッションは拒否します。端末無効化後は、無効端末からの主要操作を `この端末は無効です` で拒否します。`analytics-manager` は簡易管理者端末のため無効化できません。
+強制クローズは、注文がないセッションまたは精算済みセッションのみ許可します。未精算または未提供の注文があるセッションは拒否します。端末無効化後は、無効端末からの主要操作を `この端末は無効です` で拒否します。`analytics-manager` は管理・分析向け端末のため無効化できません。
 
 注文管理機能は次で確認します。
 
@@ -285,9 +290,9 @@ Nyan8 経由の業務フローは次で確認します。
 
 この script は DB 初期化、管理者端末での注文一覧・詳細取得、非管理端末拒否、単品注文の明細取消、一部明細取消後の会計サマリ・分析除外、ready 明細の取消拒否、精算済み注文の取消拒否、既存 smoke の成功を確認します。
 
-操作ログ・監査ログ機能は `/admin/audit-logs` で確認します。店長 PC から操作日時、操作種別、操作端末、対象種別、対象 ID / ラベル、変更前後の JSON、リクエスト、成功 / 失敗、エラーメッセージを検索・絞り込みできます。
+操作ログ・監査ログ機能は `/admin/audit-logs` で確認します。manager ロールのユーザーが、操作日時、操作ユーザー、ロール、操作端末、対象種別、対象 ID / ラベル、変更前後の JSON、リクエスト、成功 / 失敗、エラーメッセージを検索・絞り込みできます。
 
-監査ログ対象は、注文明細取消、注文全体取消、商品追加・編集・表示切替・売切切替・並び順変更、席ステータス変更、セッション強制クローズ、端末有効切替、精算完了、重要な精算拒否、顧客の注文確定・会計依頼・スタッフ呼び出しです。監査ログ API は管理者端末 `terminal_code=analytics-manager` のみ許可します。本格ユーザー認証は未対応で、actor は当面 `terminal_code` ベースです。ログ削除、ログ CSV エクスポート、改ざん防止署名は未対応です。
+監査ログ対象は、注文明細取消、注文全体取消、商品追加・編集・表示切替・売切切替・並び順変更、席ステータス変更、セッション強制クローズ、端末有効切替、ユーザー作成・更新・有効切替、精算完了、重要な精算拒否、顧客の注文確定・会計依頼・スタッフ呼び出しです。監査ログ API は `Authorization: Bearer <token>` と manager ロールを要求します。ログイン済み操作では `actor_user_id`, `actor_user_display_name`, `actor_user_role` を記録し、未ログインの顧客操作では `actor_terminal_code` / `actor_terminal_type` を記録します。ログ削除、ログ CSV エクスポート、改ざん防止署名は未対応です。
 
 操作ログ機能は次で確認します。
 
@@ -332,11 +337,13 @@ npm install
 npm run build
 ```
 
+`smoke-auth.sh` は最初に実行する認証・認可境界テストです。各 protected API 用 smoke script は内部で必要な role のユーザーとしてログインし、Authorization header と token を付与します。顧客 API 部分は token を付与せず、端末コードだけで動作することを確認します。各 smoke script は DB reset を内部で行うか、内部 helper の reset 後に再ログインするため独立実行できます。連続実行する場合も上記順でまとめて実行できます。
+
 ## 認証・ロール
 
 Phase 6 では `/login` と `/admin/users` を追加し、スタッフ用の簡易ログインとロール認可を導入しています。API は `Authorization: Bearer <token>` を受け取り、smoke script は内部でログインして token を付与します。顧客 API (`/api/customer/*`) は顧客端末操作のため token 不要です。
 
-初期ユーザーは `manager / manager123`, `cashier / cashier123`, `kitchen / kitchen123`, `hall / hall123`, `viewer / viewer123` です。ロールは `manager`, `cashier`, `kitchen`, `hall`, `viewer` で、manager は管理機能と分析、cashier はレジ、kitchen はキッチン、hall はホール、viewer は分析閲覧のみを許可します。管理 API (`/api/admin/*`) は manager のみ許可します。
+初期ユーザーは `manager / manager123`, `cashier / cashier123`, `kitchen / kitchen123`, `hall / hall123`, `viewer / viewer123` です。ロールは `manager`, `cashier`, `kitchen`, `hall`, `viewer` です。管理 API (`/api/admin/*`) は manager、分析 API は manager / viewer、レジ API は cashier / manager、キッチン API は kitchen / manager、ホール API は hall / manager を許可します。顧客 API は token 不要です。
 
 MVP では token を localStorage に保存し、password hash は SHA-256 の簡易方式です。本番向けには httpOnly cookie、bcrypt/argon2、セッション失効管理の強化を検討してください。
 

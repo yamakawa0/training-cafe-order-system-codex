@@ -46,4 +46,9 @@
 - Phase 6 の password hash は MVP 簡易方式として SHA-256 を使う。本番では bcrypt/argon2 等へ移行する。
 - 顧客 API (`/api/customer/*`) はログイン不要とし、既存の端末 active / 種別チェックを維持する。
 - 管理 API (`/api/admin/*`) は manager のみ許可する。
+- 分析 API (`/api/analytics/*`) は manager / viewer のみ許可する。
+- レジ API (`/api/checkout/*`) は cashier / manager のみ許可する。
+- キッチン API (`/api/kitchen/*`) は kitchen / manager のみ許可する。
+- ホール API (`/api/hall/*`) は hall / manager のみ許可する。
+- `terminal_code` は端末 active 判定と端末種別判定に使い、管理者判定の主条件にはしない。
 - 監査ログ actor はログイン済み user 情報がある場合は `actor_user_id` ベースでも記録し、token がない顧客 API などでは従来どおり `terminal_code` ベースとする。

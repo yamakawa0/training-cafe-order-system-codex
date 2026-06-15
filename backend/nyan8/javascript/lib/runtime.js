@@ -794,6 +794,16 @@ function adminListUsers() {
   return ok({ users: rows(nyanqlGet("admin/users", { keyword: input.keyword || "" })).map(adminUser) });
 }
 
+function activeManagerCount() {
+  return rows(nyanqlGet("admin/users")).filter(function(user) {
+    return user.role === "manager" && Boolean(user.active);
+  }).length;
+}
+
+function findAdminUser(userId) {
+  return rows(nyanqlGet("admin/users")).filter(function(user) { return user.id === userId; })[0] || null;
+}
+
 function adminCreateUser() {
   var input = params();
   try {
@@ -822,14 +832,22 @@ function adminUpdateUser() {
   var input = params();
   try {
     var actor = assertAdminTerminal(input);
+    var currentUser = requireManager();
     requireField(input.id, "id");
     requireField(input.display_name, "display_name");
     requireField(input.role, "role");
+    var before = findAdminUser(input.id);
+    if (!before) throw error(404, "ユーザーが見つかりません");
+    var nextRole = validateRole(input.role);
+    if (input.id === currentUser.id && nextRole !== "manager") throw error(409, "自分自身の manager 権限は変更できません");
+    if (before.role === "manager" && Boolean(before.active) && nextRole !== "manager" && activeManagerCount() <= 1) {
+      throw error(409, "最後の active manager は変更できません");
+    }
     var user = first(nyanqlPost("admin/users/update", {
       id: input.id,
       display_name: String(input.display_name).trim(),
       password_hash: input.password ? sha256(input.password) : "",
-      role: validateRole(input.role)
+      role: nextRole
     }));
     if (!user) throw error(404, "ユーザーが見つかりません");
     writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_user_updated", targetType: "user", targetId: user.id, targetLabel: user.login_id, status: "success", afterData: user, requestData: { id: input.id, display_name: input.display_name, role: input.role, passwordUpdated: Boolean(input.password) } });
@@ -845,8 +863,13 @@ function adminToggleUserActive() {
   try {
     var actor = assertAdminTerminal(input);
     requireField(input.id, "id");
-    if (input.id === "user-manager" && booleanValue(input.active, true) === false) throw error(409, "初期 manager は無効化できません");
-    var user = first(nyanqlPost("admin/users/toggle-active", { id: input.id, active: booleanValue(input.active, true) }));
+    var before = findAdminUser(input.id);
+    if (!before) throw error(404, "ユーザーが見つかりません");
+    var nextActive = booleanValue(input.active, true);
+    if (before.role === "manager" && Boolean(before.active) && nextActive === false && activeManagerCount() <= 1) {
+      throw error(409, "最後の active manager は無効化できません");
+    }
+    var user = first(nyanqlPost("admin/users/toggle-active", { id: input.id, active: nextActive }));
     if (!user) throw error(404, "ユーザーが見つかりません");
     writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_user_active_changed", targetType: "user", targetId: user.id, targetLabel: user.login_id, status: "success", afterData: user, requestData: { id: input.id, active: input.active } });
     return ok({ user: adminUser(user) });

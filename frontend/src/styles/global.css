@@ -133,6 +133,30 @@ h3 {
   flex-wrap: wrap;
 }
 
+.authStatus {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 8px 22px 0;
+  color: #74614f;
+  font-size: 0.86rem;
+}
+
+.authStatus strong {
+  color: #4f6f4a;
+}
+
+.authStatus button {
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+}
+
 .panel,
 .itemCard,
 .summaryCard,

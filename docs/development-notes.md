@@ -102,7 +102,7 @@
 - 追加した NyanQL API: `admin/menu/categories`, `admin/menu/items`, `admin/menu/items/create`, `admin/menu/items/update`, `admin/menu/items/toggle-active`, `admin/menu/items/toggle-sold-out`, `admin/menu/items/move`。
 - 追加した SQL: `admin_list_menu_categories.sql`, `admin_list_menu_items.sql`, `admin_create_menu_item.sql`, `admin_update_menu_item.sql`, `admin_toggle_menu_item_active.sql`, `admin_toggle_menu_item_sold_out.sql`, `admin_move_menu_item.sql`。
 - 追加した Nyan8 API: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`。
-- 管理者判定: 本格認証は未実装とし、`terminal_code=analytics-manager` かつ analytics 端末の場合だけ `/api/admin/*` を許可する。将来はログイン認証・権限管理へ置き換える。
+- 管理者判定: Phase 4 実装時点では `terminal_code=analytics-manager` かつ analytics 端末の場合だけ `/api/admin/*` を許可していた。Phase 6 以降は Bearer token と manager ロールを主条件とし、terminal_code は端末種別・active 判定に使う。
 - 顧客注文画面との反映: 顧客メニュー API は既に `active=TRUE` のみを返し、`sold_out=TRUE` は表示しつつ注文確定時に拒否するため、管理画面の編集結果が `/customer/T01` に反映される構成とした。商品名、価格、表示順、アレルギーメモも既存レスポンスに含まれる。
 - 追加した smoke script: `scripts/smoke-admin-menu.sh`。DB 初期化、管理者端末でのカテゴリ・商品一覧、商品追加、商品編集、顧客メニュー反映、売切反映、非表示反映、非管理端末拒否、既存 `smoke-menu.sh` / `smoke-e2e.sh` を確認する。
 - 確認結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。
@@ -154,7 +154,7 @@
 - 追加した NyanQL API: `admin/orders`, `admin/orders/detail`, `admin/orders/cancel-item`, `admin/orders/cancel-order`。
 - 追加した SQL: `admin_list_orders.sql`, `admin_get_order_detail.sql`, `admin_cancel_order_item.sql`, `admin_cancel_order.sql`。
 - 画面機能: 日付範囲、席コード、注文番号、注文状態、精算状態のフィルタ、注文一覧、注文詳細、注文明細、支払い情報、関連ホールタスク、明細取消、注文全体取消を実装した。
-- 取消ルール: 管理者判定は既存管理機能と同じ `terminal_code=analytics-manager`。明細取消は `ordered`, `accepted`, `cooking` のみ許可し、`ready` / `served` / `cancelled` は拒否する。注文全体取消は未精算かつ ready / served 明細を含まない注文だけ許可する。精算済み注文は明細取消・注文全体取消とも拒否する。
+- 取消ルール: Phase 4 実装時点の管理者判定は既存管理機能と同じ端末コード方式だった。Phase 6 以降は manager ロールを要求する。明細取消は `ordered`, `accepted`, `cooking` のみ許可し、`ready` / `served` / `cancelled` は拒否する。注文全体取消は未精算かつ ready / served 明細を含まない注文だけ許可する。精算済み注文は明細取消・注文全体取消とも拒否する。
 - 状態集約: 明細取消後、全明細が `cancelled` なら注文ヘッダを `cancelled`、未取消明細が残る場合は既存状態集約ルールに従って `in_progress` / `ready` / `served` を再計算する。
 - 会計・分析連携: 既存の会計サマリ、売上 CSV、分析ランキングは `order_items.status <> 'cancelled'` を条件にしているため、注文管理からキャンセルした明細も会計・分析対象外になる。
 - 追加した smoke script: `scripts/smoke-admin-orders.sh`。注文一覧・詳細、非管理端末拒否、単品注文の明細取消、一部明細取消後の会計サマリ・分析除外、ready 明細の取消拒否、精算済み注文の取消拒否、既存 `smoke-e2e.sh` の成功を確認する。
@@ -166,13 +166,13 @@
 
 - 追加したテーブル: `audit_logs`。`occurred_at`, `actor_terminal_code`, `actor_terminal_type`, `action`, `target_type`, `target_id`, `target_label`, `status`, `before_data`, `after_data`, `request_data`, `error_message` を持つ Phase 5 用スキーマへ更新し、日時、操作、対象、端末、結果の index を追加した。
 - 追加した NyanQL API: `admin/audit-logs`, `admin/audit-logs/detail`, `audit-logs`。追加 SQL は `admin_list_audit_logs.sql`, `admin_get_audit_log_detail.sql`, `insert_audit_log.sql`。
-- 追加した Nyan8 API: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`。どちらも `terminal_code=analytics-manager` を必須とする。
+- 追加した Nyan8 API: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`。Phase 6 以降はどちらも Bearer token と manager ロールを要求し、terminal_code は端末種別・active 判定に使う。
 - 追加した Nyan8 共通関数: `backend/nyan8/javascript/lib/audit.js` に `writeAuditLog` と失敗ログ補助を追加した。ログ書き込み失敗時は本体処理を原則継続し、開発ログへ出力する。
 - 追加した frontend API client: `adminAuditLogs(filters)`, `adminAuditLogDetail(auditLogId)`。型は `AuditLogSummary`, `AuditLogDetail` を追加し、フロントエンドでは camelCase に統一した。
 - 追加した画面: `frontend/src/pages/AdminAuditLogsPage.tsx` と `/admin/audit-logs`。`/analytics`, `/admin/menu`, `/admin/tables`, `/admin/orders` から遷移できる。
 - 追加した smoke script: `scripts/smoke-audit-logs.sh`。注文確定、会計依頼、精算、商品売切、明細取消、非管理者拒否、一覧・詳細取得を確認する。
 - ログ対象操作: `admin_order_item_cancelled`, `admin_order_cancelled`, `admin_menu_item_created`, `admin_menu_item_updated`, `admin_menu_item_active_changed`, `admin_menu_item_sold_out_changed`, `admin_menu_item_moved`, `admin_table_status_changed`, `admin_session_force_closed`, `admin_terminal_active_changed`, `checkout_settled`, `checkout_settle_rejected`, `customer_order_submitted`, `customer_payment_requested`, `customer_staff_called`。
-- 未対応の監査要件: 本格ログイン認証、スタッフ ID / ユーザー ID、ロール権限、ログ改ざん防止署名、ログアーカイブ、ログ削除、監査ログ CSV エクスポート、複数店舗対応、外部監査システム連携。
+- 未対応の監査要件: ログ改ざん防止署名、ログアーカイブ、ログ削除、監査ログ CSV エクスポート、複数店舗対応、外部監査システム連携。
 
 ## 2026-06-15 Phase 6 簡易ログイン・権限ロール管理
 
@@ -184,3 +184,11 @@
 - 追加した frontend API client: `login`, `logout`, `me`, `adminUsers`, `adminCreateUser`, `adminUpdateUser`, `adminToggleUserActive`。`frontend/src/api/client.ts` は token がある場合 `Authorization: Bearer <token>` を付与する。
 - 追加した smoke script: `scripts/smoke-auth.sh`。manager login、誤パスワード拒否、me、viewer/cashier/kitchen/hall の許可、admin 拒否、logout 後拒否、監査ログ actor user 記録を確認する。
 - 暫定対応: password hash は SHA-256。Nyan8 で専用 hash 関数や Node crypto が使えない環境に備えて純 JavaScript fallback を持つ。本番では bcrypt/argon2 と httpOnly cookie へ移行する。
+
+## 2026-06-15 Phase 6.5 認証・ロール整合性修正
+
+- README と docs の古い `terminal_code=analytics-manager` 管理者判定説明を、Bearer token + manager role + 端末種別/active チェックの現行仕様へ更新した。
+- `scripts/smoke-auth.sh` を強化し、token なし、存在しない token、期限切れ session、logout 済み token、inactive user、role 違い、顧客 API token なし、監査ログ actor user/terminal の境界を確認するようにした。
+- `/admin/users` と Nyan8 管理 API で、最後の active manager の無効化・降格と、自分自身の manager 権限変更を拒否するようにした。
+- `AuthGate` は `/api/auth/me` で token を検証し、壊れた localStorage token では再ログインへ誘導する。protected 画面にはログイン中ユーザー名、role、ログアウト導線を表示する。
+- `/admin/audit-logs` では user actor がない顧客操作を `未ログイン端末操作` と表示し、terminal_code と併せて確認できるようにした。
