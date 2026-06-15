@@ -6,16 +6,30 @@ NYAN8_BASE_URL="${NYAN8_BASE_URL:-http://localhost:8889}"
 ADMIN_TERMINAL="analytics-manager"
 CUSTOMER_TERMINAL="customer-T01"
 ITEM_ID_FILE="/tmp/cafe-order-admin-menu-item-id.txt"
+AUTH_TOKEN=""
 
 json_get() {
   local url="$1"
-  curl -sS "$url"
+  if [ -n "$AUTH_TOKEN" ] && [[ "$url" != *"/api/customer/"* ]]; then
+    case "$url" in
+      *\?*) url="$url&token=$AUTH_TOKEN" ;;
+      *) url="$url?token=$AUTH_TOKEN" ;;
+    esac
+    curl -sS -H "Authorization: Bearer $AUTH_TOKEN" "$url"
+  else
+    curl -sS "$url"
+  fi
 }
 
 json_post() {
   local url="$1"
   local body="$2"
-  curl -sS -H 'Content-Type: application/json' -d "$body" "$url"
+  if [ -n "$AUTH_TOKEN" ] && [[ "$url" != *"/api/customer/"* ]]; then
+    body="$(printf '%s' "$body" | node -e 'let input=""; process.stdin.on("data", c => input += c); process.stdin.on("end", () => { const data = input ? JSON.parse(input) : {}; data.token = process.argv[1]; console.log(JSON.stringify(data)); });' "$AUTH_TOKEN")"
+    curl -sS -H "Authorization: Bearer $AUTH_TOKEN" -H 'Content-Type: application/json' -d "$body" "$url"
+  else
+    curl -sS -H 'Content-Type: application/json' -d "$body" "$url"
+  fi
 }
 
 node_check() {
@@ -25,6 +39,12 @@ node_check() {
 
 echo "1 reset database"
 "$ROOT_DIR/scripts/dev-reset-db.sh"
+
+echo "1.5 login manager"
+login_response="$(json_post "$NYAN8_BASE_URL/api/auth/login" '{"loginId":"manager","password":"manager123","terminalCode":"analytics-manager"}')"
+printf '%s\n' "$login_response"
+printf '%s' "$login_response" | node_check "data.success === true && result.token"
+AUTH_TOKEN="$(printf '%s' "$login_response" | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).result.token));")"
 
 echo "2 admin categories"
 categories_response="$(json_get "$NYAN8_BASE_URL/api/admin/menu/categories?terminal_code=$ADMIN_TERMINAL")"

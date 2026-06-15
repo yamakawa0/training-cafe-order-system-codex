@@ -5,6 +5,7 @@ SMOKE_NAME="smoke-staff-call"
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "注文が存在しない状態で customer-T01 の席セッションを開始"
 session_id="$(open_session customer-T01 T01)"

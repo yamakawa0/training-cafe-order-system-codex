@@ -5,6 +5,7 @@ SMOKE_NAME="smoke-order-multiple-items"
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "customer-T01 でセッション開始"
 session_id="$(open_session customer-T01 T01)"

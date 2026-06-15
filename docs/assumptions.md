@@ -23,22 +23,27 @@
 - Phase 3 のレジ画面では、テーブル一覧 API が未実装のため T01-T04 を画面側の固定候補として扱う。
 - Phase 3 のホール画面では、`GET /api/hall/tasks` が未完了タスクのみ返す前提のため、完了済みタスクの表示切替は対象外とする。
 - Phase 3 の分析画面では、サマリ API に `order_count` がない場合、商品ランキング数量の合計を注文件数の fallback として表示する。
-- Phase 4 メニュー管理の管理者判定は、本格認証の代替として `terminal_code=analytics-manager` の簡易方式を使う。
+- Phase 4 時点のメニュー管理の管理者判定は `terminal_code=analytics-manager` の簡易方式だったが、Phase 6 以降は manager ロール認証と analytics 端末チェックを併用する。
 - Phase 4 メニュー管理では、`active=false` の商品は顧客メニューから非表示にする。
 - Phase 4 メニュー管理では、`sold_out=true` の商品は顧客メニューに表示してもよいが、注文確定時には注文不可として拒否する。
 - Phase 4 メニュー管理では、商品削除は物理削除せず、当面は `active=false` で代替する。
 - Phase 4 メニュー管理では、画像アップロードは未対応とし、既存の `image_url` は管理画面の編集対象外にする。
-- Phase 4 席・端末管理の管理者判定は、メニュー管理と同じく `terminal_code=analytics-manager` の簡易方式を使う。
+- Phase 4 時点の席・端末管理の管理者判定は `terminal_code=analytics-manager` の簡易方式だったが、Phase 6 以降は manager ロール認証と analytics 端末チェックを併用する。
 - Phase 4 席・端末管理では、未精算注文または未提供明細があるセッションは強制クローズ不可とする。
 - Phase 4 席・端末管理では、注文なしセッションは強制クローズ可能とする。
 - Phase 4 席・端末管理では、精算済みセッションは強制クローズ可能とする。
 - Phase 4 席・端末管理では、`analytics-manager` は無効化不可とする。
 - Phase 4 席・端末管理では、無効端末からの主要操作を `この端末は無効です` で拒否する。
-- Phase 4 注文管理の管理者判定は、既存管理機能と同じく `terminal_code=analytics-manager` の簡易方式を使う。
+- Phase 4 時点の注文管理の管理者判定は `terminal_code=analytics-manager` の簡易方式だったが、Phase 6 以降は manager ロール認証と analytics 端末チェックを併用する。
 - Phase 4 注文管理では、明細取消は `ordered`, `accepted`, `cooking` のみ許可し、`ready` / `served` / `cancelled` は拒否する。
 - Phase 4 注文管理では、注文全体取消は未精算かつ ready / served 明細を含まない注文だけ許可する。精算済み注文の取消、返金、レシート再発行は対象外とする。
 - Phase 4 注文管理の取消メモは API 入力として受け取るが、監査ログ・取消履歴テーブルが未実装のため永続化しない。
-- Phase 5 監査ログの actor は当面 `terminal_code` ベースとし、本格ログイン認証、スタッフ ID、ユーザー ID は未対応とする。
+- Phase 5 時点の監査ログ actor は `terminal_code` ベースだったが、Phase 6 以降はログイン済み操作で user actor も記録する。
 - Phase 5 監査ログは物理削除しない。ログ削除、アーカイブ、CSV エクスポートは未対応とする。
 - Phase 5 監査ログの改ざん防止署名は未対応とする。
 - Phase 5 監査ログ書き込み失敗時は、本体業務処理を原則継続し、開発ログに書き込み失敗を出す。
+- Phase 6 の認証 token は MVP として localStorage に保存する。本番では httpOnly cookie 等を検討する。
+- Phase 6 の password hash は MVP 簡易方式として SHA-256 を使う。本番では bcrypt/argon2 等へ移行する。
+- 顧客 API (`/api/customer/*`) はログイン不要とし、既存の端末 active / 種別チェックを維持する。
+- 管理 API (`/api/admin/*`) は manager のみ許可する。
+- 監査ログ actor はログイン済み user 情報がある場合は `actor_user_id` ベースでも記録し、token がない顧客 API などでは従来どおり `terminal_code` ベースとする。

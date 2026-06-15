@@ -4,6 +4,21 @@
     "script": "./javascript/apis/bootstrap.js",
     "description": "端末情報取得"
   },
+  "api/auth/login": {
+    "type": "api",
+    "script": "./javascript/apis/auth_login.js",
+    "description": "ログイン"
+  },
+  "api/auth/logout": {
+    "type": "api",
+    "script": "./javascript/apis/auth_logout.js",
+    "description": "ログアウト"
+  },
+  "api/auth/me": {
+    "type": "api",
+    "script": "./javascript/apis/auth_me.js",
+    "description": "現在ユーザー取得"
+  },
   "api/customer/menu": {
     "type": "api",
     "script": "./javascript/apis/customer_menu.js",
@@ -173,5 +188,20 @@
     "type": "api",
     "script": "./javascript/apis/admin_audit_log_detail.js",
     "description": "管理画面向け監査ログ詳細"
+  },
+  "api/admin/users": {
+    "type": "api",
+    "script": "./javascript/apis/admin_users.js",
+    "description": "管理画面向けユーザー一覧・作成"
+  },
+  "api/admin/users/update": {
+    "type": "api",
+    "script": "./javascript/apis/admin_user_update.js",
+    "description": "管理画面向けユーザー更新"
+  },
+  "api/admin/users/toggle-active": {
+    "type": "api",
+    "script": "./javascript/apis/admin_user_toggle_active.js",
+    "description": "管理画面向けユーザー有効状態切替"
   }
 }

@@ -16,10 +16,15 @@ function auditLogDebug(message) {
 function writeAuditLog(input) {
   try {
     input = input || {};
+    var currentUser = null;
+    if (typeof getCurrentUser === "function") currentUser = getCurrentUser();
     return nyanqlPost("audit-logs", {
       id: newId("audit"),
       actor_terminal_code: input.actorTerminalCode || "",
       actor_terminal_type: input.actorTerminalType || "",
+      actor_user_id: input.actorUserId || (currentUser ? currentUser.id : ""),
+      actor_user_display_name: input.actorUserDisplayName || (currentUser ? currentUser.displayName : ""),
+      actor_user_role: input.actorUserRole || (currentUser ? currentUser.role : ""),
       action: input.action,
       target_type: input.targetType,
       target_id: input.targetId || "",

@@ -5,6 +5,7 @@ SMOKE_NAME="smoke-checkout-csv"
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "注文から精算まで 1 件完了"
 session_id="$(open_session customer-T01 T01)"

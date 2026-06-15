@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AuditLogDetail, AuditLogSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AuditLogDetail, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -10,6 +10,9 @@ export const terminals = {
 };
 
 export const cafeApi = {
+  login: (input: { loginId: string; password: string; terminalCode: string }) => post<{ token: string; user: AuthUser }>('/api/auth/login', input),
+  logout: () => post<{ loggedOut: boolean }>('/api/auth/logout', {}),
+  me: () => get<{ user: AuthUser }>('/api/auth/me'),
   menu: (tableCode: string) => get<{ categories: MenuCategory[] }>('/api/customer/menu', { terminal_code: terminals.customer(tableCode) }),
   openSession: (tableCode: string) => post<{ session: { id: string; status: string } }>('/api/customer/session/open', {
     terminal_code: terminals.customer(tableCode),
@@ -195,5 +198,22 @@ export const cafeApi = {
   adminAuditLogDetail: (auditLogId: string) => get<{ log: AuditLogDetail }>('/api/admin/audit-logs/detail', {
     terminal_code: terminals.analytics,
     id: auditLogId
+  }),
+  adminUsers: (keyword = '') => get<{ users: AdminUser[] }>('/api/admin/users', {
+    terminal_code: terminals.analytics,
+    keyword
+  }),
+  adminCreateUser: (input: { login_id: string; display_name: string; password: string; role: UserRole; active: boolean }) => post<{ user: AdminUser }>('/api/admin/users', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
+  adminUpdateUser: (input: { id: string; display_name: string; password?: string; role: UserRole }) => post<{ user: AdminUser }>('/api/admin/users/update', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
+  adminToggleUserActive: (id: string, active: boolean) => post<{ user: AdminUser }>('/api/admin/users/toggle-active', {
+    terminal_code: terminals.analytics,
+    id,
+    active
   })
 };

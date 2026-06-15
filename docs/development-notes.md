@@ -173,3 +173,14 @@
 - 追加した smoke script: `scripts/smoke-audit-logs.sh`。注文確定、会計依頼、精算、商品売切、明細取消、非管理者拒否、一覧・詳細取得を確認する。
 - ログ対象操作: `admin_order_item_cancelled`, `admin_order_cancelled`, `admin_menu_item_created`, `admin_menu_item_updated`, `admin_menu_item_active_changed`, `admin_menu_item_sold_out_changed`, `admin_menu_item_moved`, `admin_table_status_changed`, `admin_session_force_closed`, `admin_terminal_active_changed`, `checkout_settled`, `checkout_settle_rejected`, `customer_order_submitted`, `customer_payment_requested`, `customer_staff_called`。
 - 未対応の監査要件: 本格ログイン認証、スタッフ ID / ユーザー ID、ロール権限、ログ改ざん防止署名、ログアーカイブ、ログ削除、監査ログ CSV エクスポート、複数店舗対応、外部監査システム連携。
+
+## 2026-06-15 Phase 6 簡易ログイン・権限ロール管理
+
+- 追加した DB テーブル: `users`, `user_sessions`。`audit_logs` には `actor_user_id`, `actor_user_display_name`, `actor_user_role` を追加した。
+- 追加した NyanQL API: `auth/users/by-login-id`, `auth/sessions`, `auth/sessions/current`, `auth/sessions/delete`, `admin/users`, `admin/users/create`, `admin/users/update`, `admin/users/toggle-active`。
+- 追加した Nyan8 API: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `GET/POST /api/admin/users`, `POST /api/admin/users/update`, `POST /api/admin/users/toggle-active`。
+- 認可方針: `/api/customer/*` は token 不要。`/api/kitchen/*` は kitchen/manager、`/api/hall/*` は hall/manager、`/api/checkout/*` は cashier/manager、`/api/analytics/*` は manager/viewer、`/api/admin/*` は manager のみ許可する。端末種別・active チェックは継続する。
+- 追加した画面: `/login`, `/admin/users`。既存管理画面、分析、キッチン、ホール、レジには frontend guard を追加した。
+- 追加した frontend API client: `login`, `logout`, `me`, `adminUsers`, `adminCreateUser`, `adminUpdateUser`, `adminToggleUserActive`。`frontend/src/api/client.ts` は token がある場合 `Authorization: Bearer <token>` を付与する。
+- 追加した smoke script: `scripts/smoke-auth.sh`。manager login、誤パスワード拒否、me、viewer/cashier/kitchen/hall の許可、admin 拒否、logout 後拒否、監査ログ actor user 記録を確認する。
+- 暫定対応: password hash は SHA-256。Nyan8 で専用 hash 関数や Node crypto が使えない環境に備えて純 JavaScript fallback を持つ。本番では bcrypt/argon2 と httpOnly cookie へ移行する。

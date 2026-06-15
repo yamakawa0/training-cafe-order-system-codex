@@ -1,3 +1,5 @@
+import { getAuthToken } from '../auth/authState';
+
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -7,8 +9,10 @@ export class ApiError extends Error {
 const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken();
   const headers = {
     ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(token && !path.startsWith('/api/customer/') ? { Authorization: `Bearer ${token}` } : {}),
     ...(init?.headers || {})
   };
   let response: Response;
@@ -44,10 +48,16 @@ export function get<T>(path: string, params?: Record<string, string | number | u
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) search.set(key, String(value));
   });
+  const token = getAuthToken();
+  if (token && !path.startsWith('/api/customer/')) search.set('token', token);
   const query = search.toString();
   return request<T>(`${path}${query ? `?${query}` : ''}`);
 }
 
 export function post<T>(path: string, body: unknown): Promise<T> {
-  return request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+  const token = getAuthToken();
+  const payload = token && !path.startsWith('/api/customer/') && body && typeof body === 'object' && !Array.isArray(body)
+    ? { ...(body as Record<string, unknown>), token }
+    : body;
+  return request<T>(path, { method: 'POST', body: JSON.stringify(payload) });
 }

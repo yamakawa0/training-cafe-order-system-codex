@@ -3,6 +3,9 @@ SELECT
     occurred_at,
     actor_terminal_code,
     actor_terminal_type,
+    actor_user_id,
+    actor_user_display_name,
+    actor_user_role,
     action,
     target_type,
     target_id,
@@ -23,6 +26,8 @@ WHERE occurred_at::date BETWEEN COALESCE(NULLIF(/*from_date*/'', '')::date, CURR
       OR target_id ILIKE '%' || NULLIF(/*keyword*/'', '') || '%'
       OR target_label ILIKE '%' || NULLIF(/*keyword*/'', '') || '%'
       OR actor_terminal_code ILIKE '%' || NULLIF(/*keyword*/'', '') || '%'
+      OR actor_user_display_name ILIKE '%' || NULLIF(/*keyword*/'', '') || '%'
+      OR actor_user_role ILIKE '%' || NULLIF(/*keyword*/'', '') || '%'
       OR error_message ILIKE '%' || NULLIF(/*keyword*/'', '') || '%'
   )
 ORDER BY occurred_at DESC, id DESC

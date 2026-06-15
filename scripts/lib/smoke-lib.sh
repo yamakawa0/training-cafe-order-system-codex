@@ -8,6 +8,10 @@ LAST_BODY=""
 LAST_STATUS=""
 LAST_HEADERS=""
 LAST_STEP=""
+AUTH_TOKEN="${AUTH_TOKEN:-}"
+AUTH_LOGIN_ID="${AUTH_LOGIN_ID:-}"
+AUTH_PASSWORD="${AUTH_PASSWORD:-}"
+AUTH_TERMINAL_CODE="${AUTH_TERMINAL_CODE:-}"
 SMOKE_NAME="${SMOKE_NAME:-smoke}"
 
 pass() {
@@ -40,6 +44,9 @@ step() {
 reset_db() {
   step "DB を初期化"
   "$ROOT_DIR/scripts/dev-reset-db.sh"
+  if [ -n "$AUTH_LOGIN_ID" ]; then
+    login_as "$AUTH_LOGIN_ID" "$AUTH_PASSWORD" "$AUTH_TERMINAL_CODE" >/dev/null
+  fi
 }
 
 json_eval() {
@@ -88,13 +95,28 @@ call_api() {
   local body="${3:-}"
   local expected="${4:-ok}"
   local tmp
+  local curl_headers=()
+  local request_path="$path"
+  local request_body="$body"
   tmp="$(mktemp)"
 
-  echo "$method /$path" >&2
+  if [ -n "$AUTH_TOKEN" ] && [[ "$request_path" != api/customer/* ]]; then
+    curl_headers=(-H "Authorization: Bearer $AUTH_TOKEN")
+    if [ "$method" = "GET" ]; then
+      case "$request_path" in
+        *\?*) request_path="$request_path&token=$AUTH_TOKEN" ;;
+        *) request_path="$request_path?token=$AUTH_TOKEN" ;;
+      esac
+    elif [ -n "$request_body" ]; then
+      request_body="$(printf '%s' "$request_body" | node -e 'let input=""; process.stdin.on("data", c => input += c); process.stdin.on("end", () => { const data = input ? JSON.parse(input) : {}; data.token = process.argv[1]; console.log(JSON.stringify(data)); });' "$AUTH_TOKEN")"
+    fi
+  fi
+
+  echo "$method /$request_path" >&2
   if [ "$method" = "GET" ]; then
-    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' "$BASE_URL/$path" || true)"
+    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} "$BASE_URL/$request_path" || true)"
   else
-    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' -H 'Content-Type: application/json' -d "$body" "$BASE_URL/$path" || true)"
+    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} -H 'Content-Type: application/json' -d "$request_body" "$BASE_URL/$request_path" || true)"
   fi
   LAST_BODY="$(cat "$tmp")"
   LAST_HEADERS=""
@@ -117,6 +139,31 @@ call_api() {
       [ "$LAST_STATUS" = "$expected" ] || fail "unexpected HTTP status for /$path"
       ;;
   esac
+}
+
+login_as() {
+  local login_id="$1"
+  local password="$2"
+  local terminal_code="$3"
+  call_post "api/auth/login" "{\"loginId\":\"$login_id\",\"password\":\"$password\",\"terminalCode\":\"$terminal_code\"}"
+  AUTH_TOKEN="$(extract_json 'return root.token' "$login_id token が取得できません")"
+  AUTH_LOGIN_ID="$login_id"
+  AUTH_PASSWORD="$password"
+  AUTH_TERMINAL_CODE="$terminal_code"
+  export AUTH_TOKEN
+  export AUTH_LOGIN_ID AUTH_PASSWORD AUTH_TERMINAL_CODE
+}
+
+logout_auth() {
+  if [ -n "$AUTH_TOKEN" ]; then
+    call_post "api/auth/logout" "{}" raw
+  fi
+  AUTH_TOKEN=""
+  AUTH_LOGIN_ID=""
+  AUTH_PASSWORD=""
+  AUTH_TERMINAL_CODE=""
+  export AUTH_TOKEN
+  export AUTH_LOGIN_ID AUTH_PASSWORD AUTH_TERMINAL_CODE
 }
 
 call_get() {

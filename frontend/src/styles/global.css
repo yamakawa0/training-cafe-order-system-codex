@@ -163,13 +163,51 @@ h3 {
 
 .auditRow {
   display: grid;
-  grid-template-columns: 150px 76px 150px 150px 96px minmax(120px, 1fr) minmax(120px, 1fr) 80px;
+  grid-template-columns: 150px 76px 150px 140px 90px 150px 96px minmax(120px, 1fr) minmax(120px, 1fr) 80px;
   gap: 10px;
   align-items: center;
-  min-width: 1060px;
+  min-width: 1320px;
   padding: 10px 8px;
   border-bottom: 1px solid #eadbc1;
   font-size: 0.9rem;
+}
+
+.authShell {
+  width: min(720px, 100%);
+}
+
+.authForm,
+.adminUserForm {
+  display: grid;
+  gap: 12px;
+}
+
+.authForm label {
+  display: grid;
+  gap: 6px;
+  color: #74614f;
+  font-weight: 900;
+}
+
+.adminUserGrid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.userTable {
+  display: grid;
+  gap: 8px;
+}
+
+.userRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(100px, 0.8fr) 120px 86px 82px 68px 86px;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eadbc1;
 }
 
 .auditRow.header {

@@ -5,6 +5,7 @@ SMOKE_NAME="smoke-admin-tables"
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "管理者端末で席一覧取得"
 call_get "api/admin/tables?terminal_code=analytics-manager"

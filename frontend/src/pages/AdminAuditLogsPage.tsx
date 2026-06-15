@@ -147,13 +147,15 @@ export function AdminAuditLogsPage() {
           {logs.length === 0 && !loading && <EmptyState>条件に一致する操作ログはありません。</EmptyState>}
           <div className="auditTable" role="table">
             <div className="auditRow header" role="row">
-              <span>操作日時</span><span>結果</span><span>操作種別</span><span>操作端末</span><span>対象</span><span>対象ラベル</span><span>エラー</span><span>操作</span>
+              <span>操作日時</span><span>結果</span><span>操作種別</span><span>操作ユーザー</span><span>ロール</span><span>操作端末</span><span>対象</span><span>対象ラベル</span><span>エラー</span><span>操作</span>
             </div>
             {logs.map((log) => (
               <div className={log.id === selectedId ? 'auditRow selected' : 'auditRow'} key={log.id} role="row">
                 <span>{formatDate(log.occurredAt)}</span>
                 <span><Badge tone={log.status === 'success' ? 'success' : 'danger'}>{log.status === 'success' ? '成功' : '失敗'}</Badge></span>
                 <strong>{labelOf(actionLabels, log.action)}</strong>
+                <span>{log.actorUserDisplayName || '-'}</span>
+                <span>{log.actorUserRole || '-'}</span>
                 <span>{log.actorTerminalCode || '-'}</span>
                 <span>{labelOf(targetLabels, log.targetType)}</span>
                 <span>{log.targetLabel || log.targetId || '-'}</span>
@@ -172,6 +174,9 @@ export function AdminAuditLogsPage() {
                 <div><span>操作日時</span><strong>{formatDate(detail.occurredAt)}</strong></div>
                 <div><span>結果</span><strong>{detail.status === 'success' ? '成功' : '失敗'}</strong></div>
                 <div><span>操作種別</span><strong>{labelOf(actionLabels, detail.action)}</strong></div>
+                <div><span>操作ユーザー</span><strong>{detail.actorUserDisplayName || '-'}</strong></div>
+                <div><span>ユーザー ID</span><strong>{detail.actorUserId || '-'}</strong></div>
+                <div><span>ロール</span><strong>{detail.actorUserRole || '-'}</strong></div>
                 <div><span>操作端末</span><strong>{detail.actorTerminalCode || '-'}</strong></div>
                 <div><span>端末種別</span><strong>{detail.actorTerminalType || '-'}</strong></div>
                 <div><span>対象</span><strong>{labelOf(targetLabels, detail.targetType)}</strong></div>

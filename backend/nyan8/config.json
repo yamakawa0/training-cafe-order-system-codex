@@ -7,7 +7,8 @@
   "keyPath": "",
   "javascript_include": [
     "./javascript/lib/runtime.js",
-    "./javascript/lib/audit.js"
+    "./javascript/lib/audit.js",
+    "./javascript/lib/auth.js"
   ],
   "log": {
     "Filename": "./logs/nyan8.log",

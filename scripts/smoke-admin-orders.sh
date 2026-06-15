@@ -16,6 +16,7 @@ item_id_from_detail() {
 }
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "管理者端末で注文一覧を取得"
 call_get "api/admin/orders?terminal_code=analytics-manager"

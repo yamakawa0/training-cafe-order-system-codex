@@ -170,5 +170,37 @@
   "audit-logs": {
     "sql": ["./sql/insert_audit_log.sql"],
     "description": "監査ログを登録する"
+  },
+  "auth/users/by-login-id": {
+    "sql": ["./sql/auth_find_user_by_login_id.sql"],
+    "description": "ログイン ID からユーザーを取得する"
+  },
+  "auth/sessions": {
+    "sql": ["./sql/auth_create_user_session.sql"],
+    "description": "ユーザーセッションを作成する"
+  },
+  "auth/sessions/current": {
+    "sql": ["./sql/auth_get_user_session.sql"],
+    "description": "セッショントークンから現在ユーザーを取得する"
+  },
+  "auth/sessions/delete": {
+    "sql": ["./sql/auth_delete_user_session.sql"],
+    "description": "ユーザーセッションを削除する"
+  },
+  "admin/users": {
+    "sql": ["./sql/admin_list_users.sql"],
+    "description": "管理画面向けユーザー一覧を取得する"
+  },
+  "admin/users/create": {
+    "sql": ["./sql/admin_create_user.sql"],
+    "description": "管理画面からユーザーを作成する"
+  },
+  "admin/users/update": {
+    "sql": ["./sql/admin_update_user.sql"],
+    "description": "管理画面からユーザーを更新する"
+  },
+  "admin/users/toggle-active": {
+    "sql": ["./sql/admin_toggle_user_active.sql"],
+    "description": "管理画面からユーザーの有効状態を切り替える"
   }
 }

@@ -5,6 +5,7 @@ SMOKE_NAME="smoke-multiple-tables"
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "customer-T01 と customer-T02 で別々にセッション開始"
 t01_session_id="$(open_session customer-T01 T01)"

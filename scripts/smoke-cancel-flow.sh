@@ -7,6 +7,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 create_single_order() {
   local transition_to="${1:-}"
   reset_db
+login_as manager manager123 analytics-manager
   session_id="$(open_session customer-T01 T01)"
   order_no="$(submit_order customer-T01 T01 '[{"menu_item_id":"item-blend","quantity":1,"choice_ids":["choice-blend-regular"],"customer_note":""}]')"
   order_id="$(sql_scalar "SELECT id FROM orders WHERE order_no = '$order_no'")"

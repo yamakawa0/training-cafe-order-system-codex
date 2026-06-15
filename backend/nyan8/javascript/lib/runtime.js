@@ -42,6 +42,7 @@ function assertTerminal(terminal, expectedType) {
 }
 
 function assertAdminTerminal(input) {
+  requireManager();
   requireField(input.terminal_code, "terminal_code");
   if (input.terminal_code !== "analytics-manager") throw error(403, "管理者端末ではありません");
   var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
@@ -390,6 +391,7 @@ function customerStaffCall() {
 
 function kitchenTickets() {
   var input = params();
+  requireRole(["kitchen", "manager"]);
   requireField(input.terminal_code, "terminal_code");
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "kitchen");
   return ok({ tickets: rows(nyanqlGet("kitchen/tickets")) });
@@ -397,6 +399,7 @@ function kitchenTickets() {
 
 function kitchenUpdateItemStatus() {
   var input = params();
+  requireRole(["kitchen", "manager"]);
   requireField(input.terminal_code, "terminal_code");
   requireField(input.order_item_id, "order_item_id");
   requireField(input.status, "status");
@@ -418,6 +421,7 @@ function kitchenUpdateItemStatus() {
 
 function hallTasks() {
   var input = params();
+  requireRole(["hall", "manager"]);
   requireField(input.terminal_code, "terminal_code");
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "hall");
   return ok({ tasks: rows(nyanqlGet("hall/tasks/list")) });
@@ -425,6 +429,7 @@ function hallTasks() {
 
 function hallUpdateTaskStatus() {
   var input = params();
+  requireRole(["hall", "manager"]);
   requireField(input.terminal_code, "terminal_code");
   requireField(input.task_id, "task_id");
   requireField(input.status, "status");
@@ -459,6 +464,7 @@ function summarizeCheckout(rawRows) {
 
 function checkoutSummary() {
   var input = params();
+  requireRole(["cashier", "manager"]);
   requireField(input.terminal_code, "terminal_code");
   requireField(input.table_code, "table_code");
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "checkout");
@@ -468,6 +474,7 @@ function checkoutSummary() {
 
 function checkoutSettle() {
   var input = params();
+  requireRole(["cashier", "manager"]);
   var rawRows = [];
   try {
     requireField(input.terminal_code, "terminal_code");
@@ -511,6 +518,7 @@ function today() {
 
 function analyticsSummary() {
   var input = params();
+  requireRole(["manager", "viewer"]);
   requireField(input.terminal_code, "terminal_code");
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "analytics");
   return ok({ summary: first(nyanqlGet("analytics/summary", { from_date: input.from_date || today(), to_date: input.to_date || today() })) });
@@ -518,6 +526,7 @@ function analyticsSummary() {
 
 function analyticsItemRanking() {
   var input = params();
+  requireRole(["manager", "viewer"]);
   requireField(input.terminal_code, "terminal_code");
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "analytics");
   return ok({ items: rows(nyanqlGet("analytics/item-ranking", { from_date: input.from_date || today(), to_date: input.to_date || today(), limit: input.limit || 10 })) });
@@ -525,6 +534,7 @@ function analyticsItemRanking() {
 
 function analyticsExportSalesCsv() {
   var input = params();
+  requireRole(["manager", "viewer"]);
   requireField(input.terminal_code, "terminal_code");
   assertTerminal(first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code })), "analytics");
   var fromDate = input.from_date || today();
@@ -761,6 +771,91 @@ function adminTerminal(row) {
   };
 }
 
+function adminUser(row) {
+  return {
+    id: row.id,
+    loginId: row.login_id,
+    displayName: row.display_name,
+    role: row.role,
+    active: Boolean(row.active),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  };
+}
+
+function validateRole(role) {
+  if (["manager", "cashier", "kitchen", "hall", "viewer"].indexOf(role) < 0) throw error(400, "invalid role");
+  return role;
+}
+
+function adminListUsers() {
+  var input = params();
+  assertAdminTerminal(input);
+  return ok({ users: rows(nyanqlGet("admin/users", { keyword: input.keyword || "" })).map(adminUser) });
+}
+
+function adminCreateUser() {
+  var input = params();
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.login_id, "login_id");
+    requireField(input.display_name, "display_name");
+    requireField(input.password, "password");
+    requireField(input.role, "role");
+    var user = first(nyanqlPost("admin/users/create", {
+      id: newId("user"),
+      login_id: String(input.login_id).trim(),
+      display_name: String(input.display_name).trim(),
+      password_hash: sha256(input.password),
+      role: validateRole(input.role),
+      active: booleanValue(input.active, true)
+    }));
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_user_created", targetType: "user", targetId: user.id, targetLabel: user.login_id, status: "success", afterData: user, requestData: { login_id: input.login_id, display_name: input.display_name, role: input.role, active: input.active } });
+    return ok({ user: adminUser(user) });
+  } catch (event) {
+    auditFailure(input, "admin_user_created", "user", "", input.login_id || "", event);
+    throw event;
+  }
+}
+
+function adminUpdateUser() {
+  var input = params();
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.id, "id");
+    requireField(input.display_name, "display_name");
+    requireField(input.role, "role");
+    var user = first(nyanqlPost("admin/users/update", {
+      id: input.id,
+      display_name: String(input.display_name).trim(),
+      password_hash: input.password ? sha256(input.password) : "",
+      role: validateRole(input.role)
+    }));
+    if (!user) throw error(404, "ユーザーが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_user_updated", targetType: "user", targetId: user.id, targetLabel: user.login_id, status: "success", afterData: user, requestData: { id: input.id, display_name: input.display_name, role: input.role, passwordUpdated: Boolean(input.password) } });
+    return ok({ user: adminUser(user) });
+  } catch (event) {
+    auditFailure(input, "admin_user_updated", "user", input.id || "", "", event);
+    throw event;
+  }
+}
+
+function adminToggleUserActive() {
+  var input = params();
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.id, "id");
+    if (input.id === "user-manager" && booleanValue(input.active, true) === false) throw error(409, "初期 manager は無効化できません");
+    var user = first(nyanqlPost("admin/users/toggle-active", { id: input.id, active: booleanValue(input.active, true) }));
+    if (!user) throw error(404, "ユーザーが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_user_active_changed", targetType: "user", targetId: user.id, targetLabel: user.login_id, status: "success", afterData: user, requestData: { id: input.id, active: input.active } });
+    return ok({ user: adminUser(user) });
+  } catch (event) {
+    auditFailure(input, "admin_user_active_changed", "user", input.id || "", "", event);
+    throw event;
+  }
+}
+
 function adminListTables() {
   var input = params();
   assertAdminTerminal(input);
@@ -892,6 +987,9 @@ function adminAuditLog(row) {
     occurredAt: row.occurred_at,
     actorTerminalCode: row.actor_terminal_code || null,
     actorTerminalType: row.actor_terminal_type || null,
+    actorUserId: row.actor_user_id || null,
+    actorUserDisplayName: row.actor_user_display_name || null,
+    actorUserRole: row.actor_user_role || null,
     action: row.action,
     targetType: row.target_type,
     targetId: row.target_id || null,

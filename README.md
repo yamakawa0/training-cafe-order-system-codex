@@ -314,6 +314,7 @@ Nyan8 経由の業務フローは次で確認します。
 
 ```bash
 ./scripts/dev-reset-db.sh
+./scripts/smoke-auth.sh
 ./scripts/smoke-admin-menu.sh
 ./scripts/smoke-admin-tables.sh
 ./scripts/smoke-admin-orders.sh
@@ -330,6 +331,14 @@ cd frontend
 npm install
 npm run build
 ```
+
+## 認証・ロール
+
+Phase 6 では `/login` と `/admin/users` を追加し、スタッフ用の簡易ログインとロール認可を導入しています。API は `Authorization: Bearer <token>` を受け取り、smoke script は内部でログインして token を付与します。顧客 API (`/api/customer/*`) は顧客端末操作のため token 不要です。
+
+初期ユーザーは `manager / manager123`, `cashier / cashier123`, `kitchen / kitchen123`, `hall / hall123`, `viewer / viewer123` です。ロールは `manager`, `cashier`, `kitchen`, `hall`, `viewer` で、manager は管理機能と分析、cashier はレジ、kitchen はキッチン、hall はホール、viewer は分析閲覧のみを許可します。管理 API (`/api/admin/*`) は manager のみ許可します。
+
+MVP では token を localStorage に保存し、password hash は SHA-256 の簡易方式です。本番向けには httpOnly cookie、bcrypt/argon2、セッション失効管理の強化を検討してください。
 
 ## CSV API 仕様
 

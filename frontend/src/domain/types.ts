@@ -1,4 +1,5 @@
 export type TerminalType = 'customer' | 'kitchen' | 'hall' | 'checkout' | 'analytics';
+export type UserRole = 'manager' | 'cashier' | 'kitchen' | 'hall' | 'viewer';
 export type OrderItemStatus = 'ordered' | 'accepted' | 'cooking' | 'ready' | 'served' | 'cancelled';
 export type HallTaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card' | 'qr';
@@ -17,6 +18,20 @@ export interface Terminal {
   display_name: string;
   table_code?: string;
   table_name?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  loginId: string;
+  displayName: string;
+  role: UserRole;
+  active?: boolean;
+}
+
+export interface AdminUser extends AuthUser {
+  active: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface MenuOptionChoice {
@@ -265,6 +280,9 @@ export interface AuditLogSummary {
   occurredAt: string;
   actorTerminalCode: string | null;
   actorTerminalType: string | null;
+  actorUserId: string | null;
+  actorUserDisplayName: string | null;
+  actorUserRole: UserRole | null;
   action: string;
   targetType: string;
   targetId: string | null;

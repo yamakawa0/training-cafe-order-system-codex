@@ -5,6 +5,7 @@ SMOKE_NAME="smoke-invalid-operations"
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "検証用の注文、配膳、精算状態を作成"
 session_id="$(open_session customer-T01 T01)"

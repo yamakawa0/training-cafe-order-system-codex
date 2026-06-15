@@ -21,6 +21,7 @@ item_id_from_detail() {
 }
 
 reset_db
+login_as manager manager123 analytics-manager
 
 step "顧客注文を作成し customer_order_submitted を確認"
 open_session customer-T01 T01 >/dev/null

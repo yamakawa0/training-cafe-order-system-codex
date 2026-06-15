@@ -1,4 +1,6 @@
 DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS user_sessions CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS hall_tasks CASCADE;
 DROP TABLE IF EXISTS order_item_options CASCADE;
@@ -32,6 +34,28 @@ CREATE TABLE terminals (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (terminal_type IN ('customer', 'kitchen', 'hall', 'checkout', 'analytics'))
+);
+
+CREATE TABLE users (
+    id VARCHAR(50) PRIMARY KEY,
+    login_id VARCHAR(100) NOT NULL UNIQUE,
+    display_name VARCHAR(100) NOT NULL,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (role IN ('manager', 'cashier', 'kitchen', 'hall', 'viewer'))
+);
+
+CREATE TABLE user_sessions (
+    id VARCHAR(50) PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL REFERENCES users(id),
+    session_token VARCHAR(255) NOT NULL UNIQUE,
+    terminal_code VARCHAR(100),
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TIMESTAMP
 );
 
 CREATE TABLE menu_categories (
@@ -176,6 +200,9 @@ CREATE TABLE audit_logs (
     occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     actor_terminal_code VARCHAR(100),
     actor_terminal_type VARCHAR(50),
+    actor_user_id VARCHAR(50),
+    actor_user_display_name VARCHAR(100),
+    actor_user_role VARCHAR(50),
     action VARCHAR(100) NOT NULL,
     target_type VARCHAR(100) NOT NULL,
     target_id VARCHAR(100),
@@ -189,6 +216,11 @@ CREATE TABLE audit_logs (
 );
 
 CREATE INDEX idx_table_sessions_table_status ON table_sessions(table_id, status);
+CREATE INDEX idx_users_login_id ON users(login_id);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_user_sessions_token ON user_sessions(session_token);
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
 CREATE INDEX idx_orders_session_status ON orders(session_id, status);
 CREATE INDEX idx_order_items_status_created ON order_items(status, created_at);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
@@ -198,4 +230,5 @@ CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
 CREATE INDEX idx_audit_logs_action ON audit_logs (action);
 CREATE INDEX idx_audit_logs_target_type_id ON audit_logs (target_type, target_id);
 CREATE INDEX idx_audit_logs_actor_terminal_code ON audit_logs (actor_terminal_code);
+CREATE INDEX idx_audit_logs_actor_user_id ON audit_logs (actor_user_id);
 CREATE INDEX idx_audit_logs_status ON audit_logs (status);

@@ -12,6 +12,13 @@ INSERT INTO terminals (id, terminal_code, terminal_type, table_id, display_name)
 ('term-checkout-main', 'checkout-main', 'checkout', NULL, 'レジ端末'),
 ('term-analytics-manager', 'analytics-manager', 'analytics', NULL, '店長 PC');
 
+INSERT INTO users (id, login_id, display_name, password_hash, role, active) VALUES
+('user-manager', 'manager', '店長', '866485796cfa8d7c0cf7111640205b83076433547577511d81f8030ae99ecea5', 'manager', TRUE),
+('user-cashier', 'cashier', 'レジ担当', 'b4c94003c562bb0d89535eca77f07284fe560fd48a7cc1ed99f0a56263d616ba', 'cashier', TRUE),
+('user-kitchen', 'kitchen', 'キッチン担当', 'e5cf9d8e3884bb2a899372b9fcb87af6fcd9b3aad2ff07e2c076b4a71ffad67c', 'kitchen', TRUE),
+('user-hall', 'hall', 'ホール担当', '2e0fdaf025121060df4810c0c56b3e88b052d834039376cd4491d35762548ccf', 'hall', TRUE),
+('user-viewer', 'viewer', '閲覧担当', '65375049b9e4d7cad6c9ba286fdeb9394b28135a3e84136404cfccfdcc438894', 'viewer', TRUE);
+
 INSERT INTO menu_categories (id, name, display_order) VALUES
 ('cat-coffee', 'Coffee', 10),
 ('cat-tea', 'Tea', 20),
