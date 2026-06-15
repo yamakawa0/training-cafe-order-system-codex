@@ -52,3 +52,6 @@
 - ホール API (`/api/hall/*`) は hall / manager のみ許可する。
 - `terminal_code` は端末 active 判定と端末種別判定に使い、管理者判定の主条件にはしない。
 - 監査ログ actor はログイン済み user 情報がある場合は `actor_user_id` ベースでも記録し、token がない顧客 API などでは従来どおり `terminal_code` ベースとする。
+- フロントエンド開発の推奨実行環境は Node.js 20 LTS 以上、npm 10 以上とする。`.nvmrc` は `20` を指定する。
+- Vite dev server は開発専用とし、本番公開には使わない。本番では `npm run build` の静的成果物を別途配信する。
+- `npm run dev` は localhost 開発用、`npm run dev:host` は信頼できるローカルネットワーク内の端末検証用とする。

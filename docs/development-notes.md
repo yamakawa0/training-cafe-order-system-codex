@@ -192,3 +192,18 @@
 - `/admin/users` と Nyan8 管理 API で、最後の active manager の無効化・降格と、自分自身の manager 権限変更を拒否するようにした。
 - `AuthGate` は `/api/auth/me` で token を検証し、壊れた localStorage token では再ログインへ誘導する。protected 画面にはログイン中ユーザー名、role、ログアウト導線を表示する。
 - `/admin/audit-logs` では user actor がない顧客操作を `未ログイン端末操作` と表示し、terminal_code と併せて確認できるようにした。
+
+## 2026-06-16 Phase 6.7 依存関係・Node 実行環境・npm audit 整理
+
+- 作業前のローカル既定環境は Node.js `v16.17.1`, npm `8.15.0` だった。この環境では `npm install` 時に `node-releases@2.0.47` の `node >=18` engine warning、npm ログ作成権限警告、`pyenv: cannot rehash` 警告が出ていた。
+- 推奨環境を Node.js 20 LTS 以上、npm 10 以上に整理し、`.nvmrc` は `20` とした。`frontend/package.json` には `engines.node >=20.19`, `engines.npm >=10` を追加した。
+- 検証には Codex bundled Node.js `v24.14.0` と npm `10.9.8` を使った。この組み合わせでは `npm install`, `npm audit`, `npm run build` の engine warning は発生しなかった。
+- 依存更新: `vite` は `4.5.14` から `8.0.16`、`@vitejs/plugin-react` は `4.7.0` から `6.0.2`、`@types/react` は `19.2.16` から `19.2.17`、`react` / `react-dom` は package range を `^19.0.0` から `^19.2.7`、`typescript` は package range を `^5.7.2` から `^5.9.3` に更新した。TypeScript `6.0.3` は major update のため今回の audit 対応からは外した。
+- npm audit 作業前: high 2 件、critical 0 件、total 2 件。内訳は `vite` 経由の `esbuild <=0.28.0` と `vite <=6.4.1` で、通常の `npm audit fix` では解消せず、`npm audit fix --force` は Vite 8 への major update を伴う状態だった。
+- npm audit 作業後: `npm audit` は `found 0 vulnerabilities`、`npm audit --json` でも `high=0`, `critical=0`, `total=0` を確認した。
+- Vite dev server policy: `npm run dev` は `vite` のみに戻して localhost 開発用とし、LAN 端末検証用に `npm run dev:host` (`vite --host 0.0.0.0`) を追加した。Vite dev server は本番公開に使わず、`npm run build` の成果物を別途配信する。
+- build 結果: Node.js `v24.14.0` を PATH 先頭に置き、npm `10.9.8` で `npm run build` を実行し成功した。Vite `v8.0.16` で frontend bundle が生成された。
+- dev server 結果: Node.js `v24.14.0` + npm `10.9.8` で `npm run dev` を実行し、`http://localhost:5173/` のみを表示、`Network: use --host to expose` となることを確認した。
+- ブラウザ確認: Vite dev server 上で `/login`, `/customer/T01`, `/kitchen`, `/hall`, `/checkout`, `/analytics`, `/admin/menu`, `/admin/tables`, `/admin/orders`, `/admin/audit-logs`, `/admin/users` を確認した。各画面で root content が描画され、ブラウザ console error は 0 件だった。管理画面は manager ログイン後に確認した。
+- smoke script 結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は順次実行で成功した。
+- 残る環境注意: システム既定の Node 16 / npm 8 では engine warning が出る。`pyenv: cannot rehash` と npm ログ権限警告はこのリポジトリの依存関係ではなくローカル環境権限の問題として扱う。
