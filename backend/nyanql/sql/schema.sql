@@ -173,12 +173,18 @@ CREATE TABLE payments (
 
 CREATE TABLE audit_logs (
     id VARCHAR(50) PRIMARY KEY,
-    actor_type VARCHAR(30) NOT NULL,
-    actor_id VARCHAR(50),
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actor_terminal_code VARCHAR(100),
+    actor_terminal_type VARCHAR(50),
     action VARCHAR(100) NOT NULL,
-    target_type VARCHAR(50) NOT NULL,
-    target_id VARCHAR(50) NOT NULL,
-    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    target_type VARCHAR(100) NOT NULL,
+    target_id VARCHAR(100),
+    target_label VARCHAR(255),
+    status VARCHAR(20) NOT NULL,
+    before_data JSONB,
+    after_data JSONB,
+    request_data JSONB,
+    error_message TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -188,3 +194,8 @@ CREATE INDEX idx_order_items_status_created ON order_items(status, created_at);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_hall_tasks_status_created ON hall_tasks(status, created_at);
 CREATE INDEX idx_payments_paid_at ON payments(paid_at);
+CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
+CREATE INDEX idx_audit_logs_action ON audit_logs (action);
+CREATE INDEX idx_audit_logs_target_type_id ON audit_logs (target_type, target_id);
+CREATE INDEX idx_audit_logs_actor_terminal_code ON audit_logs (actor_terminal_code);
+CREATE INDEX idx_audit_logs_status ON audit_logs (status);

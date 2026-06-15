@@ -163,5 +163,15 @@
     "type": "api",
     "script": "./javascript/apis/admin_order_cancel_order.js",
     "description": "管理画面向け注文全体キャンセル"
+  },
+  "api/admin/audit-logs": {
+    "type": "api",
+    "script": "./javascript/apis/admin_audit_logs.js",
+    "description": "管理画面向け監査ログ一覧"
+  },
+  "api/admin/audit-logs/detail": {
+    "type": "api",
+    "script": "./javascript/apis/admin_audit_log_detail.js",
+    "description": "管理画面向け監査ログ詳細"
   }
 }

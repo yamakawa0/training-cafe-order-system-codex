@@ -125,7 +125,8 @@ h3 {
 .segmented,
 .badgeRow,
 .itemActions,
-.modalActions {
+.modalActions,
+.auditFilters {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -147,6 +148,62 @@ h3 {
 
 .panel {
   padding: 16px;
+}
+
+.auditGrid {
+  display: grid;
+  grid-template-columns: minmax(720px, 1fr) minmax(360px, 0.44fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.auditTable {
+  overflow-x: auto;
+}
+
+.auditRow {
+  display: grid;
+  grid-template-columns: 150px 76px 150px 150px 96px minmax(120px, 1fr) minmax(120px, 1fr) 80px;
+  gap: 10px;
+  align-items: center;
+  min-width: 1060px;
+  padding: 10px 8px;
+  border-bottom: 1px solid #eadbc1;
+  font-size: 0.9rem;
+}
+
+.auditRow.header {
+  color: #74614f;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.auditRow.selected {
+  border-radius: 8px;
+}
+
+.auditError {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auditDetail {
+  position: sticky;
+  top: 14px;
+}
+
+.jsonBlock {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid #eadbc1;
+  border-radius: 8px;
+  background: #2f241d;
+  color: #fffaf0;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
 }
 
 .sectionTitle {

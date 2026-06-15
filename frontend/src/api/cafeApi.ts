@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AuditLogDetail, AuditLogSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -181,5 +181,19 @@ export const cafeApi = {
     terminal_code: terminals.analytics,
     order_id: orderId,
     cancel_note: cancelNote
+  }),
+  adminAuditLogs: (filters: { fromDate?: string; toDate?: string; action?: string; targetType?: string; actorTerminalCode?: string; status?: string; keyword?: string } = {}) => get<{ logs: AuditLogSummary[] }>('/api/admin/audit-logs', {
+    terminal_code: terminals.analytics,
+    from_date: filters.fromDate,
+    to_date: filters.toDate,
+    action: filters.action,
+    target_type: filters.targetType,
+    actor_terminal_code: filters.actorTerminalCode,
+    status: filters.status,
+    keyword: filters.keyword
+  }),
+  adminAuditLogDetail: (auditLogId: string) => get<{ log: AuditLogDetail }>('/api/admin/audit-logs/detail', {
+    terminal_code: terminals.analytics,
+    id: auditLogId
   })
 };

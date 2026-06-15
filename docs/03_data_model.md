@@ -16,6 +16,27 @@
 - `payments`
 - `audit_logs`
 
+## audit_logs
+
+Phase 5 では、管理操作と重要な業務操作を `audit_logs` に記録する。
+
+- `id`
+- `occurred_at`
+- `actor_terminal_code`
+- `actor_terminal_type`
+- `action`
+- `target_type`
+- `target_id`
+- `target_label`
+- `status`
+- `before_data`
+- `after_data`
+- `request_data`
+- `error_message`
+- `created_at`
+
+`status` は `success` / `failure` を想定する。ログは物理削除しない。
+
 ## 主要状態
 
 ### table_sessions.status

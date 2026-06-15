@@ -161,3 +161,15 @@
 - 確認結果: `./scripts/smoke-nyanql.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-admin-orders.sh` は成功した。単独 `smoke-e2e.sh` は DB 初期化前に残存セッションで一度失敗したが、`./scripts/dev-reset-db.sh` 後の再実行では成功した。
 - フロントエンド確認結果: `cd frontend && npm run build` は TypeScript build と Vite build に成功した。既存同様、`pyenv: cannot rehash` と npm ログ作成権限警告は出たが、ビルド結果には影響しなかった。
 - 暫定対応: 取消メモは API 入力として受け取るが、監査ログ・取消履歴テーブルが未実装のため永続化しない。返金、レシート再発行、スタッフ別履歴、ロール別権限制御は今回の対象外とした。
+
+## 2026-06-15 Phase 5 操作ログ・監査ログ機能
+
+- 追加したテーブル: `audit_logs`。`occurred_at`, `actor_terminal_code`, `actor_terminal_type`, `action`, `target_type`, `target_id`, `target_label`, `status`, `before_data`, `after_data`, `request_data`, `error_message` を持つ Phase 5 用スキーマへ更新し、日時、操作、対象、端末、結果の index を追加した。
+- 追加した NyanQL API: `admin/audit-logs`, `admin/audit-logs/detail`, `audit-logs`。追加 SQL は `admin_list_audit_logs.sql`, `admin_get_audit_log_detail.sql`, `insert_audit_log.sql`。
+- 追加した Nyan8 API: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`。どちらも `terminal_code=analytics-manager` を必須とする。
+- 追加した Nyan8 共通関数: `backend/nyan8/javascript/lib/audit.js` に `writeAuditLog` と失敗ログ補助を追加した。ログ書き込み失敗時は本体処理を原則継続し、開発ログへ出力する。
+- 追加した frontend API client: `adminAuditLogs(filters)`, `adminAuditLogDetail(auditLogId)`。型は `AuditLogSummary`, `AuditLogDetail` を追加し、フロントエンドでは camelCase に統一した。
+- 追加した画面: `frontend/src/pages/AdminAuditLogsPage.tsx` と `/admin/audit-logs`。`/analytics`, `/admin/menu`, `/admin/tables`, `/admin/orders` から遷移できる。
+- 追加した smoke script: `scripts/smoke-audit-logs.sh`。注文確定、会計依頼、精算、商品売切、明細取消、非管理者拒否、一覧・詳細取得を確認する。
+- ログ対象操作: `admin_order_item_cancelled`, `admin_order_cancelled`, `admin_menu_item_created`, `admin_menu_item_updated`, `admin_menu_item_active_changed`, `admin_menu_item_sold_out_changed`, `admin_menu_item_moved`, `admin_table_status_changed`, `admin_session_force_closed`, `admin_terminal_active_changed`, `checkout_settled`, `checkout_settle_rejected`, `customer_order_submitted`, `customer_payment_requested`, `customer_staff_called`。
+- 未対応の監査要件: 本格ログイン認証、スタッフ ID / ユーザー ID、ロール権限、ログ改ざん防止署名、ログアーカイブ、ログ削除、監査ログ CSV エクスポート、複数店舗対応、外部監査システム連携。

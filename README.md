@@ -245,6 +245,7 @@ npm run dev
 - 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
 - 席・端末管理: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
 - 注文管理: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
+- 操作ログ: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`
 
 NyanQL 単体の疎通は次で確認します。
 
@@ -284,6 +285,18 @@ Nyan8 経由の業務フローは次で確認します。
 
 この script は DB 初期化、管理者端末での注文一覧・詳細取得、非管理端末拒否、単品注文の明細取消、一部明細取消後の会計サマリ・分析除外、ready 明細の取消拒否、精算済み注文の取消拒否、既存 smoke の成功を確認します。
 
+操作ログ・監査ログ機能は `/admin/audit-logs` で確認します。店長 PC から操作日時、操作種別、操作端末、対象種別、対象 ID / ラベル、変更前後の JSON、リクエスト、成功 / 失敗、エラーメッセージを検索・絞り込みできます。
+
+監査ログ対象は、注文明細取消、注文全体取消、商品追加・編集・表示切替・売切切替・並び順変更、席ステータス変更、セッション強制クローズ、端末有効切替、精算完了、重要な精算拒否、顧客の注文確定・会計依頼・スタッフ呼び出しです。監査ログ API は管理者端末 `terminal_code=analytics-manager` のみ許可します。本格ユーザー認証は未対応で、actor は当面 `terminal_code` ベースです。ログ削除、ログ CSV エクスポート、改ざん防止署名は未対応です。
+
+操作ログ機能は次で確認します。
+
+```bash
+./scripts/smoke-audit-logs.sh
+```
+
+この script は DB 初期化、顧客注文、会計依頼、レジ精算、商品売切、注文明細取消、非管理者拒否、監査ログ一覧・詳細取得を確認します。
+
 `smoke-e2e.sh` は次の流れを実行します。
 
 1. 顧客端末 `customer-T01` でセッション開始
@@ -304,6 +317,7 @@ Nyan8 経由の業務フローは次で確認します。
 ./scripts/smoke-admin-menu.sh
 ./scripts/smoke-admin-tables.sh
 ./scripts/smoke-admin-orders.sh
+./scripts/smoke-audit-logs.sh
 ./scripts/smoke-menu.sh
 ./scripts/smoke-e2e.sh
 ./scripts/smoke-order-multiple-items.sh

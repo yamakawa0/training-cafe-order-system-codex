@@ -159,8 +159,16 @@
     "sql": ["./sql/analytics_sales_csv.sql"],
     "description": "売上 CSV 出力用の明細を取得する"
   },
+  "admin/audit-logs": {
+    "sql": ["./sql/admin_list_audit_logs.sql"],
+    "description": "管理画面向け監査ログ一覧を取得する"
+  },
+  "admin/audit-logs/detail": {
+    "sql": ["./sql/admin_get_audit_log_detail.sql"],
+    "description": "管理画面向け監査ログ詳細を取得する"
+  },
   "audit-logs": {
-    "sql": ["./sql/audit_log.sql"],
+    "sql": ["./sql/insert_audit_log.sql"],
     "description": "監査ログを登録する"
   }
 }

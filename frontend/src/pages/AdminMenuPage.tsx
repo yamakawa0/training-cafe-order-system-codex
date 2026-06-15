@@ -171,6 +171,7 @@ export function AdminMenuPage() {
             </select>
             <a className="button" href="/admin/tables">席・端末管理</a>
             <a className="button" href="/admin/orders">注文管理</a>
+            <a className="button" href="/admin/audit-logs">操作ログ</a>
             <button className="primary" onClick={startNew}>新規商品追加</button>
           </div>
         )}

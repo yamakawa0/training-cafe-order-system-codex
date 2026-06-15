@@ -260,6 +260,26 @@ export interface AdminOrderDetail extends AdminOrderSummary {
   }>;
 }
 
+export interface AuditLogSummary {
+  id: string;
+  occurredAt: string;
+  actorTerminalCode: string | null;
+  actorTerminalType: string | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  targetLabel: string | null;
+  status: 'success' | 'failure';
+  errorMessage: string | null;
+}
+
+export interface AuditLogDetail extends AuditLogSummary {
+  beforeData: unknown;
+  afterData: unknown;
+  requestData: unknown;
+  createdAt: string;
+}
+
 export interface CartItem {
   localId: string;
   menuItem: MenuItem;

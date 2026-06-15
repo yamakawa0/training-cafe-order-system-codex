@@ -184,6 +184,7 @@ export function AdminOrdersPage() {
             <a className="button" href="/analytics">CSV 出力</a>
             <a className="button" href="/admin/menu">メニュー管理</a>
             <a className="button" href="/admin/tables">席・端末管理</a>
+            <a className="button" href="/admin/audit-logs">操作ログ</a>
             <button className="primary" onClick={load}>更新</button>
           </div>
         )}

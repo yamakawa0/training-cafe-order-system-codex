@@ -147,14 +147,18 @@ function totalize(lines) {
 }
 
 function audit(input) {
-  return nyanqlPost("audit-logs", {
-    id: newId("audit"),
-    actor_type: input.actorType,
-    actor_id: input.actorId || "",
+  return writeAuditLog({
+    actorTerminalCode: input.actorTerminalCode || input.actorId || "",
+    actorTerminalType: input.actorTerminalType || input.actorType || "",
     action: input.action,
-    target_type: input.targetType,
-    target_id: input.targetId,
-    payload: JSON.stringify(input.payload || {})
+    targetType: input.targetType,
+    targetId: input.targetId,
+    targetLabel: input.targetLabel || "",
+    status: input.status || "success",
+    beforeData: input.beforeData || null,
+    afterData: input.afterData || input.payload || null,
+    requestData: input.requestData || {},
+    errorMessage: input.errorMessage || ""
   });
 }
 
@@ -320,7 +324,17 @@ function customerSubmitOrder() {
       nyanqlPost("order-item-options", { id: newId("oio"), order_item_id: orderItem.id, option_name: choice.optionName, choice_name: choice.choiceName, price_delta: choice.priceDelta });
     });
   });
-  audit({ actorType: "terminal", actorId: terminal.id, action: "customer.order.submit", targetType: "order", targetId: order.id, payload: { tableCode: input.table_code, totals: totals } });
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    action: "customer_order_submitted",
+    targetType: "order",
+    targetId: order.id,
+    targetLabel: order.order_no,
+    status: "success",
+    afterData: { orderNo: order.order_no, tableCode: input.table_code, totals: totals },
+    requestData: { table_code: input.table_code, items: input.items }
+  });
   return ok({ orderNo: order.order_no, subtotal: totals.subtotal, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount });
 }
 
@@ -335,7 +349,18 @@ function customerRequestPayment() {
   if (!session) throw error(404, "session not found");
   var updated = first(nyanqlPost("sessions/payment-request", { session_id: session.id }));
   if (!updated) throw error(409, "payment request is not allowed for this session");
-  audit({ actorType: "terminal", actorId: terminal.id, action: "customer.payment.request", targetType: "session", targetId: session.id, payload: {} });
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    action: "customer_payment_requested",
+    targetType: "session",
+    targetId: session.id,
+    targetLabel: input.table_code,
+    status: "success",
+    beforeData: { status: session.status },
+    afterData: { status: updated.status, paymentRequestedAt: updated.payment_requested_at || null },
+    requestData: { table_code: input.table_code }
+  });
   return ok({ session: updated });
 }
 
@@ -349,7 +374,17 @@ function customerStaffCall() {
   var session = first(nyanqlGet("sessions/current", { table_code: input.table_code }));
   if (!session) throw error(404, "session not found");
   var task = first(nyanqlPost("hall/tasks", { id: newId("task"), task_type: "staff_call", session_id: session.id, table_id: session.table_id, order_item_id: null, priority: 20, title: input.table_code + " スタッフ呼び出し", note: String(input.note || "") }));
-  audit({ actorType: "terminal", actorId: terminal.id, action: "customer.staff_call", targetType: "hall_task", targetId: task.id, payload: { note: input.note || "" } });
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    action: "customer_staff_called",
+    targetType: "hall_task",
+    targetId: task.id,
+    targetLabel: input.table_code,
+    status: "success",
+    afterData: { taskType: task.task_type, status: task.status, note: input.note || "" },
+    requestData: { table_code: input.table_code, note: input.note || "" }
+  });
   return ok({ task: task });
 }
 
@@ -433,24 +468,41 @@ function checkoutSummary() {
 
 function checkoutSettle() {
   var input = params();
-  requireField(input.terminal_code, "terminal_code");
-  requireField(input.table_code, "table_code");
-  requireField(input.method, "method");
-  if (["cash", "card", "qr"].indexOf(input.method) < 0) throw error(400, "invalid payment method");
-  var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
-  assertTerminal(terminal, "checkout");
-  var rawRows = rows(nyanqlGet("checkout/summary", { table_code: input.table_code }));
-  if (rawRows.length === 0) throw error(404, "checkout target not found");
-  if (rawRows[0].session_status !== "payment_requested") throw error(409, "payment has not been requested or is already settled");
-  var subtotal = rawRows.reduce(function(sum, row) { return sum + Number(row.line_subtotal || 0); }, 0);
-  var taxAmount = rawRows.reduce(function(sum, row) { return sum + Number(row.line_tax || 0); }, 0);
-  var sessionId = rawRows[0].session_id;
-  var payment = first(nyanqlPost("payments", { id: newId("pay"), session_id: sessionId, payment_no: businessNo("PAY"), method: input.method, subtotal: subtotal, tax_amount: taxAmount, total_amount: subtotal + taxAmount }));
-  var closed = first(nyanqlPost("sessions/close", { session_id: sessionId }));
-  if (!closed) throw error(409, "session is already settled");
-  nyanqlPost("hall/tasks", { id: newId("task"), task_type: "clean_table", session_id: sessionId, table_id: closed.table_id, order_item_id: null, priority: 30, title: input.table_code + " 片付け", note: "精算完了後の片付け" });
-  audit({ actorType: "terminal", actorId: terminal.id, action: "checkout.settle", targetType: "payment", targetId: payment.id, payload: { tableCode: input.table_code, method: input.method, totalAmount: subtotal + taxAmount } });
-  return ok({ receiptNo: payment.payment_no, payment: payment });
+  var rawRows = [];
+  try {
+    requireField(input.terminal_code, "terminal_code");
+    requireField(input.table_code, "table_code");
+    requireField(input.method, "method");
+    if (["cash", "card", "qr"].indexOf(input.method) < 0) throw error(400, "invalid payment method");
+    var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+    assertTerminal(terminal, "checkout");
+    rawRows = rows(nyanqlGet("checkout/summary", { table_code: input.table_code }));
+    if (rawRows.length === 0) throw error(404, "checkout target not found");
+    if (rawRows[0].session_status !== "payment_requested") throw error(409, "payment has not been requested or is already settled");
+    var subtotal = rawRows.reduce(function(sum, row) { return sum + Number(row.line_subtotal || 0); }, 0);
+    var taxAmount = rawRows.reduce(function(sum, row) { return sum + Number(row.line_tax || 0); }, 0);
+    var sessionId = rawRows[0].session_id;
+    var payment = first(nyanqlPost("payments", { id: newId("pay"), session_id: sessionId, payment_no: businessNo("PAY"), method: input.method, subtotal: subtotal, tax_amount: taxAmount, total_amount: subtotal + taxAmount }));
+    var closed = first(nyanqlPost("sessions/close", { session_id: sessionId }));
+    if (!closed) throw error(409, "session is already settled");
+    nyanqlPost("hall/tasks", { id: newId("task"), task_type: "clean_table", session_id: sessionId, table_id: closed.table_id, order_item_id: null, priority: 30, title: input.table_code + " 片付け", note: "精算完了後の片付け" });
+    writeAuditLog({
+      actorTerminalCode: terminal.terminal_code,
+      actorTerminalType: terminal.terminal_type,
+      action: "checkout_settled",
+      targetType: "payment",
+      targetId: payment.id,
+      targetLabel: payment.payment_no,
+      status: "success",
+      beforeData: { sessionId: sessionId, tableCode: input.table_code, sessionStatus: rawRows[0].session_status },
+      afterData: { paymentNo: payment.payment_no, method: input.method, totalAmount: subtotal + taxAmount, sessionStatus: closed.status },
+      requestData: { table_code: input.table_code, method: input.method }
+    });
+    return ok({ receiptNo: payment.payment_no, payment: payment });
+  } catch (event) {
+    auditFailure(input, "checkout_settle_rejected", "session", rawRows[0] ? rawRows[0].session_id : "", input.table_code || "", event, rawRows[0] || null);
+    throw event;
+  }
 }
 
 function today() {
@@ -516,6 +568,18 @@ function adminMenuItem(row) {
   };
 }
 
+function findAdminMenuItem(itemId) {
+  return rows(nyanqlGet("admin/menu/items")).filter(function(row) { return (row.item_id || row.id) === itemId; })[0] || null;
+}
+
+function menuItemAuditId(row) {
+  return row ? (row.item_id || row.id || "") : "";
+}
+
+function menuItemAuditName(row) {
+  return row ? (row.item_name || row.name || "") : "";
+}
+
 function validateAdminMenuItemInput(input, requireId) {
   if (requireId) requireField(input.item_id, "item_id");
   requireField(input.name, "name");
@@ -556,56 +620,94 @@ function adminListMenuItems() {
 
 function adminCreateMenuItem() {
   var input = params();
-  assertAdminTerminal(input);
-  var values = validateAdminMenuItemInput(input, false);
-  values.id = newId("item");
-  var item = first(nyanqlPost("admin/menu/items/create", values));
-  if (!item) throw error(409, "商品を作成できませんでした");
-  return ok({ item: adminMenuItem(item) });
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateAdminMenuItemInput(input, false);
+    values.id = newId("item");
+    var item = first(nyanqlPost("admin/menu/items/create", values));
+    if (!item) throw error(409, "商品を作成できませんでした");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_created", targetType: "menu_item", targetId: menuItemAuditId(item), targetLabel: menuItemAuditName(item), status: "success", afterData: item, requestData: input });
+    return ok({ item: adminMenuItem(item) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_created", "menu_item", input.item_id || "", input.name || "", event);
+    throw event;
+  }
 }
 
 function adminUpdateMenuItem() {
   var input = params();
-  assertAdminTerminal(input);
-  var values = validateAdminMenuItemInput(input, true);
-  var item = first(nyanqlPost("admin/menu/items/update", values));
-  if (!item) throw error(404, "商品が見つかりません");
-  return ok({ item: adminMenuItem(item) });
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateAdminMenuItemInput(input, true);
+    before = findAdminMenuItem(input.item_id);
+    var item = first(nyanqlPost("admin/menu/items/update", values));
+    if (!item) throw error(404, "商品が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_updated", targetType: "menu_item", targetId: menuItemAuditId(item), targetLabel: menuItemAuditName(item), status: "success", beforeData: before, afterData: item, requestData: input });
+    return ok({ item: adminMenuItem(item) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_updated", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
+    throw event;
+  }
 }
 
 function adminToggleMenuItemActive() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.item_id, "item_id");
-  var item = first(nyanqlPost("admin/menu/items/toggle-active", {
-    item_id: input.item_id,
-    active: input.active === undefined ? null : booleanValue(input.active, false)
-  }));
-  if (!item) throw error(404, "商品が見つかりません");
-  return ok({ item: adminMenuItem(item) });
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.item_id, "item_id");
+    before = findAdminMenuItem(input.item_id);
+    var item = first(nyanqlPost("admin/menu/items/toggle-active", {
+      item_id: input.item_id,
+      active: input.active === undefined ? null : booleanValue(input.active, false)
+    }));
+    if (!item) throw error(404, "商品が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_active_changed", targetType: "menu_item", targetId: menuItemAuditId(item), targetLabel: menuItemAuditName(item), status: "success", beforeData: before, afterData: item, requestData: input });
+    return ok({ item: adminMenuItem(item) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_active_changed", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
+    throw event;
+  }
 }
 
 function adminToggleMenuItemSoldOut() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.item_id, "item_id");
-  var item = first(nyanqlPost("admin/menu/items/toggle-sold-out", {
-    item_id: input.item_id,
-    sold_out: input.sold_out === undefined ? null : booleanValue(input.sold_out, false)
-  }));
-  if (!item) throw error(404, "商品が見つかりません");
-  return ok({ item: adminMenuItem(item) });
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.item_id, "item_id");
+    before = findAdminMenuItem(input.item_id);
+    var item = first(nyanqlPost("admin/menu/items/toggle-sold-out", {
+      item_id: input.item_id,
+      sold_out: input.sold_out === undefined ? null : booleanValue(input.sold_out, false)
+    }));
+    if (!item) throw error(404, "商品が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_sold_out_changed", targetType: "menu_item", targetId: menuItemAuditId(item), targetLabel: menuItemAuditName(item), status: "success", beforeData: before, afterData: item, requestData: input });
+    return ok({ item: adminMenuItem(item) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_sold_out_changed", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
+    throw event;
+  }
 }
 
 function adminMoveMenuItem() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.item_id, "item_id");
-  requireField(input.direction, "direction");
-  if (["up", "down"].indexOf(input.direction) < 0) throw error(400, "direction must be up or down");
-  var item = first(nyanqlPost("admin/menu/items/move", { item_id: input.item_id, direction: input.direction }));
-  if (!item) throw error(404, "商品が見つかりません");
-  return ok({ item: adminMenuItem(item) });
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.item_id, "item_id");
+    requireField(input.direction, "direction");
+    if (["up", "down"].indexOf(input.direction) < 0) throw error(400, "direction must be up or down");
+    before = findAdminMenuItem(input.item_id);
+    var item = first(nyanqlPost("admin/menu/items/move", { item_id: input.item_id, direction: input.direction }));
+    if (!item) throw error(404, "商品が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_moved", targetType: "menu_item", targetId: menuItemAuditId(item), targetLabel: menuItemAuditName(item), status: "success", beforeData: before, afterData: item, requestData: input });
+    return ok({ item: adminMenuItem(item) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_moved", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
+    throw event;
+  }
 }
 
 function parseJsonValue(value, fallback) {
@@ -676,37 +778,52 @@ function adminGetTableDetail() {
 
 function adminUpdateTableStatus() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.table_code, "table_code");
-  requireField(input.status, "status");
-  if (["available", "disabled"].indexOf(input.status) < 0) throw error(400, "status must be available or disabled");
-  var detail = first(nyanqlGet("admin/tables/detail", { table_code: input.table_code }));
-  if (!detail) throw error(404, "席が見つかりません");
-  if (input.status === "available" && detail.current_session_id) {
-    if (Number(detail.unpaid_order_count || 0) > 0 || Number(detail.unserved_item_count || 0) > 0) {
-      throw error(409, "未精算または未提供の注文があるため空席にできません");
+  var detail = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.table_code, "table_code");
+    requireField(input.status, "status");
+    if (["available", "disabled"].indexOf(input.status) < 0) throw error(400, "status must be available or disabled");
+    detail = first(nyanqlGet("admin/tables/detail", { table_code: input.table_code }));
+    if (!detail) throw error(404, "席が見つかりません");
+    if (input.status === "available" && detail.current_session_id) {
+      if (Number(detail.unpaid_order_count || 0) > 0 || Number(detail.unserved_item_count || 0) > 0) {
+        throw error(409, "未精算または未提供の注文があるため空席にできません");
+      }
+      var closed = first(nyanqlPost("admin/tables/force-close-session", { session_id: detail.current_session_id }));
+      if (!closed) throw error(409, "セッションをクローズできませんでした");
+      writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_table_status_changed", targetType: "table", targetId: closed.table_id, targetLabel: closed.table_code, status: "success", beforeData: detail, afterData: closed, requestData: input });
+      return ok({ table: closed });
     }
-    var closed = first(nyanqlPost("admin/tables/force-close-session", { session_id: detail.current_session_id }));
-    if (!closed) throw error(409, "セッションをクローズできませんでした");
-    return ok({ table: closed });
+    var table = first(nyanqlPost("admin/tables/status", { table_code: input.table_code, status: input.status }));
+    if (!table) throw error(404, "席が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_table_status_changed", targetType: "table", targetId: table.table_id, targetLabel: table.table_code, status: "success", beforeData: detail, afterData: table, requestData: input });
+    return ok({ table: table });
+  } catch (event) {
+    auditFailure(input, "admin_table_status_changed", "table", detail ? detail.table_id : "", input.table_code || "", event, detail);
+    throw event;
   }
-  var table = first(nyanqlPost("admin/tables/status", { table_code: input.table_code, status: input.status }));
-  if (!table) throw error(404, "席が見つかりません");
-  return ok({ table: table });
 }
 
 function adminForceCloseSession() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.session_id, "session_id");
-  var target = rows(nyanqlGet("admin/tables")).filter(function(table) { return table.current_session_id === input.session_id; })[0];
-  if (!target) throw error(404, "セッションが見つかりません");
-  if (Number(target.unpaid_order_count || 0) > 0 || Number(target.unserved_item_count || 0) > 0) {
-    throw error(409, "未精算または未提供の注文があるため強制クローズできません");
+  var target = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.session_id, "session_id");
+    target = rows(nyanqlGet("admin/tables")).filter(function(table) { return table.current_session_id === input.session_id; })[0];
+    if (!target) throw error(404, "セッションが見つかりません");
+    if (Number(target.unpaid_order_count || 0) > 0 || Number(target.unserved_item_count || 0) > 0) {
+      throw error(409, "未精算または未提供の注文があるため強制クローズできません");
+    }
+    var closed = first(nyanqlPost("admin/tables/force-close-session", { session_id: input.session_id }));
+    if (!closed) throw error(409, "セッションを強制クローズできませんでした");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_session_force_closed", targetType: "session", targetId: input.session_id, targetLabel: closed.table_code, status: "success", beforeData: target, afterData: closed, requestData: input });
+    return ok({ session: closed });
+  } catch (event) {
+    auditFailure(input, "admin_session_force_closed", "session", input.session_id || "", target ? target.table_code : "", event, target);
+    throw event;
   }
-  var closed = first(nyanqlPost("admin/tables/force-close-session", { session_id: input.session_id }));
-  if (!closed) throw error(409, "セッションを強制クローズできませんでした");
-  return ok({ session: closed });
 }
 
 function adminListTerminals() {
@@ -717,15 +834,23 @@ function adminListTerminals() {
 
 function adminUpdateTerminalActive() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.target_terminal_code, "target_terminal_code");
-  if (input.target_terminal_code === "analytics-manager") throw error(409, "analytics-manager は無効化できません");
-  var terminal = first(nyanqlPost("admin/terminals/active", {
-    terminal_code: input.target_terminal_code,
-    active: booleanValue(input.active, true)
-  }));
-  if (!terminal) throw error(404, "端末が見つかりません");
-  return ok({ terminal: adminTerminal(terminal) });
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.target_terminal_code, "target_terminal_code");
+    if (input.target_terminal_code === "analytics-manager") throw error(409, "analytics-manager は無効化できません");
+    before = rows(nyanqlGet("admin/terminals", { keyword: input.target_terminal_code })).filter(function(row) { return row.terminal_code === input.target_terminal_code; })[0] || null;
+    var terminal = first(nyanqlPost("admin/terminals/active", {
+      terminal_code: input.target_terminal_code,
+      active: booleanValue(input.active, true)
+    }));
+    if (!terminal) throw error(404, "端末が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_terminal_active_changed", targetType: "terminal", targetId: terminal.terminal_id, targetLabel: terminal.terminal_code, status: "success", beforeData: before, afterData: terminal, requestData: input });
+    return ok({ terminal: adminTerminal(terminal) });
+  } catch (event) {
+    auditFailure(input, "admin_terminal_active_changed", "terminal", input.target_terminal_code || "", input.target_terminal_code || "", event, before);
+    throw event;
+  }
 }
 
 function adminOrder(row) {
@@ -761,6 +886,30 @@ function adminOrderDetail(row) {
   return base;
 }
 
+function adminAuditLog(row) {
+  return {
+    id: row.id,
+    occurredAt: row.occurred_at,
+    actorTerminalCode: row.actor_terminal_code || null,
+    actorTerminalType: row.actor_terminal_type || null,
+    action: row.action,
+    targetType: row.target_type,
+    targetId: row.target_id || null,
+    targetLabel: row.target_label || null,
+    status: row.status,
+    errorMessage: row.error_message || null
+  };
+}
+
+function adminAuditLogDetail(row) {
+  var base = adminAuditLog(row);
+  base.beforeData = parseJsonValue(row.before_data, null);
+  base.afterData = parseJsonValue(row.after_data, null);
+  base.requestData = parseJsonValue(row.request_data, null);
+  base.createdAt = row.created_at;
+  return base;
+}
+
 function isPaidOrder(detail) {
   if (!detail) return false;
   if (detail.paymentStatus === "paid") return true;
@@ -786,6 +935,29 @@ function adminListOrders() {
   })).map(adminOrder) });
 }
 
+function adminListAuditLogs() {
+  var input = params();
+  assertAdminTerminal(input);
+  return ok({ logs: rows(nyanqlGet("admin/audit-logs", {
+    from_date: input.from_date || "",
+    to_date: input.to_date || "",
+    action: input.action || "",
+    target_type: input.target_type || "",
+    actor_terminal_code: input.actor_terminal_code || "",
+    status: input.status || "",
+    keyword: input.keyword || ""
+  })).map(adminAuditLog) });
+}
+
+function adminGetAuditLogDetail() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.id, "id");
+  var detail = first(nyanqlGet("admin/audit-logs/detail", { id: input.id }));
+  if (!detail) throw error(404, "監査ログが見つかりません");
+  return ok({ log: adminAuditLogDetail(detail) });
+}
+
 function adminGetOrderDetail() {
   var input = params();
   assertAdminTerminal(input);
@@ -795,42 +967,59 @@ function adminGetOrderDetail() {
 
 function adminCancelOrderItem() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.order_item_id, "order_item_id");
-  var context = first(nyanqlGet("order-items/context", { order_item_id: input.order_item_id }));
-  if (!context) throw error(404, "注文明細が見つかりません");
-  var detail = getAdminOrderDetail(context.order_id);
-  if (isPaidOrder(detail)) throw error(409, "精算済み注文はキャンセルできません");
-  var item = (detail.items || []).filter(function(row) { return row.orderItemId === input.order_item_id; })[0];
-  if (!item) throw error(404, "注文明細が見つかりません");
-  if (!item.canCancel) throw error(409, "この明細はキャンセルできません");
-  var updated = first(nyanqlPost("admin/orders/cancel-item", {
-    order_item_id: input.order_item_id,
-    cancel_note: input.cancel_note || ""
-  }));
-  if (!updated) throw error(409, "注文明細をキャンセルできませんでした");
-  return ok({ order: getAdminOrderDetail(context.order_id) });
+  var detail = null;
+  var context = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.order_item_id, "order_item_id");
+    context = first(nyanqlGet("order-items/context", { order_item_id: input.order_item_id }));
+    if (!context) throw error(404, "注文明細が見つかりません");
+    detail = getAdminOrderDetail(context.order_id);
+    if (isPaidOrder(detail)) throw error(409, "精算済み注文はキャンセルできません");
+    var item = (detail.items || []).filter(function(row) { return row.orderItemId === input.order_item_id; })[0];
+    if (!item) throw error(404, "注文明細が見つかりません");
+    if (!item.canCancel) throw error(409, "この明細はキャンセルできません");
+    var updated = first(nyanqlPost("admin/orders/cancel-item", {
+      order_item_id: input.order_item_id,
+      cancel_note: input.cancel_note || ""
+    }));
+    if (!updated) throw error(409, "注文明細をキャンセルできませんでした");
+    var after = getAdminOrderDetail(context.order_id);
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_order_item_cancelled", targetType: "order_item", targetId: input.order_item_id, targetLabel: detail.orderNo, status: "success", beforeData: { order: detail, item: item }, afterData: { order: after, cancelledItem: updated }, requestData: input });
+    return ok({ order: after });
+  } catch (event) {
+    auditFailure(input, "admin_order_item_cancelled", "order_item", input.order_item_id || "", detail ? detail.orderNo : "", event, detail);
+    throw event;
+  }
 }
 
 function adminCancelOrder() {
   var input = params();
-  assertAdminTerminal(input);
-  requireField(input.order_id, "order_id");
-  var detail = getAdminOrderDetail(input.order_id);
-  if (isPaidOrder(detail)) throw error(409, "精算済み注文はキャンセルできません");
-  if (detail.orderStatus === "cancelled") throw error(409, "注文はすでにキャンセル済みです");
-  if ((detail.items || []).some(function(item) { return item.status === "ready" || item.status === "served"; })) {
-    throw error(409, "提供準備済みまたは提供済み明細があるため注文全体をキャンセルできません");
+  var detail = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.order_id, "order_id");
+    detail = getAdminOrderDetail(input.order_id);
+    if (isPaidOrder(detail)) throw error(409, "精算済み注文はキャンセルできません");
+    if (detail.orderStatus === "cancelled") throw error(409, "注文はすでにキャンセル済みです");
+    if ((detail.items || []).some(function(item) { return item.status === "ready" || item.status === "served"; })) {
+      throw error(409, "提供準備済みまたは提供済み明細があるため注文全体をキャンセルできません");
+    }
+    if ((detail.items || []).length === 0 || (detail.items || []).every(function(item) { return item.status === "cancelled"; })) {
+      throw error(409, "注文はすでにキャンセル済みです");
+    }
+    var updated = first(nyanqlPost("admin/orders/cancel-order", {
+      order_id: input.order_id,
+      cancel_note: input.cancel_note || ""
+    }));
+    if (!updated) throw error(409, "注文をキャンセルできませんでした");
+    var after = getAdminOrderDetail(input.order_id);
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_order_cancelled", targetType: "order", targetId: input.order_id, targetLabel: detail.orderNo, status: "success", beforeData: detail, afterData: after, requestData: input });
+    return ok({ order: after });
+  } catch (event) {
+    auditFailure(input, "admin_order_cancelled", "order", input.order_id || "", detail ? detail.orderNo : "", event, detail);
+    throw event;
   }
-  if ((detail.items || []).length === 0 || (detail.items || []).every(function(item) { return item.status === "cancelled"; })) {
-    throw error(409, "注文はすでにキャンセル済みです");
-  }
-  var updated = first(nyanqlPost("admin/orders/cancel-order", {
-    order_id: input.order_id,
-    cancel_note: input.cancel_note || ""
-  }));
-  if (!updated) throw error(409, "注文をキャンセルできませんでした");
-  return ok({ order: getAdminOrderDetail(input.order_id) });
 }
 
 function bootstrap() {

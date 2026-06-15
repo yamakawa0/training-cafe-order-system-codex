@@ -6,7 +6,8 @@
   "certPath": "",
   "keyPath": "",
   "javascript_include": [
-    "./javascript/lib/runtime.js"
+    "./javascript/lib/runtime.js",
+    "./javascript/lib/audit.js"
   ],
   "log": {
     "Filename": "./logs/nyan8.log",
