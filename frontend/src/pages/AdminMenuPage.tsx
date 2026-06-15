@@ -170,6 +170,7 @@ export function AdminMenuPage() {
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
             <a className="button" href="/admin/tables">席・端末管理</a>
+            <a className="button" href="/admin/orders">注文管理</a>
             <button className="primary" onClick={startNew}>新規商品追加</button>
           </div>
         )}

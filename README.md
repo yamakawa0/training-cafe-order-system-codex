@@ -176,6 +176,7 @@ npm run dev
 ./scripts/smoke-staff-call.sh
 ./scripts/smoke-checkout-csv.sh
 ./scripts/smoke-invalid-operations.sh
+./scripts/smoke-admin-orders.sh
 ```
 
 - `smoke-order-multiple-items.sh`: 同一注文の複数明細、注文集約、全明細会計、商品ランキング反映を確認する。
@@ -184,6 +185,7 @@ npm run dev
 - `smoke-staff-call.sh`: 注文なしセッションでの staff_call 作成、ホール対応、完了済み再完了拒否を確認する。
 - `smoke-checkout-csv.sh`: 精算後の売上 CSV データ、フロントエンドの CSV ダウンロード処理を確認する。
 - `smoke-invalid-operations.sh`: 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否を確認する。
+- `smoke-admin-orders.sh`: 注文管理 API、明細取消、注文全体取消、取消明細の会計・分析除外、ready / 精算済み注文の取消拒否を確認する。
 
 推奨実行順は、まず既存 happy path を確認し、その後に境界条件 smoke を順番に実行します。各 script は DB 初期化を含むため並列実行しないでください。
 
@@ -196,6 +198,7 @@ npm run dev
 - 分析: `http://localhost:5173/analytics`
 - メニュー管理: `http://localhost:5173/admin/menu`
 - 席・端末管理: `http://localhost:5173/admin/tables`
+- 注文管理: `http://localhost:5173/admin/orders`
 
 ## 画面概要
 
@@ -206,6 +209,7 @@ npm run dev
 - 分析画面: KPI、商品ランキング、支払い方法別集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV を保存できます。
 - メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
 - 席・端末管理画面: 店長 PC から席一覧、席状態、顧客端末紐付け、現在セッション、注文・会計状態、端末一覧を確認できます。注文なしまたは精算済みセッションの強制クローズ、席の `available` / `disabled` 変更、端末の有効 / 無効切り替えを行えます。
+- 注文管理画面: 店長 PC から注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、支払い情報、関連ホールタスクを確認できます。`ordered`, `accepted`, `cooking` の明細取消と、ready / served を含まない未精算注文の全体取消を行えます。CSV 出力は `/analytics` の売上 CSV へ誘導します。
 
 ## サンプル端末コード
 
@@ -240,6 +244,7 @@ npm run dev
 - 分析: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
 - 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
 - 席・端末管理: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
+- 注文管理: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
 
 NyanQL 単体の疎通は次で確認します。
 
@@ -271,6 +276,14 @@ Nyan8 経由の業務フローは次で確認します。
 
 強制クローズは、注文がないセッションまたは精算済みセッションのみ許可します。未精算または未提供の注文があるセッションは拒否します。端末無効化後は、無効端末からの主要操作を `この端末は無効です` で拒否します。`analytics-manager` は簡易管理者端末のため無効化できません。
 
+注文管理機能は次で確認します。
+
+```bash
+./scripts/smoke-admin-orders.sh
+```
+
+この script は DB 初期化、管理者端末での注文一覧・詳細取得、非管理端末拒否、単品注文の明細取消、一部明細取消後の会計サマリ・分析除外、ready 明細の取消拒否、精算済み注文の取消拒否、既存 smoke の成功を確認します。
+
 `smoke-e2e.sh` は次の流れを実行します。
 
 1. 顧客端末 `customer-T01` でセッション開始
@@ -290,6 +303,7 @@ Nyan8 経由の業務フローは次で確認します。
 ./scripts/dev-reset-db.sh
 ./scripts/smoke-admin-menu.sh
 ./scripts/smoke-admin-tables.sh
+./scripts/smoke-admin-orders.sh
 ./scripts/smoke-menu.sh
 ./scripts/smoke-e2e.sh
 ./scripts/smoke-order-multiple-items.sh

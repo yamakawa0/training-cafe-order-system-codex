@@ -143,5 +143,25 @@
     "type": "api",
     "script": "./javascript/apis/admin_terminal_update_active.js",
     "description": "管理画面向け端末有効状態更新"
+  },
+  "api/admin/orders": {
+    "type": "api",
+    "script": "./javascript/apis/admin_orders.js",
+    "description": "管理画面向け注文一覧"
+  },
+  "api/admin/orders/detail": {
+    "type": "api",
+    "script": "./javascript/apis/admin_order_detail.js",
+    "description": "管理画面向け注文詳細"
+  },
+  "api/admin/orders/cancel-item": {
+    "type": "api",
+    "script": "./javascript/apis/admin_order_cancel_item.js",
+    "description": "管理画面向け注文明細キャンセル"
+  },
+  "api/admin/orders/cancel-order": {
+    "type": "api",
+    "script": "./javascript/apis/admin_order_cancel_order.js",
+    "description": "管理画面向け注文全体キャンセル"
   }
 }

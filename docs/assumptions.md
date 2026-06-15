@@ -34,3 +34,7 @@
 - Phase 4 席・端末管理では、精算済みセッションは強制クローズ可能とする。
 - Phase 4 席・端末管理では、`analytics-manager` は無効化不可とする。
 - Phase 4 席・端末管理では、無効端末からの主要操作を `この端末は無効です` で拒否する。
+- Phase 4 注文管理の管理者判定は、既存管理機能と同じく `terminal_code=analytics-manager` の簡易方式を使う。
+- Phase 4 注文管理では、明細取消は `ordered`, `accepted`, `cooking` のみ許可し、`ready` / `served` / `cancelled` は拒否する。
+- Phase 4 注文管理では、注文全体取消は未精算かつ ready / served 明細を含まない注文だけ許可する。精算済み注文の取消、返金、レシート再発行は対象外とする。
+- Phase 4 注文管理の取消メモは API 入力として受け取るが、監査ログ・取消履歴テーブルが未実装のため永続化しない。

@@ -728,6 +728,111 @@ function adminUpdateTerminalActive() {
   return ok({ terminal: adminTerminal(terminal) });
 }
 
+function adminOrder(row) {
+  return {
+    orderId: row.order_id,
+    orderNo: row.order_no,
+    sessionId: row.session_id,
+    tableCode: row.table_code,
+    tableName: row.table_name,
+    orderStatus: row.order_status,
+    itemCount: Number(row.item_count || 0),
+    cancelledItemCount: Number(row.cancelled_item_count || 0),
+    unservedItemCount: Number(row.unserved_item_count || 0),
+    subtotal: Number(row.subtotal || 0),
+    taxAmount: Number(row.tax_amount || 0),
+    totalAmount: Number(row.total_amount || 0),
+    paymentStatus: row.payment_status || null,
+    paymentMethod: row.payment_method || null,
+    submittedAt: row.submitted_at,
+    paidAt: row.paid_at || null
+  };
+}
+
+function adminOrderDetail(row) {
+  var base = adminOrder(row);
+  base.sessionStatus = row.session_status || null;
+  base.sessionOpenedAt = row.session_opened_at || null;
+  base.paymentRequestedAt = row.payment_requested_at || null;
+  base.closedAt = row.closed_at || null;
+  base.items = parseJsonValue(row.items, []);
+  base.payments = parseJsonValue(row.payments, []);
+  base.hallTasks = parseJsonValue(row.hall_tasks, []);
+  return base;
+}
+
+function isPaidOrder(detail) {
+  if (!detail) return false;
+  if (detail.paymentStatus === "paid") return true;
+  return (detail.payments || []).some(function(payment) { return payment.status === "paid"; });
+}
+
+function getAdminOrderDetail(orderId) {
+  var detail = first(nyanqlGet("admin/orders/detail", { order_id: orderId }));
+  if (!detail) throw error(404, "注文が見つかりません");
+  return adminOrderDetail(detail);
+}
+
+function adminListOrders() {
+  var input = params();
+  assertAdminTerminal(input);
+  return ok({ orders: rows(nyanqlGet("admin/orders", {
+    from_date: input.from_date || "",
+    to_date: input.to_date || "",
+    table_code: input.table_code || "",
+    order_no: input.order_no || "",
+    order_status: input.order_status || "",
+    payment_status: input.payment_status || ""
+  })).map(adminOrder) });
+}
+
+function adminGetOrderDetail() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.order_id, "order_id");
+  return ok({ order: getAdminOrderDetail(input.order_id) });
+}
+
+function adminCancelOrderItem() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.order_item_id, "order_item_id");
+  var context = first(nyanqlGet("order-items/context", { order_item_id: input.order_item_id }));
+  if (!context) throw error(404, "注文明細が見つかりません");
+  var detail = getAdminOrderDetail(context.order_id);
+  if (isPaidOrder(detail)) throw error(409, "精算済み注文はキャンセルできません");
+  var item = (detail.items || []).filter(function(row) { return row.orderItemId === input.order_item_id; })[0];
+  if (!item) throw error(404, "注文明細が見つかりません");
+  if (!item.canCancel) throw error(409, "この明細はキャンセルできません");
+  var updated = first(nyanqlPost("admin/orders/cancel-item", {
+    order_item_id: input.order_item_id,
+    cancel_note: input.cancel_note || ""
+  }));
+  if (!updated) throw error(409, "注文明細をキャンセルできませんでした");
+  return ok({ order: getAdminOrderDetail(context.order_id) });
+}
+
+function adminCancelOrder() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.order_id, "order_id");
+  var detail = getAdminOrderDetail(input.order_id);
+  if (isPaidOrder(detail)) throw error(409, "精算済み注文はキャンセルできません");
+  if (detail.orderStatus === "cancelled") throw error(409, "注文はすでにキャンセル済みです");
+  if ((detail.items || []).some(function(item) { return item.status === "ready" || item.status === "served"; })) {
+    throw error(409, "提供準備済みまたは提供済み明細があるため注文全体をキャンセルできません");
+  }
+  if ((detail.items || []).length === 0 || (detail.items || []).every(function(item) { return item.status === "cancelled"; })) {
+    throw error(409, "注文はすでにキャンセル済みです");
+  }
+  var updated = first(nyanqlPost("admin/orders/cancel-order", {
+    order_id: input.order_id,
+    cancel_note: input.cancel_note || ""
+  }));
+  if (!updated) throw error(409, "注文をキャンセルできませんでした");
+  return ok({ order: getAdminOrderDetail(input.order_id) });
+}
+
 function bootstrap() {
   var input = params();
   requireField(input.terminal_code, "terminal_code");

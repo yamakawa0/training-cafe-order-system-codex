@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -158,5 +158,28 @@ export const cafeApi = {
     terminal_code: terminals.analytics,
     target_terminal_code: targetTerminalCode,
     active
+  }),
+  adminOrders: (filters: { fromDate?: string; toDate?: string; tableCode?: string; orderNo?: string; orderStatus?: string; paymentStatus?: string } = {}) => get<{ orders: AdminOrderSummary[] }>('/api/admin/orders', {
+    terminal_code: terminals.analytics,
+    from_date: filters.fromDate,
+    to_date: filters.toDate,
+    table_code: filters.tableCode,
+    order_no: filters.orderNo,
+    order_status: filters.orderStatus,
+    payment_status: filters.paymentStatus
+  }),
+  adminOrderDetail: (orderId: string) => get<{ order: AdminOrderDetail }>('/api/admin/orders/detail', {
+    terminal_code: terminals.analytics,
+    order_id: orderId
+  }),
+  adminCancelOrderItem: (orderItemId: string, cancelNote = '') => post<{ order: AdminOrderDetail }>('/api/admin/orders/cancel-item', {
+    terminal_code: terminals.analytics,
+    order_item_id: orderItemId,
+    cancel_note: cancelNote
+  }),
+  adminCancelOrder: (orderId: string, cancelNote = '') => post<{ order: AdminOrderDetail }>('/api/admin/orders/cancel-order', {
+    terminal_code: terminals.analytics,
+    order_id: orderId,
+    cancel_note: cancelNote
   })
 };

@@ -141,6 +141,7 @@ export function AdminTablesPage() {
               <option value="disabled">使用停止</option>
             </select>
             <a className="button" href="/admin/menu">メニュー管理</a>
+            <a className="button" href="/admin/orders">注文管理</a>
             <button className="primary" onClick={load}>更新</button>
           </div>
         )}

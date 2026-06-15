@@ -146,3 +146,18 @@
 - smoke script 結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh` は成功した。管理 smoke 内部でも既存 `smoke-menu.sh` / `smoke-e2e.sh` が継続成功することを確認した。
 - README / assumptions: README は主要 URL、管理画面 URL、起動手順、smoke script 一覧、既知の制約と実在ファイルが一致していたため変更しなかった。仕様上の仮定は変えていないため `docs/assumptions.md` は更新しなかった。
 - 未対応項目: 注文管理画面などの新機能、本格ログイン認証、権限ロール管理、商品画像アップロード、商品オプション編集、席追加/削除、端末登録/ペアリング、監査ログは今回の対象外とした。
+
+## 2026-06-12 Phase 4 注文管理画面
+
+- 追加した管理画面: `frontend/src/pages/AdminOrdersPage.tsx` と `/admin/orders` ルートを追加した。`/analytics`, `/admin/menu`, `/admin/tables` から「注文管理」へ遷移でき、注文管理画面から CSV 出力導線として `/analytics` へ遷移できるようにした。
+- 追加した Nyan8 API: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`。
+- 追加した NyanQL API: `admin/orders`, `admin/orders/detail`, `admin/orders/cancel-item`, `admin/orders/cancel-order`。
+- 追加した SQL: `admin_list_orders.sql`, `admin_get_order_detail.sql`, `admin_cancel_order_item.sql`, `admin_cancel_order.sql`。
+- 画面機能: 日付範囲、席コード、注文番号、注文状態、精算状態のフィルタ、注文一覧、注文詳細、注文明細、支払い情報、関連ホールタスク、明細取消、注文全体取消を実装した。
+- 取消ルール: 管理者判定は既存管理機能と同じ `terminal_code=analytics-manager`。明細取消は `ordered`, `accepted`, `cooking` のみ許可し、`ready` / `served` / `cancelled` は拒否する。注文全体取消は未精算かつ ready / served 明細を含まない注文だけ許可する。精算済み注文は明細取消・注文全体取消とも拒否する。
+- 状態集約: 明細取消後、全明細が `cancelled` なら注文ヘッダを `cancelled`、未取消明細が残る場合は既存状態集約ルールに従って `in_progress` / `ready` / `served` を再計算する。
+- 会計・分析連携: 既存の会計サマリ、売上 CSV、分析ランキングは `order_items.status <> 'cancelled'` を条件にしているため、注文管理からキャンセルした明細も会計・分析対象外になる。
+- 追加した smoke script: `scripts/smoke-admin-orders.sh`。注文一覧・詳細、非管理端末拒否、単品注文の明細取消、一部明細取消後の会計サマリ・分析除外、ready 明細の取消拒否、精算済み注文の取消拒否、既存 `smoke-e2e.sh` の成功を確認する。
+- 確認結果: `./scripts/smoke-nyanql.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-admin-orders.sh` は成功した。単独 `smoke-e2e.sh` は DB 初期化前に残存セッションで一度失敗したが、`./scripts/dev-reset-db.sh` 後の再実行では成功した。
+- フロントエンド確認結果: `cd frontend && npm run build` は TypeScript build と Vite build に成功した。既存同様、`pyenv: cannot rehash` と npm ログ作成権限警告は出たが、ビルド結果には影響しなかった。
+- 暫定対応: 取消メモは API 入力として受け取るが、監査ログ・取消履歴テーブルが未実装のため永続化しない。返金、レシート再発行、スタッフ別履歴、ロール別権限制御は今回の対象外とした。

@@ -59,6 +59,22 @@
     "sql": ["./sql/admin_update_terminal_active.sql"],
     "description": "管理画面から端末の有効状態を更新する"
   },
+  "admin/orders": {
+    "sql": ["./sql/admin_list_orders.sql"],
+    "description": "管理画面向け注文一覧を取得する"
+  },
+  "admin/orders/detail": {
+    "sql": ["./sql/admin_get_order_detail.sql"],
+    "description": "管理画面向け注文詳細を取得する"
+  },
+  "admin/orders/cancel-item": {
+    "sql": ["./sql/admin_cancel_order_item.sql"],
+    "description": "管理画面から注文明細をキャンセルする"
+  },
+  "admin/orders/cancel-order": {
+    "sql": ["./sql/admin_cancel_order.sql"],
+    "description": "管理画面から注文全体をキャンセルする"
+  },
   "sessions/current": {
     "sql": ["./sql/get_current_session.sql"],
     "description": "席の未完了セッションを取得する"

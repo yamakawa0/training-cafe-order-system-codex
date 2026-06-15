@@ -1,5 +1,6 @@
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AdminMenuPage } from './pages/AdminMenuPage';
+import { AdminOrdersPage } from './pages/AdminOrdersPage';
 import { AdminTablesPage } from './pages/AdminTablesPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { CustomerOrderPage } from './pages/CustomerOrderPage';
@@ -17,6 +18,7 @@ export function App() {
   if (path === '/analytics') return <AnalyticsPage />;
   if (path === '/admin/menu') return <AdminMenuPage />;
   if (path === '/admin/tables') return <AdminTablesPage />;
+  if (path === '/admin/orders') return <AdminOrdersPage />;
   return (
     <main className="shell">
       <section className="toolbar">
@@ -33,6 +35,7 @@ export function App() {
         <a href="/analytics">分析</a>
         <a href="/admin/menu">メニュー管理</a>
         <a href="/admin/tables">席・端末管理</a>
+        <a href="/admin/orders">注文管理</a>
       </nav>
     </main>
   );

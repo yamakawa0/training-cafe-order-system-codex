@@ -772,7 +772,7 @@ h3 {
 
 .adminMenuTools {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 160px auto auto;
+  grid-template-columns: minmax(240px, 1fr) 160px auto auto auto;
   gap: 8px;
   align-items: center;
 }
@@ -891,9 +891,121 @@ h3 {
 
 .adminTableTools {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 170px auto auto;
+  grid-template-columns: minmax(220px, 1fr) 170px auto auto auto;
   gap: 8px;
   align-items: center;
+}
+
+.adminOrderTools {
+  display: grid;
+  grid-template-columns: repeat(2, 132px) repeat(2, minmax(130px, 1fr)) repeat(2, 142px) auto auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.adminOrdersGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 430px;
+  gap: 16px;
+  align-items: start;
+}
+
+.adminOrderList {
+  min-width: 0;
+  overflow: auto;
+}
+
+.adminOrdersTable {
+  display: grid;
+  min-width: 980px;
+  border-top: 1px solid #eadcc5;
+}
+
+.adminOrderRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) 70px 104px 76px 100px 104px minmax(150px, 1fr) 76px;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  border-bottom: 1px solid #eadcc5;
+  padding: 8px 0;
+  font-size: 0.9rem;
+}
+
+.adminOrderRow.header {
+  min-height: 42px;
+  color: #74614f;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.adminOrderRow.selected {
+  background: #fff6df;
+}
+
+.adminOrderRow > strong,
+.adminOrderRow > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.adminOrderRow button {
+  min-height: 36px;
+  padding: 0.35rem 0.55rem;
+}
+
+.adminOrderDetail {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.cancelNoteBox {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  border-bottom: 1px solid #eadcc5;
+  padding-bottom: 14px;
+}
+
+.cancelNoteBox .fieldLabel {
+  margin-top: 0;
+}
+
+.cancelNoteBox textarea {
+  min-height: 76px;
+}
+
+.adminOrderItems {
+  display: grid;
+  gap: 10px;
+}
+
+.adminOrderItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #eadcc5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fffdf7;
+}
+
+.adminOrderItem strong,
+.adminOrderItem span,
+.adminOrderItem small {
+  display: block;
+}
+
+.adminOrderItem span,
+.adminOrderItem small {
+  color: #74614f;
+  font-size: 0.86rem;
+  font-weight: 800;
 }
 
 .adminTablesGrid {
@@ -1054,6 +1166,7 @@ h3 {
   .analyticsGrid,
   .adminMenuGrid,
   .adminTablesGrid,
+  .adminOrdersGrid,
   .metrics {
     grid-template-columns: 1fr;
   }
@@ -1064,17 +1177,20 @@ h3 {
   .adminCategoryList,
   .adminEditor,
   .tableCardList,
-  .terminalPanel {
+  .terminalPanel,
+  .adminOrderDetail {
     position: static;
   }
 
   .adminMenuTools,
-  .adminTableTools {
+  .adminTableTools,
+  .adminOrderTools {
     grid-template-columns: minmax(220px, 1fr) minmax(150px, auto) auto;
   }
 
   .adminMenuTools .button,
-  .adminTableTools .button {
+  .adminTableTools .button,
+  .adminOrderTools .button {
     grid-column: auto;
   }
 
@@ -1103,8 +1219,11 @@ h3 {
   .taskList,
   .adminMenuTools,
   .adminTableTools,
+  .adminOrderTools,
   .detailMetricGrid,
   .adminLine,
+  .adminOrderItem,
+  .cancelNoteBox,
   .paymentSummaryLine {
     grid-template-columns: 1fr;
   }
@@ -1117,7 +1236,8 @@ h3 {
   .dateRange > *,
   .headerActions > *,
   .adminMenuTools > *,
-  .adminTableTools > * {
+  .adminTableTools > *,
+  .adminOrderTools > * {
     flex: 1;
     width: 100%;
   }

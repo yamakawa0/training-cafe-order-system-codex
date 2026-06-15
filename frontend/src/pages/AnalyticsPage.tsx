@@ -76,6 +76,7 @@ export function AnalyticsPage() {
             <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
             <a className="button" href="/admin/menu">メニュー管理</a>
             <a className="button" href="/admin/tables">席・端末管理</a>
+            <a className="button" href="/admin/orders">注文管理</a>
             <button className="primary" disabled={csvLoading} onClick={() => void downloadCsv()}>{csvLoading ? 'CSV 作成中' : 'CSV ダウンロード'}</button>
           </div>
         )}

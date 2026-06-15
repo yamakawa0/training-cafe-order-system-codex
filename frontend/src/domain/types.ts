@@ -204,6 +204,62 @@ export interface AdminTerminalSummary {
   updatedAt: string | null;
 }
 
+export interface AdminOrderSummary {
+  orderId: string;
+  orderNo: string;
+  sessionId: string;
+  tableCode: string;
+  tableName: string;
+  orderStatus: string;
+  itemCount: number;
+  cancelledItemCount: number;
+  unservedItemCount: number;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  paymentStatus: string | null;
+  paymentMethod: string | null;
+  submittedAt: string;
+  paidAt: string | null;
+}
+
+export interface AdminOrderDetail extends AdminOrderSummary {
+  sessionStatus: string | null;
+  sessionOpenedAt: string | null;
+  paymentRequestedAt: string | null;
+  closedAt: string | null;
+  items: Array<{
+    orderItemId: string;
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+    optionTotal: number;
+    lineSubtotal: number;
+    lineTax: number;
+    status: OrderItemStatus;
+    customerNote: string | null;
+    allergyNote: string | null;
+    canCancel: boolean;
+  }>;
+  payments: Array<{
+    paymentId: string;
+    paymentNo: string;
+    method: string;
+    status: string;
+    subtotal: number;
+    taxAmount: number;
+    totalAmount: number;
+    paidAt: string | null;
+  }>;
+  hallTasks: Array<{
+    taskId: string;
+    taskType: string;
+    title: string;
+    status: string;
+    createdAt: string;
+  }>;
+}
+
 export interface CartItem {
   localId: string;
   menuItem: MenuItem;
