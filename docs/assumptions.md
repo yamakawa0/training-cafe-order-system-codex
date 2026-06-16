@@ -1,62 +1,87 @@
 # Assumptions
 
-初期作成時点の仮定:
+## 現行前提
 
-- 架空カフェは 1 店舗のみ。
-- 実決済連携は行わず、支払い方法の記録だけを行う。
-- 商品価格は税込表示ではなく、税率から DB / バックエンド側で計算する。
+- NyanQL / Nyan8 を正式実行環境とする。
+- フロントエンドは Nyan8 の `/api/*` のみを呼び出し、顧客端末から NyanQL を直接呼ばない。
+- NyanPUI は不採用とし、TypeScript / React / Vite SPA を採用する。
+- DB は PostgreSQL を使用する。
+- 架空カフェは現時点では 1 店舗のみ。
+- 顧客 API はログイン不要。
+- キッチン API は `kitchen` / `manager`。
+- ホール API は `hall` / `manager`。
+- レジ API は `cashier` / `manager`。
+- 分析 API は `manager` / `viewer`。
+- 管理 API は `manager` のみ。
+- `terminal_code` は端末種別、端末 active 判定、席端末判定、監査ログ補助情報に使う。
 - 顧客端末は席に固定され、端末コードにより席を判定する。
-- 在庫管理は MVP 外とし、売り切れフラグのみ扱う。
-- NyanQL / Nyan8 の実行バイナリとサンプルが同梱されていないため、`api.json` と JavaScript コントローラーは一般的な HTTP API ランタイムを前提に配置する。
-- 顧客注文画面の必須オプションは、初期選択として先頭の選択肢を自動選択する。Phase 3 では商品詳細モーダルで選択肢を変更できるが、未選択必須項目の詳細バリデーションは Nyan8 / NyanQL 側の既存検証に従う。
-- 消費税は明細ごとに `tax_rate` を使って四捨五入し、精算時にも DB 取得明細から再計算する。
-- 開発用の席状態は `available` / `occupied` を使用し、精算後の片付け完了で `available` に戻す。
-- レジ精算は顧客が会計依頼した `payment_requested` セッションだけを対象にする。
-- Nyan8 のAPIキー `api/customer/menu` は実行時URL `/api/customer/menu` として公開される前提で構成する。
-- Nyan8 から NyanQL への Basic 認証付き呼び出しは、開発用に `http://user:password@host:port` 形式の URL を使う。
-- キャンセルは MVP では `ordered`, `accepted`, `cooking` の注文明細だけ許可する。`ready` 以降のキャンセルは、配膳タスクとの整合性を優先して拒否する。
-- 一部キャンセルの場合、会計対象は `cancelled` 以外の明細だけとする。提供済み明細とキャンセル明細が混在する注文は、提供済み明細がすべて `served` であれば注文ヘッダを `served` とする。
+- 商品価格・税額・会計金額は DB の商品価格、選択肢差額、税率から計算し、フロントエンドから送信された金額を正としない。
+- 消費税は明細ごとに `tax_rate` を使って計算し、精算時にも DB 取得明細から再計算する。
+- 在庫管理は現行スコープ外とし、売切フラグのみ扱う。
+- 実決済連携は行わず、支払い方法 `cash` / `card` / `qr` のダミー決済記録だけを行う。
+
+## 認証・session
+
+- password は平文保存しない。
+- 現行 hash は MVP 方式で、`salted_sha256_v1` と Node crypto 利用時の `pbkdf2_sha256_v1` を扱う。
+- 本番では bcrypt / argon2 等を検討する。
+- `password_hash_version` は hash 方式の識別に使う。
+- session 有効期限は 8 時間。
+- `expires_at` 超過、`revoked_at` 設定、inactive user の session は拒否する。
+- 5 回連続ログイン失敗で 5 分ロックする。
+- 設計上の主方式は `cafe_session` cookie である。
+- Nyan8 の現行制約により、開発環境では response body の疑似 `Set-Cookie` と Bearer / `token` 互換方式を併用する。
+- 本番では httpOnly cookie / CSRF 対策を強化予定。
+- 現行 CSRF 方針は `SameSite=Lax` と JSON API 前提で、state changing API は POST を使う。
+
+## 業務ルール
+
+- 注文明細は原則 `ordered -> accepted -> cooking -> ready -> served` の順に進める。
+- キッチン操作では `served` にできない。`served` はホール画面の配膳完了で更新する。
+- 会計依頼後または精算済みセッションでは追加注文を拒否する。
+- キャンセルは `ordered`, `accepted`, `cooking` の注文明細だけ許可する。
+- `ready` 以降のキャンセルは、配膳タスクとの整合性を優先して拒否する。
 - 全明細が `cancelled` の場合、注文ヘッダは `cancelled` とする。
-- キャンセル明細は会計金額、売上分析、商品ランキングに含めない。
-- CSV エクスポート API は Nyan8 ランタイムの戻り値 parse 制約により CSV 本文を直接返さず、`success/status/result` の JSON 内に `contentType`, `filename`, `csv` を返す。フロントエンドが `csv` を Blob 化してダウンロードする。
-- Nyan8 の業務エラーは `success:false`, `status`, `message`, `result:null` を返す。実ランタイムでは JSON 内の `status` が HTTP ステータスにも反映されることを確認済み。
-- Phase 3 のレジ画面では、テーブル一覧 API が未実装のため T01-T04 を画面側の固定候補として扱う。
-- Phase 3 のホール画面では、`GET /api/hall/tasks` が未完了タスクのみ返す前提のため、完了済みタスクの表示切替は対象外とする。
-- Phase 3 の分析画面では、サマリ API に `order_count` がない場合、商品ランキング数量の合計を注文件数の fallback として表示する。
-- Phase 4 時点のメニュー管理の管理者判定は `terminal_code=analytics-manager` の簡易方式だったが、Phase 6 以降は manager ロール認証と analytics 端末チェックを併用する。
-- Phase 4 メニュー管理では、`active=false` の商品は顧客メニューから非表示にする。
-- Phase 4 メニュー管理では、`sold_out=true` の商品は顧客メニューに表示してもよいが、注文確定時には注文不可として拒否する。
-- Phase 4 メニュー管理では、商品削除は物理削除せず、当面は `active=false` で代替する。
-- Phase 4 メニュー管理では、画像アップロードは未対応とし、既存の `image_url` は管理画面の編集対象外にする。
-- Phase 4 時点の席・端末管理の管理者判定は `terminal_code=analytics-manager` の簡易方式だったが、Phase 6 以降は manager ロール認証と analytics 端末チェックを併用する。
-- Phase 4 席・端末管理では、未精算注文または未提供明細があるセッションは強制クローズ不可とする。
-- Phase 4 席・端末管理では、注文なしセッションは強制クローズ可能とする。
-- Phase 4 席・端末管理では、精算済みセッションは強制クローズ可能とする。
-- Phase 4 席・端末管理では、`analytics-manager` は無効化不可とする。
-- Phase 4 席・端末管理では、無効端末からの主要操作を `この端末は無効です` で拒否する。
-- Phase 4 時点の注文管理の管理者判定は `terminal_code=analytics-manager` の簡易方式だったが、Phase 6 以降は manager ロール認証と analytics 端末チェックを併用する。
-- Phase 4 注文管理では、明細取消は `ordered`, `accepted`, `cooking` のみ許可し、`ready` / `served` / `cancelled` は拒否する。
-- Phase 4 注文管理では、注文全体取消は未精算かつ ready / served 明細を含まない注文だけ許可する。精算済み注文の取消、返金、レシート再発行は対象外とする。
-- Phase 4 注文管理の取消メモは API 入力として受け取るが、監査ログ・取消履歴テーブルが未実装のため永続化しない。
-- Phase 5 時点の監査ログ actor は `terminal_code` ベースだったが、Phase 6 以降はログイン済み操作で user actor も記録する。
-- Phase 5 監査ログは物理削除しない。ログ削除、アーカイブ、CSV エクスポートは未対応とする。
-- Phase 5 監査ログの改ざん防止署名は未対応とする。
-- Phase 5 監査ログ書き込み失敗時は、本体業務処理を原則継続し、開発ログに書き込み失敗を出す。
-- Phase 7 の認証は httpOnly cookie `cafe_session` 主方式を目標とする。cookie は `SameSite=Lax`, `Path=/`, 8 時間有効とし、開発 HTTP では `Secure=false`、本番 HTTPS では `Secure=true` とする。
-- Nyan8 単体では `Set-Cookie` を実 HTTP header として返せず、受信 `Cookie` header も JavaScript params に渡らない。このため開発環境では response body の疑似 `headers.Set-Cookie` を frontend / smoke script が同期し、Bearer / `token` パラメータ互換を併用する。本番では reverse proxy で cookie 化し、必要に応じて upstream Authorization へ変換する。
-- localStorage には session token を保存しない。保存してよいのは表示復元用の最小 user 情報だけとする。
-- CSRF は MVP では `SameSite=Lax` + JSON API 前提とし、本番では CSRF token 追加を検討する。
-- Phase 7 の password hash は Nyan8 互換性を優先し `salted_sha256_v1` とする。Node crypto / pgcrypto が使える本番環境では PBKDF2/bcrypt/argon2/pgcrypto crypt への移行を検討する。
-- session 有効期限は開発用 8 時間とする。expired / revoked / inactive user session は拒否し、logout は `revoked_at` を設定する。
-- account lock は MVP として 5 回連続失敗で 5 分ロックする。成功時に `failed_login_count` と `locked_until` をリセットする。
-- 顧客 API (`/api/customer/*`) はログイン不要とし、既存の端末 active / 種別チェックを維持する。
-- 管理 API (`/api/admin/*`) は manager のみ許可する。
-- 分析 API (`/api/analytics/*`) は manager / viewer のみ許可する。
-- レジ API (`/api/checkout/*`) は cashier / manager のみ許可する。
-- キッチン API (`/api/kitchen/*`) は kitchen / manager のみ許可する。
-- ホール API (`/api/hall/*`) は hall / manager のみ許可する。
-- `terminal_code` は端末 active 判定と端末種別判定に使い、管理者判定の主条件にはしない。
-- 監査ログ actor はログイン済み user 情報がある場合は `actor_user_id` ベースでも記録し、token がない顧客 API などでは従来どおり `terminal_code` ベースとする。
-- フロントエンド開発の推奨実行環境は Node.js 20 LTS 以上、npm 10 以上とする。`.nvmrc` は `20` を指定する。
-- Vite dev server は開発専用とし、本番公開には使わない。本番では `npm run build` の静的成果物を別途配信する。
-- `npm run dev` は localhost 開発用、`npm run dev:host` は信頼できるローカルネットワーク内の端末検証用とする。
+- キャンセル明細は会計金額、売上分析、商品ランキング、売上 CSV に含めない。
+- 未精算注文または未提供明細があるセッションは強制クローズ不可とする。
+- 商品削除は物理削除せず、当面は `active=false` で代替する。
+
+## 監査ログ
+
+- `audit_logs` は物理削除しない。
+- 認証済み操作では `actor_user_id`, `actor_user_display_name`, `actor_user_role` を記録する。
+- 顧客操作など未ログイン操作では terminal actor を主に記録する。
+- 認証ログの `request_data` に password を含めない。
+- ログ書き込み失敗時は本体処理を原則継続する。
+- 監査ログ CSV エクスポート、保持期間、アーカイブ、改ざん検知は今後対応。
+
+## フロントエンド / 開発環境
+
+- Node.js `>=20.19` / npm `>=10` を推奨する。
+- 通常開発は `npm run dev` を使う。
+- LAN 端末検証時のみ `npm run dev:host` を使う。
+- Vite dev server は本番公開しない。
+- 本番相当では `npm run build` の静的成果物を reverse proxy 等で配信する。
+- WebSocket Push は現行未実装で、画面更新は再取得 / ポーリングで扱う。
+- CSV エクスポート API は Nyan8 ランタイム制約により CSV 本文を直接返さず、`success/status/result` の JSON 内に `contentType`, `filename`, `csv` を返す。フロントエンドが `csv` を Blob 化してダウンロードする。
+
+## 今後の未対応事項
+
+- 実決済サービス連携
+- 返金処理
+- 在庫管理
+- 複数店舗管理
+- 予約管理
+- 顧客会員機能
+- 複雑な割引 / クーポン
+- 商品画像アップロード
+- 商品オプション編集 UI の高度化
+- 監査ログ CSV エクスポート
+- 監査ログ保持期間 / アーカイブ
+- httpOnly cookie の完全本番運用
+- bcrypt / argon2 等の本番向け password hash
+- CSRF token
+- 多要素認証
+- OAuth / SSO
+- CI/CD
+- 本番デプロイ手順

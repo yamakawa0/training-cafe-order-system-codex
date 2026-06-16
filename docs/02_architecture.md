@@ -3,34 +3,67 @@
 ## 採用構成
 
 ```txt
-[TypeScript SPA]
-   |
-   | HTTP / WebSocket
-   v
+[Browser: TypeScript / React / Vite SPA]
+        |
+        | HTTP / JSON / Cookie or Bearer compatible auth
+        v
 [Nyan8: public controller API]
-   |
-   | internal HTTP / JSON
-   v
+        |
+        | internal HTTP / JSON
+        v
 [NyanQL: SQL-first DB API]
-   |
-   v
+        |
+        v
 [PostgreSQL]
 ```
 
-## 採用理由
+## 採用技術
 
-- TypeScript SPA により、店内端末ごとの操作 UI を柔軟に作る。
-- Nyan8 は公開 API 層として、端末種別検証・入力検証・状態遷移制御を担当する。
-- NyanQL は PostgreSQL への SQL API を担当する。
-- NyanPUI はサーバーサイド HTML レンダリング寄りのため、今回の TypeScript SPA 方針では原則不採用とする。
+- Frontend: TypeScript / React 19 / Vite 8
+- Controller API: Nyan8
+- SQL API: NyanQL
+- Database: PostgreSQL
+- NyanPUI: 不採用。TypeScript SPA と Nyan8 controller API を正式構成とする。
+
+フロントエンドは Nyan8 の `/api/*` のみを呼び出す。NyanQL は Nyan8 から内部 API として呼び出し、顧客端末や管理画面から直接呼び出さない。
+
+## 認証・認可
+
+- 顧客 API はログイン不要。
+- キッチン API は `kitchen` / `manager`。
+- ホール API は `hall` / `manager`。
+- レジ API は `cashier` / `manager`。
+- 分析 API は `manager` / `viewer`。
+- 管理 API は `manager`。
+- `terminal_code` は端末種別、端末 active 判定、席端末判定、監査ログ補助情報に使う。
+
+現行実装は `cafe_session` cookie 主方式を設計上の主方式とし、Nyan8 の header / cookie 制約に対応するため Bearer token と `token` パラメータの互換方式も受け付ける。session は `expires_at`, `revoked_at`, inactive user を検証し、認証済み操作は監査ログに user actor を記録する。
+
+## 監査ログ
+
+重要な顧客操作、会計操作、管理操作、認証操作を `audit_logs` に記録する。ログには terminal actor と user actor の両方を保持できる。ログ書き込み失敗時は本体処理を原則継続し、操作自体の成否は `status` と `error_message` に記録する。
+
+## フロントエンド環境
+
+- Node.js `>=20.19`
+- npm `>=10`
+- 通常開発は `npm run dev`
+- LAN 検証時のみ `npm run dev:host`
+- 本番公開に Vite dev server は使わない
+
+本番相当では `npm run build` の静的成果物を配信し、Nyan8 の前段に reverse proxy を置く想定とする。HTTPS、secret 管理、cookie header 変換、CSRF 方針は本番デプロイ準備で整理する。
 
 ## ポート例
 
 - Frontend dev server: `5173`
 - Nyan8: `8889`
-- NyanQL: `8890` または内部専用ポート
+- NyanQL: `8890`
 - PostgreSQL: `5432`
 
-## 配置方針
+## 回帰確認
 
-開発環境では各プロセスを個別起動する。本番相当では Nginx 等を前段に置き、顧客端末から見えるのはフロントエンドと Nyan8 のみとする。
+業務フローと境界条件は `scripts/smoke-*.sh` で確認する。代表的な対象は認証、監査ログ、メニュー管理、席・端末管理、注文管理、顧客注文 happy path、複数テーブル、キャンセル、スタッフ呼び出し、CSV 出力、異常操作拒否である。
+
+## リアルタイム更新
+
+WebSocket Push は現行未実装。顧客履歴、キッチン、ホール、レジ、分析の更新は画面側の再取得 / ポーリングで扱う。

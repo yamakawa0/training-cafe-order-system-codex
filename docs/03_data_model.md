@@ -1,88 +1,135 @@
 # 03 Data Model
 
+## 方針
+
+DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセスを担当し、Nyan8 controller が業務ルール、端末検証、認証・認可、監査ログ記録を組み合わせる。
+
 ## 主要テーブル
 
-- `cafe_tables`
-- `terminals`
-- `menu_categories`
-- `menu_items`
-- `menu_item_options`
-- `menu_option_choices`
-- `table_sessions`
-- `orders`
-- `order_items`
-- `order_item_options`
-- `hall_tasks`
-- `payments`
-- `users`
-- `user_sessions`
-- `audit_logs`
+### cafe_tables
 
-## audit_logs
+- 目的: 店舗内の席を管理する。
+- 主なカラム: `id`, `table_code`, `display_name`, `seat_count`, `status`, `created_at`, `updated_at`
+- 主な状態値: `available`, `occupied`, `disabled` を運用上使用する。
+- 関連テーブル: `terminals`, `table_sessions`, `hall_tasks`
+- 注意点: 席状態は注文・会計・片付けフローで更新され、管理画面では `available` / `disabled` へ変更できる。
 
-Phase 5 では、管理操作と重要な業務操作を `audit_logs` に記録する。
+### terminals
 
-- `id`
-- `occurred_at`
-- `actor_terminal_code`
-- `actor_terminal_type`
-- `actor_user_id`
-- `actor_user_display_name`
-- `actor_user_role`
-- `action`
-- `target_type`
-- `target_id`
-- `target_label`
-- `status`
-- `before_data`
-- `after_data`
-- `request_data`
-- `error_message`
-- `created_at`
+- 目的: 顧客端末、キッチン、ホール、レジ、分析 / 管理端末を識別する。
+- 主なカラム: `id`, `terminal_code`, `terminal_type`, `table_id`, `display_name`, `active`
+- 主な状態値: `terminal_type` は `customer`, `kitchen`, `hall`, `checkout`, `analytics`
+- 関連テーブル: `cafe_tables`
+- 注意点: `terminal_code` は端末種別・active 判定、席端末判定、監査ログ補助情報に使う。
 
-`status` は `success` / `failure` を想定する。ログは物理削除しない。
+### users
 
-## users / user_sessions
+- 目的: スタッフ・管理者・閲覧専用ユーザーを管理する。
+- 主なカラム: `id`, `login_id`, `display_name`, `password_hash`, `password_hash_version`, `password_updated_at`, `failed_login_count`, `locked_until`, `role`, `active`
+- 主な状態値: `role` は `manager`, `cashier`, `kitchen`, `hall`, `viewer`
+- 関連テーブル: `user_sessions`, `audit_logs`
+- 注意点: password は平文保存しない。現行 hash は `salted_sha256_v1` または Node crypto 利用時の `pbkdf2_sha256_v1` を扱う。本番では bcrypt / argon2 等への移行を検討する。最後の active manager の無効化・降格は拒否する。
 
-Phase 7 では本番向け認証強化として `users` と `user_sessions` を拡張する。`users` は `id`, `login_id`, `display_name`, `password_hash`, `password_hash_version`, `password_updated_at`, `failed_login_count`, `locked_until`, `role`, `active`, `created_at`, `updated_at` を持ち、role は `manager`, `cashier`, `kitchen`, `hall`, `viewer` のいずれかとする。
+### user_sessions
 
-`user_sessions` は `id`, `user_id`, `session_token`, `terminal_code`, `expires_at`, `revoked_at`, `user_agent`, `created_at`, `last_seen_at` を保持する。主方式は cookie 名 `cafe_session` の session 認証で、`expires_at` を過ぎた session、`revoked_at` が設定された session、inactive user の session は認証不可とする。Nyan8 の cookie header 制約により、開発互換として `Authorization: Bearer <token>` と `token` パラメータも受け付ける。
+- 目的: ログイン session を管理する。
+- 主なカラム: `id`, `user_id`, `session_token`, `terminal_code`, `expires_at`, `revoked_at`, `user_agent`, `created_at`, `last_seen_at`
+- 主な状態値: `expires_at` 超過、`revoked_at` 設定、inactive user は認証不可。
+- 関連テーブル: `users`
+- 注意点: 現行は `cafe_session` cookie 主方式を設計上の主方式とし、Nyan8 制約への開発互換として Bearer token / `token` パラメータも受け付ける。session 有効期限は 8 時間。
 
-`password_hash` は `salted_sha256_v1$salt$hash` 形式を採用する。Nyan8 で Node crypto が使える環境では PBKDF2-SHA256 形式も検証可能だが、seed ユーザーは Nyan8 互換の salt 付き SHA-256 で登録する。
+### menu_categories
 
-ログイン失敗時は `failed_login_count` を増やし、5 回連続失敗で `locked_until` を現在時刻 + 5 分にする。ログイン成功時に `failed_login_count=0`, `locked_until=NULL` へ戻す。
+- 目的: 商品カテゴリを管理する。
+- 主なカラム: `id`, `name`, `display_order`, `active`
+- 主な状態値: `active`
+- 関連テーブル: `menu_items`
+- 注意点: 顧客メニューでは active なカテゴリ・商品を表示対象にする。
 
-ログイン済み操作では監査ログに user actor を記録し、顧客端末操作など token のない操作では従来どおり terminal actor を記録する。
+### menu_items
 
-## 主要状態
+- 目的: 販売商品を管理する。
+- 主なカラム: `id`, `category_id`, `name`, `description`, `price`, `tax_rate`, `image_url`, `kitchen_station`, `allergy_note`, `sold_out`, `active`, `display_order`
+- 主な状態値: `active`, `sold_out`
+- 関連テーブル: `menu_categories`, `menu_item_options`, `order_items`
+- 注意点: 金額はフロントエンド送信値を正とせず、DB の商品価格・税率から計算する。`active=false` は顧客メニュー非表示、`sold_out=true` は注文不可。
 
-### table_sessions.status
+### menu_item_options
 
-- `seated`
-- `ordering`
-- `payment_requested`
-- `paid`
-- `closed`
+- 目的: 商品ごとのオプション項目を管理する。
+- 主なカラム: `id`, `item_id`, `name`, `required`, `multi_select`, `display_order`
+- 主な状態値: `required`, `multi_select`
+- 関連テーブル: `menu_items`, `menu_option_choices`
+- 注意点: 顧客画面ではオプション選択モーダルで利用する。高度な編集 UI は今後対応。
 
-### order_items.status
+### menu_option_choices
 
-- `ordered`
-- `accepted`
-- `cooking`
-- `ready`
-- `served`
-- `cancelled`
+- 目的: オプションの選択肢を管理する。
+- 主なカラム: `id`, `option_id`, `name`, `price_delta`, `active`, `display_order`
+- 主な状態値: `active`
+- 関連テーブル: `menu_item_options`, `order_item_options`
+- 注意点: 選択肢の追加料金は会計計算に含める。
 
-### hall_tasks.status
+### table_sessions
 
-- `todo`
-- `doing`
-- `done`
-- `cancelled`
+- 目的: 着席から会計・片付けまでの席利用単位を管理する。
+- 主なカラム: `id`, `table_id`, `status`, `guest_count`, `opened_at`, `payment_requested_at`, `closed_at`
+- 主な状態値: `seated`, `ordering`, `payment_requested`, `paid`, `closed`
+- 関連テーブル: `cafe_tables`, `orders`, `hall_tasks`, `payments`
+- 注意点: 会計依頼後または精算済みのセッションでは追加注文を拒否する。
 
-## 状態遷移ルール
+### orders
 
-- 注文明細は原則 `ordered -> accepted -> cooking -> ready -> served` の順に進める。
-- キッチン操作では `served` にできない。`served` はホール画面の配膳完了で更新する。
-- `ready` になった注文明細には `serve_item` ホールタスクを作成する。
-- 精算完了後は `clean_table` ホールタスクを作成する。
+- 目的: 注文ヘッダを管理する。
+- 主なカラム: `id`, `session_id`, `order_no`, `status`, `subtotal`, `tax_amount`, `total_amount`, `submitted_at`
+- 主な状態値: `submitted`, `in_progress`, `ready`, `served`, `cancelled`, `closed`
+- 関連テーブル: `table_sessions`, `order_items`
+- 注意点: 注文明細状態に応じて集約状態を更新する。全明細取消時は `cancelled`。
+
+### order_items
+
+- 目的: 注文明細を管理する。
+- 主なカラム: `id`, `order_id`, `menu_item_id`, `item_name`, `unit_price`, `quantity`, `status`, `kitchen_station`, `allergy_note`, `customer_note`, `accepted_at`, `cooking_started_at`, `ready_at`, `served_at`, `cancelled_at`
+- 主な状態値: `ordered`, `accepted`, `cooking`, `ready`, `served`, `cancelled`
+- 関連テーブル: `orders`, `menu_items`, `order_item_options`, `hall_tasks`
+- 注意点: 基本遷移は `ordered -> accepted -> cooking -> ready -> served`。`ordered`, `accepted`, `cooking` の明細だけキャンセル可能。取消明細は会計・分析から除外する。
+
+### order_item_options
+
+- 目的: 注文時点のオプション選択を履歴として保持する。
+- 主なカラム: `id`, `order_item_id`, `option_name`, `choice_name`, `price_delta`
+- 関連テーブル: `order_items`
+- 注意点: 商品・オプション定義が後から変更されても注文時点の名称と金額差分を保持する。
+
+### hall_tasks
+
+- 目的: ホールスタッフの作業を管理する。
+- 主なカラム: `id`, `task_type`, `session_id`, `table_id`, `order_item_id`, `status`, `priority`, `title`, `note`, `assigned_to`, `started_at`, `completed_at`
+- 主な状態値: `task_type` は `serve_item`, `staff_call`, `checkout_support`, `clean_table`。`status` は `todo`, `doing`, `done`, `cancelled`
+- 関連テーブル: `table_sessions`, `cafe_tables`, `order_items`
+- 注意点: 注文明細が `ready` になると配膳タスク、会計依頼で会計サポート、精算完了で片付けタスクを作成する。
+
+### payments
+
+- 目的: 精算記録を管理する。
+- 主なカラム: `id`, `session_id`, `payment_no`, `method`, `status`, `subtotal`, `tax_amount`, `total_amount`, `paid_at`
+- 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `refunded`
+- 関連テーブル: `table_sessions`
+- 注意点: 現行はダミー決済。返金や実決済連携は今後対応。
+
+### audit_logs
+
+- 目的: 重要操作と認証イベントを追跡する。
+- 主なカラム: `id`, `occurred_at`, `actor_terminal_code`, `actor_terminal_type`, `actor_user_id`, `actor_user_display_name`, `actor_user_role`, `action`, `target_type`, `target_id`, `target_label`, `status`, `before_data`, `after_data`, `request_data`, `error_message`, `created_at`
+- 主な状態値: `status` は `success`, `failure`
+- 関連テーブル: `users`
+- 注意点: audit_logs は物理削除しない前提。password は `request_data` に入れない。CSV エクスポート、保持期間、アーカイブは今後対応。
+
+## 重要な前提
+
+- password は平文保存しない。
+- `password_hash_version` は現行方式を識別する。
+- 本番では bcrypt / argon2 等への移行を検討する。
+- `audit_logs` は物理削除しない前提。
+- 取消明細は会計・分析から除外する。
+- フロントエンドから送信された金額を正として会計処理しない。

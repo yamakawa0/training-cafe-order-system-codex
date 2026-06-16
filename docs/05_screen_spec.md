@@ -1,42 +1,135 @@
 # 05 Screen Spec
 
-## 顧客注文画面
+## 画面一覧
+
+- `/login`
+- `/customer/T01`
+- `/kitchen`
+- `/hall`
+- `/checkout`
+- `/analytics`
+- `/admin/menu`
+- `/admin/tables`
+- `/admin/orders`
+- `/admin/audit-logs`
+- `/admin/users`
+
+## `/login`
+
+- 目的: スタッフ、管理者、閲覧専用ユーザーがログインする。
+- 主な利用者: キッチンスタッフ、ホールスタッフ、レジ担当、店長 / 管理者、閲覧専用ユーザー。
+- 主な表示項目: ログイン ID、password、端末コード、エラー表示。
+- 主な操作: ログイン。
+- 必要な role: 全員。未ログインで利用する。
+- 関連 API: `POST /api/auth/login`, `GET /api/auth/me`
+- 注意点: ログイン成功後は role に応じた protected 画面へ遷移する。連続ログイン失敗で一時ロックされる。
+
+## `/customer/:tableCode`
 
 ![顧客注文画面 UI デザイン](assets/ui-design/customer-order.png)
 
-- タッチ端末前提。
-- カテゴリ、商品、カート、注文履歴を表示する。
-- 注文確定後、キッチン画面に反映される。
-- 会計依頼後は新規注文不可とする。
+- 目的: 顧客が席端末からセルフ注文、スタッフ呼び出し、会計依頼を行う。
+- 主な利用者: 顧客。
+- 主な表示項目: カテゴリ、商品カード、オプション選択、カート、注文履歴、会計状態。
+- 主な操作: 席セッション開始、商品追加、オプション選択、注文確定、スタッフ呼び出し、会計依頼。
+- 必要な role: ログイン不要。顧客端末。
+- 関連 API: `GET /api/customer/menu`, `POST /api/customer/session/open`, `GET /api/customer/session/current`, `POST /api/customer/order/submit`, `GET /api/customer/order/history`, `POST /api/customer/payment/request`, `POST /api/customer/staff-call`
+- 注意点: 会計依頼後または精算済みの席では注文操作をロックする。売切商品は注文不可。
 
-## キッチン画面
+## `/kitchen`
 
 ![キッチン画面 UI デザイン](assets/ui-design/kitchen-order-management.png)
 
-- 注文明細単位でカード表示する。
-- 状態は `ordered`, `accepted`, `cooking`, `ready` を中心に表示する。
-- 経過時間を強調表示する。
-- `ready` にするとホールタスクを生成する。
+- 目的: 注文明細単位で調理状態を管理する。
+- 主な利用者: キッチンスタッフ、店長 / 管理者。
+- 主な表示項目: `ordered`, `accepted`, `cooking`, `ready` のカンバン、経過時間、商品名、数量、オプション、メモ、アレルギー。
+- 主な操作: `ordered -> accepted -> cooking -> ready` への状態更新。
+- 必要な role: `kitchen` / `manager`
+- 関連 API: `GET /api/kitchen/tickets`, `POST /api/kitchen/item/status`
+- 注意点: `ready` になると配膳タスクを生成する。キッチン画面から `served` にはしない。
 
-## ホール指示画面
+## `/hall`
 
 ![ホール指示画面 UI デザイン](assets/ui-design/hall-task-board.png)
 
-- 配膳、スタッフ呼び出し、片付け、会計サポートをタスクとして表示する。
-- タスクは `todo`, `doing`, `done`, `cancelled` で管理する。
+- 目的: 配膳、スタッフ呼び出し、会計サポート、片付けタスクを処理する。
+- 主な利用者: ホールスタッフ、店長 / 管理者。
+- 主な表示項目: タスク種別、席、優先度、状態、メモ、簡易フロアマップ。
+- 主な操作: タスク開始、タスク完了。
+- 必要な role: `hall` / `manager`
+- 関連 API: `GET /api/hall/tasks`, `POST /api/hall/task/status`
+- 注意点: 配膳タスク完了で注文明細を `served` にする。片付け完了で席を `available` に戻す。
 
-## レジ精算画面
+## `/checkout`
 
 ![レジ精算画面 UI デザイン](assets/ui-design/checkout-payment.png)
 
-- 席番号を選択して未精算明細を表示する。
-- 支払い方法は `cash`, `card`, `qr` のダミー決済とする。
-- 精算完了後、席セッションを `paid` にする。
+- 目的: 会計依頼済みの席を精算する。
+- 主な利用者: レジ担当、店長 / 管理者。
+- 主な表示項目: 席カード、レシート風明細、小計、税、合計、支払い方法。
+- 主な操作: 席選択、支払い方法 `cash` / `card` / `qr` 選択、精算確定。
+- 必要な role: `cashier` / `manager`
+- 関連 API: `GET /api/checkout/summary`, `POST /api/checkout/settle`
+- 注意点: 会計依頼済みセッションだけ精算できる。取消明細は会計対象外。
 
-## 分析画面
+## `/analytics`
 
 ![分析画面 UI デザイン](assets/ui-design/analytics-dashboard.png)
 
-- PC 利用前提。
-- 売上、注文数、客単価、商品ランキング、支払い方法別集計を表示する。
-- CSV 出力を実装する。
+- 目的: 売上、会計件数、客単価、商品別ランキング、支払い方法別集計を確認する。
+- 主な利用者: 店長 / 管理者、閲覧専用ユーザー。
+- 主な表示項目: KPI、商品ランキング、支払い方法別集計、最終更新時刻。
+- 主な操作: 期間指定、CSV ダウンロード、管理画面への遷移。
+- 必要な role: `manager` / `viewer`
+- 関連 API: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
+- 注意点: CSV は JSON 内の `csv` をフロントエンドが Blob 化して保存する。
+
+## `/admin/menu`
+
+- 目的: メニュー商品を管理する。
+- 主な利用者: 店長 / 管理者。
+- 主な表示項目: カテゴリ一覧、商品一覧、商品フォーム、表示状態、売切状態、並び順。
+- 主な操作: 商品追加、編集、表示 / 非表示、売切 / 売切解除、並び順変更、カテゴリ絞り込み、商品名検索。
+- 必要な role: `manager`
+- 関連 API: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
+- 注意点: 商品画像アップロードと高度な商品オプション編集 UI は未対応。
+
+## `/admin/tables`
+
+- 目的: 席、席セッション、顧客端末、スタッフ端末を管理する。
+- 主な利用者: 店長 / 管理者。
+- 主な表示項目: 席一覧、席状態、顧客端末紐付け、現在セッション、注文・会計状態、端末一覧。
+- 主な操作: 席状態変更、セッション強制クローズ、端末有効 / 無効切替、席詳細確認。
+- 必要な role: `manager`
+- 関連 API: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
+- 注意点: 未精算注文や未提供明細があるセッションは強制クローズ不可。
+
+## `/admin/orders`
+
+- 目的: 注文一覧と注文詳細を確認し、条件を満たす注文・明細を取消する。
+- 主な利用者: 店長 / 管理者。
+- 主な表示項目: 注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、支払い情報、関連ホールタスク。
+- 主な操作: フィルタ、詳細表示、明細取消、注文全体取消。
+- 必要な role: `manager`
+- 関連 API: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
+- 注意点: `ordered`, `accepted`, `cooking` の明細だけ取消可能。ready / served 明細を含む注文や精算済み注文は取消不可。CSV 出力は `/analytics` の売上 CSV へ誘導する。
+
+## `/admin/audit-logs`
+
+- 目的: 重要操作と認証イベントの監査ログを検索・確認する。
+- 主な利用者: 店長 / 管理者。
+- 主な表示項目: 発生日時、操作、対象、terminal actor、user actor、結果、詳細 JSON。
+- 主な操作: フィルタ、キーワード検索、詳細表示。
+- 必要な role: `manager`
+- 関連 API: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`
+- 注意点: 顧客操作は user actor がなく terminal actor のみになる場合がある。CSV エクスポート、保持期間、アーカイブは未対応。
+
+## `/admin/users`
+
+- 目的: ログインユーザーと role を管理する。
+- 主な利用者: 店長 / 管理者。
+- 主な表示項目: ユーザー一覧、login ID、表示名、role、active、作成・更新日時。
+- 主な操作: ユーザー作成、表示名・role・password 更新、有効 / 無効切替、検索。
+- 必要な role: `manager`
+- 関連 API: `GET /api/admin/users`, `POST /api/admin/users`, `POST /api/admin/users/update`, `POST /api/admin/users/toggle-active`
+- 注意点: 最後の active manager の無効化・降格と、自分自身の manager 権限変更は拒否する。

@@ -221,3 +221,14 @@
 - CSRF 方針: MVP は `SameSite=Lax` + JSON API 前提。state changing API は POST を前提とし、本番では許可 origin 限定と CSRF token 追加を検討する。
 - smoke script: `scripts/lib/smoke-lib.sh`, `scripts/smoke-auth.sh`, `scripts/smoke-admin-menu.sh`, `scripts/smoke-e2e.sh` を cookie jar / 疑似 cookie / Bearer 互換に対応させた。`smoke-auth.sh` は failed login count、lock、inactive、expired、revoked、logout 後拒否、認証 audit log、password 非露出を確認する。
 - 検証結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。`npm audit` は 0 vulnerabilities、Codex bundled Node.js `v24.14.0` で `npm run build` は成功した。システム既定 Node.js `v16.17.1` では Vite の Node 要件未満で build が失敗する。
+
+## 2026-06-16 Phase docs refresh
+
+- 目的: 新機能実装は行わず、docs 配下の開発計画書・仕様書を現在の実装状況と今後の開発計画に合わせて更新した。
+- 更新対象ファイル: `docs/01_product_requirements.md`, `docs/02_architecture.md`, `docs/03_data_model.md`, `docs/04_api_design.md`, `docs/05_screen_spec.md`, `docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/assumptions.md`, `docs/development-notes.md`。
+- 実装済みとして反映した機能: 顧客注文、キッチン、ホール、レジ精算、分析、売上 CSV、メニュー管理、席・端末管理、注文管理、明細取消、注文全体取消、取消明細の会計・分析除外、監査ログ、簡易ログイン、ロール認可、ユーザー管理、session 有効期限・失効・inactive user 拒否、連続ログイン失敗ロック、監査ログ actor user 対応、Node / npm 推奨環境、Vite dev server 公開範囲、npm audit 0 件化。
+- 現行仕様として整理した内容: フロントエンドは Nyan8 の `/api/*` のみを呼び出す。NyanQL は Nyan8 から内部 API として呼ぶ。顧客 API は token 不要、protected API は role 制御を行う。`terminal_code` は端末種別・active 判定・監査ログ補助情報に使う。現行認証は `cafe_session` cookie 主方式を設計上の主方式とし、Nyan8 制約により Bearer / `token` 互換を併用する。
+- まだ未対応として残した機能: 実決済連携、返金、在庫管理、複数店舗、予約、顧客会員、複雑な割引 / クーポン、商品画像アップロード、商品オプション編集 UI 高度化、監査ログ CSV エクスポート、監査ログ保持期間 / アーカイブ、Nyan8 制約を前提にしない実 HTTP header の httpOnly cookie 完全運用、bcrypt / argon2 等の本番向け password hash、CSRF token、多要素認証、OAuth / SSO、CI/CD、本番デプロイ手順。
+- 次フェーズ: Phase 8 は監査ログ運用強化、Phase 9 は本番デプロイ準備、Phase 10 は CI / 自動テスト、Phase 11 以降は商品・在庫・オプション、決済・返金・レシート、顧客・予約・複数店舗の拡張とする。
+- 検証結果: README、`backend/nyan8/api.json`, `backend/nyanql/api.json`, `backend/nyanql/sql/schema.sql`, `frontend/src/App.tsx`, `frontend/src/api/cafeApi.ts`, `frontend/src/domain/types.ts`, `frontend/package.json`, `scripts/` を確認し、docs の画面一覧、API 一覧、role、状態値、smoke script 対応表を現行実装へ合わせた。コマンド実行結果は本セクションの後続作業結果を参照する。
+- コマンド検証結果: システム既定は Node.js `v16.17.1` / npm `8.15.0` で推奨未満だったため、Codex bundled Node.js `v24.14.0` を PATH 先頭に置いて確認した。`npm install` は成功したが、npm はローカル shim の `8.15.0` が使われたため engine warning が出た。`npm run build` は成功した。初回 `npm audit` は sandbox のネットワーク制限で失敗し、承認付き再実行では `found 0 vulnerabilities` だった。
