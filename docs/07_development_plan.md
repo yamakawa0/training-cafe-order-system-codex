@@ -23,6 +23,8 @@
 - 監査ログ検索条件強化
 - before / after 表示改善
 - 監査ログ運用方針整理
+- 本番デプロイ準備
+- GitHub Actions CI / 自動テスト
 
 ## 2. 完了済みフェーズ
 
@@ -102,25 +104,22 @@
 - 外部監査連携
 - 複数店舗別ログ分離
 
-## 3. 次フェーズ
-
 ### Phase 9: 本番デプロイ準備
 
-目的:
+完了範囲:
 
-- 本番相当環境で安全に起動・配信・運用できる状態にする。
-
-主な作業:
-
-- 静的 build 配信
-- Nginx / reverse proxy 想定設定
+- frontend/dist の静的配信方針
+- Nginx / reverse proxy 設定例
 - HTTPS 前提整理
-- 実 `Set-Cookie` header / cookie 受信 header の運用方針
-- 環境変数 / secret 管理
-- DB バックアップ / リストア
-- 起動・停止手順
-- ログ出力 / ローテーション
-- 本番 smoke script
+- cookie / Bearer 互換の本番運用方針
+- .env.production.example
+- production 起動・停止・status script
+- smoke-prod-readiness.sh
+- DB backup / restore 手順
+- ログ出力 / ローテーション方針
+- docs/08_operations.md
+
+## 3. 現在フェーズ
 
 ### Phase 10: CI / 自動テスト
 
@@ -130,12 +129,25 @@
 
 主な作業:
 
-- npm install / build
-- npm audit
-- smoke script 実行
-- SQL schema 検証
-- API 定義と script / SQL の存在チェック
-- GitHub Actions などの導入検討
+- GitHub Actions workflow
+- npm install / npm audit / npm run build
+- production readiness smoke
+- shell script 構文チェック
+- SQL / API 定義整合チェック
+- Nyan8 api.json と JavaScript file の存在チェック
+- NyanQL api.json と SQL file の存在チェック
+- README / docs の重要記述チェック
+
+完了条件:
+
+- GitHub Actions CI workflow
+- frontend npm ci / npm audit / build
+- shell script syntax check
+- Nyan8 / NyanQL 定義整合チェック
+- production readiness static check
+- CI と local full smoke の役割分離
+
+## 4. 次フェーズ
 
 ### Phase 11: 商品・在庫・オプション強化
 

@@ -78,6 +78,15 @@
 - WebSocket Push は現行未実装で、画面更新は再取得 / ポーリングで扱う。
 - CSV エクスポート API は Nyan8 ランタイム制約により CSV 本文を直接返さず、`success/status/result` の JSON 内に `contentType`, `filename`, `csv` を返す。フロントエンドが `csv` を Blob 化してダウンロードする。
 
+## CI / 自動テスト
+
+- CI は GitHub Actions を想定する。
+- CI では本番 DB / 開発 DB を操作しない。
+- CI では `dev-reset-db.sh` を実行しない。
+- CI では NyanQL / Nyan8 runtime を必須にしない。
+- full smoke はローカルまたは専用検証環境で実行する。
+- `package-lock.json` は CI の再現性のため commit する。
+
 ## 今後の未対応事項
 
 - 実決済サービス連携
@@ -97,5 +106,4 @@
 - CSRF token
 - 多要素認証
 - OAuth / SSO
-- CI/CD
-- 本番デプロイ手順
+- CI/CD のうち自動デプロイ

@@ -263,3 +263,20 @@
 - 検証結果: `bash -n` で追加 production script の構文を確認した。`./scripts/smoke-prod-readiness.sh` は system npm `8.15.0` では推奨未満として失敗することを確認し、検証用に `/private/tmp` へ npm `10.9.8` を一時導入して Codex bundled Node.js `v24.14.0` と組み合わせた実行では成功した。`cd frontend && npm install`, `npm audit`, `npm run build` は同じ推奨環境で成功し、`npm audit` は `found 0 vulnerabilities` だった。
 - 既存 smoke 検証: 開発用 NyanQL / Nyan8 を起動し、`./scripts/dev-reset-db.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh` は成功した。初回 `smoke-auth.sh` は Nyan8 の API 登録完了前に実行して接続不可で失敗し、登録完了後の再実行では成功した。
 - 未対応事項: 実サーバーへのデプロイ、GitHub Actions 自動デプロイ、Docker 化、Kubernetes、Terraform、実ドメイン証明書発行、外部決済連携、OAuth / SSO、多要素認証、CSRF token 本実装、bcrypt / argon2 / pgcrypto 移行、systemd / PM2 化、本番 migration 管理。
+
+## 2026-06-17 Phase 10 CI / 自動テスト
+
+- 追加した workflow: `.github/workflows/ci.yml`。pull_request と `master` push で起動し、frontend job と static-checks job に分けた。
+- frontend job: Node.js `20.19` を `actions/setup-node` で使い、`npm ci`, `npm audit --audit-level=high`, `npm run build`, `./scripts/ci-prod-readiness-static.sh` を実行する。
+- static-checks job: Node.js `20.19` を使い、`./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh` を実行する。
+- 追加した CI script: `scripts/ci-shellcheck.sh`, `scripts/ci-repo-consistency.sh`, `scripts/ci-prod-readiness-static.sh`。
+- 追加した consistency check: `scripts/check-nyan8-api-files.mjs` で Nyan8 `api.json` の `script` 参照先を確認し、`scripts/check-nyanql-sql-files.mjs` で NyanQL `api.json` の `sql` 参照先を確認する。
+- CI で実行する検証: frontend install / audit / build、shell script の `bash -n`、任意の shellcheck、重要ファイル存在確認、`.env.production` 非追跡確認、Nyan8 / NyanQL 定義整合、production readiness static check。
+- CI で実行しない検証: 自動デプロイ、本番サーバー SSH、Docker / Kubernetes / Terraform、実 DB 利用、GitHub Actions 上での NyanQL / Nyan8 runtime 起動、Playwright / E2E ブラウザテスト、`dev-reset-db.sh`。
+- local full smoke の位置づけ: PostgreSQL / NyanQL / Nyan8 を起動できる開発者環境または専用検証環境で実行する。CI lightweight checks とは分離する。
+- docs 更新: README に GitHub Actions CI、`npm ci` と `npm install` の使い分け、PR 前の推奨ローカル確認を追記した。`docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/08_operations.md`, `docs/assumptions.md` に Phase 10 の前提と受け入れ条件を追記した。
+- 検証結果: Codex bundled Node.js `v24.14.0` と npm `10.9.8` で `npm ci`, `npm audit --audit-level=high`, `npm run build` は成功した。`npm audit` は `found 0 vulnerabilities` だった。
+- CI script 検証結果: `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh` は成功した。ローカルに shellcheck がないため shellcheck 実行は skip し、`bash -n` は全 shell script で成功した。
+- Nyan8 / NyanQL 整合チェック結果: Nyan8 `api.json` の全 JavaScript 参照先、NyanQL `api.json` の全 SQL 参照先が存在することを確認した。
+- production readiness 検証結果: `./scripts/smoke-prod-readiness.sh` は成功した。sandbox DNS 制限で `npm audit` が一度失敗したため、承認付きネットワーク実行で再確認した。
+- 未対応事項: GitHub Actions の実リモート実行結果確認、自動デプロイ、実 DB を使う CI、実 NyanQL / Nyan8 runtime を GitHub Actions 上で起動する CI、Playwright / E2E ブラウザテスト。

@@ -147,6 +147,62 @@ npm audit
 
 通常は `npm audit fix` までを許可し、`npm audit fix --force` は major upgrade や破壊的変更を含む可能性があるため、更新対象と影響を確認してから判断してください。
 
+ローカル開発では依存更新を伴うため `npm install` を使います。CI では lockfile 再現性を優先して `npm ci` を使います。`package-lock.json` を更新した場合は必ず commit してください。
+
+## GitHub Actions CI
+
+`.github/workflows/ci.yml` で pull request と `master` push に対する lightweight CI を実行します。GitHub Actions では Node 20.19 以上を使い、frontend job で次を確認します。
+
+```bash
+cd frontend
+npm ci
+npm audit --audit-level=high
+npm run build
+cd ..
+./scripts/ci-prod-readiness-static.sh
+```
+
+static-checks job では次を確認します。
+
+```bash
+./scripts/ci-shellcheck.sh
+./scripts/ci-repo-consistency.sh
+```
+
+CI では実 DB、NyanQL runtime、Nyan8 runtime を起動しません。`dev-reset-db.sh` も実行しません。CI lightweight checks は構文、build、audit、設定ファイルと実ファイルの整合性を確認し、local full smoke は開発者環境で PostgreSQL / NyanQL / Nyan8 を起動して業務フローを確認する位置づけです。
+
+PR 作成前の推奨ローカル確認:
+
+```bash
+cd frontend
+npm ci
+npm audit --audit-level=high
+npm run build
+cd ..
+./scripts/ci-shellcheck.sh
+./scripts/ci-repo-consistency.sh
+./scripts/smoke-prod-readiness.sh
+```
+
+実ランタイム込みの full smoke は、開発用 DB 初期化と NyanQL / Nyan8 起動後に順番に実行します。各 script は DB を初期化するものがあるため並列実行しないでください。
+
+```bash
+./scripts/dev-reset-db.sh
+./scripts/smoke-auth.sh
+./scripts/smoke-audit-logs.sh
+./scripts/smoke-admin-orders.sh
+./scripts/smoke-admin-menu.sh
+./scripts/smoke-admin-tables.sh
+./scripts/smoke-menu.sh
+./scripts/smoke-e2e.sh
+./scripts/smoke-order-multiple-items.sh
+./scripts/smoke-multiple-tables.sh
+./scripts/smoke-cancel-flow.sh
+./scripts/smoke-staff-call.sh
+./scripts/smoke-checkout-csv.sh
+./scripts/smoke-invalid-operations.sh
+```
+
 ## 開発起動順
 
 複数ターミナルで次の順に起動します。

@@ -155,6 +155,14 @@ psql "$DATABASE_URL" < backup.sql
 - Nginx 設定例
 - README / docs の Phase 9 反映
 
+## CI / 自動テスト
+
+GitHub Actions CI は本番 DB、開発 DB、NyanQL / Nyan8 runtime を操作しない。CI lightweight checks として、frontend の `npm ci`, `npm audit --audit-level=high`, `npm run build`、shell script 構文チェック、Nyan8 / NyanQL 定義と実ファイルの整合チェック、production readiness static check を実行する。
+
+local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。
+
+本番デプロイ前は、frontend build 後に `./scripts/smoke-prod-readiness.sh` を実行する。この script も本番 DB を初期化せず、`.env.production.example` または `.env.production`、Nginx 設定例、runtime 実行ファイル、docs 反映状況を確認する。
+
 ## 今後の課題
 
 - systemd / PM2 などによる常駐管理

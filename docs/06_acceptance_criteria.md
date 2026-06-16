@@ -25,6 +25,22 @@
 - `npm audit` が high / critical 0 件である。
 - 既存 smoke script が成功する。
 
+## Phase 10 CI / 自動テスト
+
+- `.github/workflows/ci.yml` が存在する。
+- pull_request で CI が実行される。
+- master push で CI が実行される。
+- frontend `npm ci` が成功する。
+- frontend `npm audit --audit-level=high` が成功する。
+- frontend `npm run build` が成功する。
+- shell script 構文チェックが成功する。
+- Nyan8 `api.json` 参照先 JavaScript file の存在チェックが成功する。
+- NyanQL `api.json` 参照先 SQL file の存在チェックが成功する。
+- production readiness static check が成功する。
+- CI で本番 DB を破壊しない。
+- CI では `dev-reset-db.sh` を実行しない。
+- CI では実 PostgreSQL / NyanQL / Nyan8 runtime を起動しない。
+
 ## 業務フロー
 
 - 顧客注文 happy path が通る。
