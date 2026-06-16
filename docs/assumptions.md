@@ -42,8 +42,13 @@
 - Phase 5 監査ログは物理削除しない。ログ削除、アーカイブ、CSV エクスポートは未対応とする。
 - Phase 5 監査ログの改ざん防止署名は未対応とする。
 - Phase 5 監査ログ書き込み失敗時は、本体業務処理を原則継続し、開発ログに書き込み失敗を出す。
-- Phase 6 の認証 token は MVP として localStorage に保存する。本番では httpOnly cookie 等を検討する。
-- Phase 6 の password hash は MVP 簡易方式として SHA-256 を使う。本番では bcrypt/argon2 等へ移行する。
+- Phase 7 の認証は httpOnly cookie `cafe_session` 主方式を目標とする。cookie は `SameSite=Lax`, `Path=/`, 8 時間有効とし、開発 HTTP では `Secure=false`、本番 HTTPS では `Secure=true` とする。
+- Nyan8 単体では `Set-Cookie` を実 HTTP header として返せず、受信 `Cookie` header も JavaScript params に渡らない。このため開発環境では response body の疑似 `headers.Set-Cookie` を frontend / smoke script が同期し、Bearer / `token` パラメータ互換を併用する。本番では reverse proxy で cookie 化し、必要に応じて upstream Authorization へ変換する。
+- localStorage には session token を保存しない。保存してよいのは表示復元用の最小 user 情報だけとする。
+- CSRF は MVP では `SameSite=Lax` + JSON API 前提とし、本番では CSRF token 追加を検討する。
+- Phase 7 の password hash は Nyan8 互換性を優先し `salted_sha256_v1` とする。Node crypto / pgcrypto が使える本番環境では PBKDF2/bcrypt/argon2/pgcrypto crypt への移行を検討する。
+- session 有効期限は開発用 8 時間とする。expired / revoked / inactive user session は拒否し、logout は `revoked_at` を設定する。
+- account lock は MVP として 5 回連続失敗で 5 分ロックする。成功時に `failed_login_count` と `locked_until` をリセットする。
 - 顧客 API (`/api/customer/*`) はログイン不要とし、既存の端末 active / 種別チェックを維持する。
 - 管理 API (`/api/admin/*`) は manager のみ許可する。
 - 分析 API (`/api/analytics/*`) は manager / viewer のみ許可する。

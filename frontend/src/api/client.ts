@@ -1,5 +1,3 @@
-import { getAuthToken } from '../auth/authState';
-
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -7,18 +5,41 @@ export class ApiError extends Error {
 }
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+const sessionCookieName = 'cafe_session';
+
+function fallbackSessionToken() {
+  if (typeof document === 'undefined') return '';
+  const prefix = `${sessionCookieName}=`;
+  return document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix))
+    ?.slice(prefix.length) || '';
+}
+
+function syncFallbackCookie(data: unknown) {
+  const record = data as { headers?: Record<string, string> } | null;
+  const setCookie = record?.headers?.['Set-Cookie'];
+  if (!setCookie || typeof document === 'undefined') return;
+  document.cookie = setCookie
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.toLowerCase() !== 'httponly')
+    .join('; ');
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAuthToken();
+  const token = fallbackSessionToken();
   const headers = {
     ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-    ...(token && !path.startsWith('/api/customer/') ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token && !path.startsWith('/api/customer/') ? { Authorization: `Bearer ${decodeURIComponent(token)}` } : {}),
     ...(init?.headers || {})
   };
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
+      credentials: 'include',
       headers
     });
   } catch {
@@ -31,6 +52,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError('サーバーから不正な応答を受信しました。', response.status);
   }
+  syncFallbackCookie(data);
   const body = data as { success?: boolean; message?: string; status?: number } | null;
   if (!response.ok || body?.success === false) {
     const fallback = response.status >= 500
@@ -48,16 +70,16 @@ export function get<T>(path: string, params?: Record<string, string | number | u
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) search.set(key, String(value));
   });
-  const token = getAuthToken();
-  if (token && !path.startsWith('/api/customer/')) search.set('token', token);
+  const token = fallbackSessionToken();
+  if (token && !path.startsWith('/api/customer/')) search.set('token', decodeURIComponent(token));
   const query = search.toString();
   return request<T>(`${path}${query ? `?${query}` : ''}`);
 }
 
 export function post<T>(path: string, body: unknown): Promise<T> {
-  const token = getAuthToken();
+  const token = fallbackSessionToken();
   const payload = token && !path.startsWith('/api/customer/') && body && typeof body === 'object' && !Array.isArray(body)
-    ? { ...(body as Record<string, unknown>), token }
+    ? { ...(body as Record<string, unknown>), token: decodeURIComponent(token) }
     : body;
   return request<T>(path, { method: 'POST', body: JSON.stringify(payload) });
 }

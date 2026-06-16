@@ -12,12 +12,12 @@ INSERT INTO terminals (id, terminal_code, terminal_type, table_id, display_name)
 ('term-checkout-main', 'checkout-main', 'checkout', NULL, 'レジ端末'),
 ('term-analytics-manager', 'analytics-manager', 'analytics', NULL, '店長 PC');
 
-INSERT INTO users (id, login_id, display_name, password_hash, role, active) VALUES
-('user-manager', 'manager', '店長', '866485796cfa8d7c0cf7111640205b83076433547577511d81f8030ae99ecea5', 'manager', TRUE),
-('user-cashier', 'cashier', 'レジ担当', 'b4c94003c562bb0d89535eca77f07284fe560fd48a7cc1ed99f0a56263d616ba', 'cashier', TRUE),
-('user-kitchen', 'kitchen', 'キッチン担当', 'e5cf9d8e3884bb2a899372b9fcb87af6fcd9b3aad2ff07e2c076b4a71ffad67c', 'kitchen', TRUE),
-('user-hall', 'hall', 'ホール担当', '2e0fdaf025121060df4810c0c56b3e88b052d834039376cd4491d35762548ccf', 'hall', TRUE),
-('user-viewer', 'viewer', '閲覧担当', '65375049b9e4d7cad6c9ba286fdeb9394b28135a3e84136404cfccfdcc438894', 'viewer', TRUE);
+INSERT INTO users (id, login_id, display_name, password_hash, password_hash_version, password_updated_at, role, active) VALUES
+('user-manager', 'manager', '店長', 'salted_sha256_v1$1ea3dc4e04b673feb5e1925bb0cb42da$a2d2a833cb687c7085a2a77dc62c3a242b453b1c0a1368896b9f77d9a328c671', 'salted_sha256_v1', CURRENT_TIMESTAMP, 'manager', TRUE),
+('user-cashier', 'cashier', 'レジ担当', 'salted_sha256_v1$566fadab4d56dd18ffcc32ce733c221f$a6a72a50146489480ab5eb6b64eacf8fd5e3a898fd62f697d30f54ed3d02650b', 'salted_sha256_v1', CURRENT_TIMESTAMP, 'cashier', TRUE),
+('user-kitchen', 'kitchen', 'キッチン担当', 'salted_sha256_v1$5f3407c3dab2514ee1cbd4516806cf45$0a2577085f8ae9bdd5a98aca4beabd00c8fd693b841d1230b32fae6aff2eb8e3', 'salted_sha256_v1', CURRENT_TIMESTAMP, 'kitchen', TRUE),
+('user-hall', 'hall', 'ホール担当', 'salted_sha256_v1$eb3ce3a169e12c6cb2eb824a4a1c3b82$eec8fe633ce253108e83bf3121be5b160d526d7627469228efc3c2d637eb8c6c', 'salted_sha256_v1', CURRENT_TIMESTAMP, 'hall', TRUE),
+('user-viewer', 'viewer', '閲覧担当', 'salted_sha256_v1$2875c97ae7c07aa83016a2798c9c2139$ec676dcc76b670437f25ac2887eab53a376c585e1c5bf0944e3c285f9706edd9', 'salted_sha256_v1', CURRENT_TIMESTAMP, 'viewer', TRUE);
 
 INSERT INTO menu_categories (id, name, display_order) VALUES
 ('cat-coffee', 'Coffee', 10),

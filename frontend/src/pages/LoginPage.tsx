@@ -24,7 +24,7 @@ export function LoginPage() {
     clearAuth();
     try {
       const data = await cafeApi.login({ loginId, password, terminalCode });
-      storeAuth(data.token, data.user);
+      storeAuth(data.user);
       window.location.href = roleHome(data.user.role);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'ログインに失敗しました。');

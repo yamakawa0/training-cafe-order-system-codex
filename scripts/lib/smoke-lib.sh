@@ -9,10 +9,18 @@ LAST_STATUS=""
 LAST_HEADERS=""
 LAST_STEP=""
 AUTH_TOKEN="${AUTH_TOKEN:-}"
+AUTH_SEND_BEARER="${AUTH_SEND_BEARER:-0}"
+AUTH_COOKIE_JAR="${AUTH_COOKIE_JAR:-$(mktemp)}"
 AUTH_LOGIN_ID="${AUTH_LOGIN_ID:-}"
 AUTH_PASSWORD="${AUTH_PASSWORD:-}"
 AUTH_TERMINAL_CODE="${AUTH_TERMINAL_CODE:-}"
 SMOKE_NAME="${SMOKE_NAME:-smoke}"
+
+cleanup_cookie_jar() {
+  rm -f "$AUTH_COOKIE_JAR"
+}
+
+trap cleanup_cookie_jar EXIT
 
 pass() {
   echo
@@ -70,6 +78,34 @@ process.stdin.on("end", () => {
 });' "$script"
 }
 
+sync_cookie_from_body() {
+  local cookie_line
+  cookie_line="$(printf '%s' "$LAST_BODY" | node -e '
+let input = "";
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  try {
+    const data = input ? JSON.parse(input) : null;
+    const header = data && data.headers && data.headers["Set-Cookie"];
+    if (header) process.stdout.write(header);
+  } catch {}
+});' || true)"
+  if [ -z "$cookie_line" ]; then return 0; fi
+  if printf '%s' "$cookie_line" | grep -q 'Max-Age=0'; then
+    : > "$AUTH_COOKIE_JAR"
+    return 0
+  fi
+  local cookie_pair cookie_name cookie_value expires_at
+  cookie_pair="${cookie_line%%;*}"
+  cookie_name="${cookie_pair%%=*}"
+  cookie_value="${cookie_pair#*=}"
+  expires_at="$(date -v+8H +%s 2>/dev/null || date -d '+8 hours' +%s)"
+  {
+    printf '# Netscape HTTP Cookie File\n'
+    printf 'localhost\tFALSE\t/\tFALSE\t%s\t%s\t%s\n' "$expires_at" "$cookie_name" "$cookie_value"
+  } > "$AUTH_COOKIE_JAR"
+}
+
 assert_json() {
   local script="$1"
   local reason="$2"
@@ -100,7 +136,7 @@ call_api() {
   local request_body="$body"
   tmp="$(mktemp)"
 
-  if [ -n "$AUTH_TOKEN" ] && [[ "$request_path" != api/customer/* ]]; then
+  if [ "$AUTH_SEND_BEARER" = "1" ] && [ -n "$AUTH_TOKEN" ] && [[ "$request_path" != api/customer/* ]]; then
     curl_headers=(-H "Authorization: Bearer $AUTH_TOKEN")
     if [ "$method" = "GET" ]; then
       case "$request_path" in
@@ -114,13 +150,14 @@ call_api() {
 
   echo "$method /$request_path" >&2
   if [ "$method" = "GET" ]; then
-    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} "$BASE_URL/$request_path" || true)"
+    LAST_STATUS="$(curl -sS -b "$AUTH_COOKIE_JAR" -c "$AUTH_COOKIE_JAR" -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} "$BASE_URL/$request_path" || true)"
   else
-    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} -H 'Content-Type: application/json' -d "$request_body" "$BASE_URL/$request_path" || true)"
+    LAST_STATUS="$(curl -sS -b "$AUTH_COOKIE_JAR" -c "$AUTH_COOKIE_JAR" -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} -H 'Content-Type: application/json' -d "$request_body" "$BASE_URL/$request_path" || true)"
   fi
   LAST_BODY="$(cat "$tmp")"
   LAST_HEADERS=""
   rm -f "$tmp"
+  sync_cookie_from_body
   echo "HTTP_STATUS=$LAST_STATUS" >&2
   printf '%s\n' "$LAST_BODY" >&2
 
@@ -145,24 +182,29 @@ login_as() {
   local login_id="$1"
   local password="$2"
   local terminal_code="$3"
+  : > "$AUTH_COOKIE_JAR"
   call_post "api/auth/login" "{\"loginId\":\"$login_id\",\"password\":\"$password\",\"terminalCode\":\"$terminal_code\"}"
-  AUTH_TOKEN="$(extract_json 'return root.token' "$login_id token が取得できません")"
+  assert_json 'return root.user && root.user.loginId' "$login_id login response に user がありません"
+  assert_json 'return !root.token' "$login_id login response が token を本文に露出しています"
+  AUTH_TOKEN="$(sql_scalar "SELECT session_token FROM user_sessions s JOIN users u ON u.id = s.user_id WHERE u.login_id = '$login_id' ORDER BY s.created_at DESC LIMIT 1;" | tail -n 1)"
+  if [ -z "$AUTH_TOKEN" ]; then fail "$login_id session token が DB に作成されていません"; fi
+  AUTH_SEND_BEARER=1
   AUTH_LOGIN_ID="$login_id"
   AUTH_PASSWORD="$password"
   AUTH_TERMINAL_CODE="$terminal_code"
-  export AUTH_TOKEN
+  export AUTH_TOKEN AUTH_SEND_BEARER
   export AUTH_LOGIN_ID AUTH_PASSWORD AUTH_TERMINAL_CODE
 }
 
 logout_auth() {
-  if [ -n "$AUTH_TOKEN" ]; then
-    call_post "api/auth/logout" "{}" raw
-  fi
+  call_post "api/auth/logout" "{}" raw
+  : > "$AUTH_COOKIE_JAR"
   AUTH_TOKEN=""
+  AUTH_SEND_BEARER=0
   AUTH_LOGIN_ID=""
   AUTH_PASSWORD=""
   AUTH_TERMINAL_CODE=""
-  export AUTH_TOKEN
+  export AUTH_TOKEN AUTH_SEND_BEARER
   export AUTH_LOGIN_ID AUTH_PASSWORD AUTH_TERMINAL_CODE
 }
 
@@ -181,7 +223,7 @@ call_raw_get() {
   tmp_body="$(mktemp)"
   tmp_headers="$(mktemp)"
   echo "GET /$path" >&2
-  LAST_STATUS="$(curl -sS -D "$tmp_headers" -o "$tmp_body" -w '%{http_code}' "$BASE_URL/$path" || true)"
+  LAST_STATUS="$(curl -sS -b "$AUTH_COOKIE_JAR" -c "$AUTH_COOKIE_JAR" -D "$tmp_headers" -o "$tmp_body" -w '%{http_code}' "$BASE_URL/$path" || true)"
   LAST_BODY="$(cat "$tmp_body")"
   LAST_HEADERS="$(cat "$tmp_headers")"
   rm -f "$tmp_body" "$tmp_headers"

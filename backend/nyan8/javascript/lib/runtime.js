@@ -812,11 +812,13 @@ function adminCreateUser() {
     requireField(input.display_name, "display_name");
     requireField(input.password, "password");
     requireField(input.role, "role");
+    var nextPasswordHash = hashPassword(input.password);
     var user = first(nyanqlPost("admin/users/create", {
       id: newId("user"),
       login_id: String(input.login_id).trim(),
       display_name: String(input.display_name).trim(),
-      password_hash: sha256(input.password),
+      password_hash: nextPasswordHash,
+      password_hash_version: passwordHashVersion(nextPasswordHash),
       role: validateRole(input.role),
       active: booleanValue(input.active, true)
     }));
@@ -843,10 +845,12 @@ function adminUpdateUser() {
     if (before.role === "manager" && Boolean(before.active) && nextRole !== "manager" && activeManagerCount() <= 1) {
       throw error(409, "最後の active manager は変更できません");
     }
+    var nextPasswordHash = input.password ? hashPassword(input.password) : "";
     var user = first(nyanqlPost("admin/users/update", {
       id: input.id,
       display_name: String(input.display_name).trim(),
-      password_hash: input.password ? sha256(input.password) : "",
+      password_hash: nextPasswordHash,
+      password_hash_version: passwordHashVersion(nextPasswordHash),
       role: nextRole
     }));
     if (!user) throw error(404, "ユーザーが見つかりません");

@@ -2,11 +2,14 @@
 set -euo pipefail
 
 BASE_URL="${NYAN8_BASE_URL:-http://localhost:8889}"
+DATABASE_URL="${DATABASE_URL:-postgres://codex:codex@localhost:5432/cafe_order_system}"
 TODAY="$(date +%F)"
 LAST_BODY=""
 LAST_STATUS=""
 LAST_STEP=""
+COOKIE_JAR="$(mktemp)"
 AUTH_TOKEN=""
+trap 'rm -f "$COOKIE_JAR"' EXIT
 
 log_step() {
   LAST_STEP="$1"
@@ -45,6 +48,46 @@ process.stdin.on("end", () => {
 });' "$script"
 }
 
+sync_cookie_from_body() {
+  local cookie_line
+  cookie_line="$(printf '%s' "$LAST_BODY" | node -e '
+let input = "";
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  try {
+    const data = input ? JSON.parse(input) : null;
+    const header = data && data.headers && data.headers["Set-Cookie"];
+    if (header) process.stdout.write(header);
+  } catch {}
+});' || true)"
+  if [ -z "$cookie_line" ]; then return 0; fi
+  if printf '%s' "$cookie_line" | grep -q 'Max-Age=0'; then
+    : > "$COOKIE_JAR"
+    return 0
+  fi
+  local cookie_pair cookie_name cookie_value expires_at
+  cookie_pair="${cookie_line%%;*}"
+  cookie_name="${cookie_pair%%=*}"
+  cookie_value="${cookie_pair#*=}"
+  expires_at="$(date -v+8H +%s 2>/dev/null || date -d '+8 hours' +%s)"
+  {
+    printf '# Netscape HTTP Cookie File\n'
+    printf 'localhost\tFALSE\t/\tFALSE\t%s\t%s\t%s\n' "$expires_at" "$cookie_name" "$cookie_value"
+  } > "$COOKIE_JAR"
+}
+
+extract_token_from_body() {
+  printf '%s' "$LAST_BODY" | node -e '
+let input = "";
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  const data = JSON.parse(input.trim());
+  const header = data && data.headers && data.headers["Set-Cookie"] || "";
+  const match = header.match(/cafe_session=([^;]+)/);
+  if (match) process.stdout.write(decodeURIComponent(match[1]));
+});'
+}
+
 assert_json() {
   local script="$1"
   local reason="$2"
@@ -70,9 +113,9 @@ call_api() {
   local body="${3:-}"
   local expected="${4:-2xx}"
   local tmp
-  local curl_headers=()
   local request_path="$path"
   local request_body="$body"
+  local curl_headers=()
   tmp="$(mktemp)"
 
   if [ -n "$AUTH_TOKEN" ] && [[ "$request_path" != api/customer/* ]]; then
@@ -89,12 +132,13 @@ call_api() {
 
   echo "$method /$request_path"
   if [ "$method" = "GET" ]; then
-    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} "$BASE_URL/$request_path" || true)"
+    LAST_STATUS="$(curl -sS -b "$COOKIE_JAR" -c "$COOKIE_JAR" -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} "$BASE_URL/$request_path" || true)"
   else
-    LAST_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} -H 'Content-Type: application/json' -d "$request_body" "$BASE_URL/$request_path" || true)"
+    LAST_STATUS="$(curl -sS -b "$COOKIE_JAR" -c "$COOKIE_JAR" -o "$tmp" -w '%{http_code}' ${curl_headers[@]+"${curl_headers[@]}"} -H 'Content-Type: application/json' -d "$request_body" "$BASE_URL/$request_path" || true)"
   fi
   LAST_BODY="$(cat "$tmp")"
   rm -f "$tmp"
+  sync_cookie_from_body
   printf '%s\n' "$LAST_BODY"
 
   case "$expected" in
@@ -115,8 +159,11 @@ login_as() {
   local login_id="$1"
   local password="$2"
   local terminal_code="$3"
+  : > "$COOKIE_JAR"
   call_post "api/auth/login" "{\"loginId\":\"$login_id\",\"password\":\"$password\",\"terminalCode\":\"$terminal_code\"}"
-  AUTH_TOKEN="$(extract_json 'return root.token' "$login_id token が取得できません")"
+  assert_json 'return root.user && !root.token' "$login_id login response が不正です"
+  AUTH_TOKEN="$(extract_token_from_body)"
+  if [ -z "$AUTH_TOKEN" ]; then fail "$login_id session token を疑似 cookie から抽出できません"; fi
 }
 
 call_get() {

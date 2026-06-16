@@ -236,7 +236,7 @@ npm run dev
 - `checkout-main`
 - `analytics-manager`
 
-`terminal_code` は端末種別と有効 / 無効の判定に使います。管理者判定の主条件はログイン済みユーザーの `manager` ロールです。`analytics-manager` は管理・分析向け端末コードとして引き続き使用しますが、`/api/admin/*` の利用には `Authorization: Bearer <token>` と manager ロールが必要です。
+`terminal_code` は端末種別と有効 / 無効の判定に使います。管理者判定の主条件はログイン済みユーザーの `manager` ロールです。`analytics-manager` は管理・分析向け端末コードとして引き続き使用しますが、`/api/admin/*` の利用には session 認証と manager ロールが必要です。
 
 ## 動作確認シナリオ
 
@@ -305,7 +305,7 @@ Nyan8 経由の業務フローは次で確認します。
 
 操作ログ・監査ログ機能は `/admin/audit-logs` で確認します。manager ロールのユーザーが、操作日時、操作ユーザー、ロール、操作端末、対象種別、対象 ID / ラベル、変更前後の JSON、リクエスト、成功 / 失敗、エラーメッセージを検索・絞り込みできます。
 
-監査ログ対象は、注文明細取消、注文全体取消、商品追加・編集・表示切替・売切切替・並び順変更、席ステータス変更、セッション強制クローズ、端末有効切替、ユーザー作成・更新・有効切替、精算完了、重要な精算拒否、顧客の注文確定・会計依頼・スタッフ呼び出しです。監査ログ API は `Authorization: Bearer <token>` と manager ロールを要求します。ログイン済み操作では `actor_user_id`, `actor_user_display_name`, `actor_user_role` を記録し、未ログインの顧客操作では `actor_terminal_code` / `actor_terminal_type` を記録します。ログ削除、ログ CSV エクスポート、改ざん防止署名は未対応です。
+監査ログ対象は、注文明細取消、注文全体取消、商品追加・編集・表示切替・売切切替・並び順変更、席ステータス変更、セッション強制クローズ、端末有効切替、ユーザー作成・更新・有効切替、精算完了、重要な精算拒否、顧客の注文確定・会計依頼・スタッフ呼び出し、認証成功・失敗・logout・session 失効・session revoked・一時ロックです。監査ログ API は session 認証と manager ロールを要求します。ログイン済み操作では `actor_user_id`, `actor_user_display_name`, `actor_user_role` を記録し、未ログインの顧客操作では `actor_terminal_code` / `actor_terminal_type` を記録します。認証ログの `request_data` には password を保存しません。ログ削除、ログ CSV エクスポート、改ざん防止署名は未対応です。
 
 操作ログ機能は次で確認します。
 
@@ -347,18 +347,27 @@ Nyan8 経由の業務フローは次で確認します。
 ./scripts/smoke-invalid-operations.sh
 cd frontend
 npm install
+npm audit
 npm run build
 ```
 
-`smoke-auth.sh` は最初に実行する認証・認可境界テストです。各 protected API 用 smoke script は内部で必要な role のユーザーとしてログインし、Authorization header と token を付与します。顧客 API 部分は token を付与せず、端末コードだけで動作することを確認します。各 smoke script は DB reset を内部で行うか、内部 helper の reset 後に再ログインするため独立実行できます。連続実行する場合も上記順でまとめて実行できます。
+`smoke-auth.sh` は最初に実行する認証・認可境界テストです。curl では cookie jar を使い、Nyan8 が返す疑似 `Set-Cookie` から `cafe_session` を同期します。現行 Nyan8 は実 HTTP `Set-Cookie` と受信 `Cookie` header を JavaScript API に渡せないため、smoke script と開発用 frontend は Bearer / `token` パラメータ互換も併用します。顧客 API 部分は token を付与せず、端末コードだけで動作することを確認します。各 smoke script は DB reset を内部で行うか、内部 helper の reset 後に再ログインするため独立実行できます。連続実行する場合も上記順でまとめて実行できます。
 
 ## 認証・ロール
 
-Phase 6 では `/login` と `/admin/users` を追加し、スタッフ用の簡易ログインとロール認可を導入しています。API は `Authorization: Bearer <token>` を受け取り、smoke script は内部でログインして token を付与します。顧客 API (`/api/customer/*`) は顧客端末操作のため token 不要です。
+Phase 7 ではスタッフ認証を本番運用を意識した MVP+ に強化しています。主方式は session cookie `cafe_session` です。login 成功時は `HttpOnly; SameSite=Lax; Path=/; Max-Age=28800` 相当の cookie を返す設計で、HTTPS 本番では reverse proxy で `Secure=true` を付けます。開発 HTTP では `Secure=false` とします。顧客 API (`/api/customer/*`) は顧客端末操作のため token 不要です。
+
+Nyan8 単体では `Set-Cookie` を実 HTTP header にできず、受信 `Cookie` header も JavaScript params に渡せないことを確認しています。そのため開発環境では response body の `headers.Set-Cookie` を frontend / smoke script が同期し、Bearer / `token` パラメータ互換で protected API を呼びます。これは Nyan8 制約への開発互換であり、本番では reverse proxy などで cookie を実 header として扱い、必要に応じて cookie から upstream Authorization へ変換してください。Bearer 互換は開発・移行期間用です。
 
 初期ユーザーは `manager / manager123`, `cashier / cashier123`, `kitchen / kitchen123`, `hall / hall123`, `viewer / viewer123` です。ロールは `manager`, `cashier`, `kitchen`, `hall`, `viewer` です。管理 API (`/api/admin/*`) は manager、分析 API は manager / viewer、レジ API は cashier / manager、キッチン API は kitchen / manager、ホール API は hall / manager を許可します。顧客 API は token 不要です。
 
-MVP では token を localStorage に保存し、password hash は SHA-256 の簡易方式です。本番向けには httpOnly cookie、bcrypt/argon2、セッション失効管理の強化を検討してください。
+session 有効期限は開発用 8 時間です。`/api/auth/logout` は session の `revoked_at` を設定し、cookie 削除相当の応答を返します。expired session、revoked session、inactive user の session は拒否します。`/api/auth/me` と protected API 呼び出し時に `last_seen_at` を更新します。
+
+password は平文保存しません。Nyan8 の現行 JavaScript 実行環境では Node `crypto.pbkdf2Sync` / PostgreSQL `pgcrypto` を使えないため、Phase 7 では `salted_sha256_v1` (`salt:password` の SHA-256) を採用しました。Node crypto が使える環境では `hashPassword()` は PBKDF2-SHA256 形式も生成できますが、seed ユーザーは Nyan8 互換の salt 付き hash です。
+
+ログイン失敗は login_id 単位で `failed_login_count` を増やし、5 回連続失敗で 5 分間 `locked_until` を設定します。ログイン成功時は失敗回数と lock をリセットします。存在しない login_id、誤 password、inactive user、locked user は同じログイン失敗メッセージを返します。
+
+CSRF 方針は MVP として SameSite=Lax + JSON API 前提です。state changing API は POST と JSON body を前提にし、本番では許可 origin の限定と CSRF token 追加を検討します。
 
 ## CSV API 仕様
 

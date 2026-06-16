@@ -1,10 +1,9 @@
 import type { AuthUser, UserRole } from '../domain/types';
 
-const tokenKey = 'cafe.auth.token';
 const userKey = 'cafe.auth.user';
 
 export function getAuthToken() {
-  return window.localStorage.getItem(tokenKey) || '';
+  return '';
 }
 
 export function getStoredUser(): AuthUser | null {
@@ -17,13 +16,11 @@ export function getStoredUser(): AuthUser | null {
   }
 }
 
-export function storeAuth(token: string, user: AuthUser) {
-  window.localStorage.setItem(tokenKey, token);
+export function storeAuth(user: AuthUser) {
   window.localStorage.setItem(userKey, JSON.stringify(user));
 }
 
 export function clearAuth() {
-  window.localStorage.removeItem(tokenKey);
   window.localStorage.removeItem(userKey);
 }
 

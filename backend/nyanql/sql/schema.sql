@@ -41,6 +41,10 @@ CREATE TABLE users (
     login_id VARCHAR(100) NOT NULL UNIQUE,
     display_name VARCHAR(100) NOT NULL,
     password_hash TEXT NOT NULL,
+    password_hash_version VARCHAR(50) NOT NULL DEFAULT 'salted_sha256_v1',
+    password_updated_at TIMESTAMP,
+    failed_login_count INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMP,
     role VARCHAR(50) NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -54,6 +58,8 @@ CREATE TABLE user_sessions (
     session_token VARCHAR(255) NOT NULL UNIQUE,
     terminal_code VARCHAR(100),
     expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP,
+    user_agent TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_seen_at TIMESTAMP
 );

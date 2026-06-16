@@ -207,3 +207,17 @@
 - ブラウザ確認: Vite dev server 上で `/login`, `/customer/T01`, `/kitchen`, `/hall`, `/checkout`, `/analytics`, `/admin/menu`, `/admin/tables`, `/admin/orders`, `/admin/audit-logs`, `/admin/users` を確認した。各画面で root content が描画され、ブラウザ console error は 0 件だった。管理画面は manager ログイン後に確認した。
 - smoke script 結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は順次実行で成功した。
 - 残る環境注意: システム既定の Node 16 / npm 8 では engine warning が出る。`pyenv: cannot rehash` と npm ログ権限警告はこのリポジトリの依存関係ではなくローカル環境権限の問題として扱う。
+
+## 2026-06-16 Phase 7 本番向け認証強化
+
+- 認証方式: `cafe_session` cookie 主方式へ整理した。`auth.js` は `getSessionToken()`, `getCurrentUser()`, `requireLogin()`, `requireRole()`, `requireManager()`, `setSessionCookie()`, `clearSessionCookie()` を明確化し、優先順位は cookie、Bearer / `token` 互換の順にした。
+- Nyan8 制約: 現行 Nyan8 は `headers.Set-Cookie` を実 HTTP header として返せず、受信 `Cookie` header も JavaScript params に渡さない。開発環境では response body の疑似 `Set-Cookie` を frontend / smoke script が同期し、Bearer / `token` 互換で protected API を呼ぶ。本番では reverse proxy で cookie を実 header 化し、必要なら upstream Authorization へ変換する方針とした。
+- token 保存: frontend の localStorage token 保存を廃止し、localStorage は表示復元用 user 情報だけにした。Nyan8 制約下の開発互換として JS cookie から token を読み、Authorization / `token` へ付与する。
+- DB 強化: `users` に `password_hash_version`, `password_updated_at`, `failed_login_count`, `locked_until`、`user_sessions` に `revoked_at`, `user_agent` を追加した。logout は削除ではなく `revoked_at` 設定に変更した。
+- password hash: Nyan8 互換性を優先して seed は `salted_sha256_v1` に移行した。Node crypto が使える環境では `hashPassword()` が PBKDF2-SHA256 を生成できるが、現行 Nyan8 では利用できない。
+- session 管理: session 有効期限は 8 時間。expired / revoked / inactive user session は拒否し、`auth/sessions/current` で `last_seen_at` を更新する。
+- account lock: 5 回連続失敗で 5 分ロックし、成功時に失敗回数と lock をリセットする。存在しない login_id / 誤 password / inactive / locked は同じログイン失敗メッセージにした。
+- audit log: `auth_login_succeeded`, `auth_login_failed`, `auth_logout`, `auth_session_expired`, `auth_session_revoked`, `auth_user_locked` を追加した。認証ログの `request_data` には password を入れない。
+- CSRF 方針: MVP は `SameSite=Lax` + JSON API 前提。state changing API は POST を前提とし、本番では許可 origin 限定と CSRF token 追加を検討する。
+- smoke script: `scripts/lib/smoke-lib.sh`, `scripts/smoke-auth.sh`, `scripts/smoke-admin-menu.sh`, `scripts/smoke-e2e.sh` を cookie jar / 疑似 cookie / Bearer 互換に対応させた。`smoke-auth.sh` は failed login count、lock、inactive、expired、revoked、logout 後拒否、認証 audit log、password 非露出を確認する。
+- 検証結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。`npm audit` は 0 vulnerabilities、Codex bundled Node.js `v24.14.0` で `npm run build` は成功した。システム既定 Node.js `v16.17.1` では Vite の Node 要件未満で build が失敗する。

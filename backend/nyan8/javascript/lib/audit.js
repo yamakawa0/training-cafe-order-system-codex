@@ -17,7 +17,7 @@ function writeAuditLog(input) {
   try {
     input = input || {};
     var currentUser = null;
-    if (typeof getCurrentUser === "function") currentUser = getCurrentUser();
+    if (!input.skipCurrentUser && typeof getCurrentUser === "function") currentUser = getCurrentUser();
     return nyanqlPost("audit-logs", {
       id: newId("audit"),
       actor_terminal_code: input.actorTerminalCode || "",

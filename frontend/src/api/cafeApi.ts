@@ -10,7 +10,7 @@ export const terminals = {
 };
 
 export const cafeApi = {
-  login: (input: { loginId: string; password: string; terminalCode: string }) => post<{ token: string; user: AuthUser }>('/api/auth/login', input),
+  login: (input: { loginId: string; password: string; terminalCode: string }) => post<{ user: AuthUser; expiresAt?: string }>('/api/auth/login', input),
   logout: () => post<{ loggedOut: boolean }>('/api/auth/logout', {}),
   me: () => get<{ user: AuthUser }>('/api/auth/me'),
   menu: (tableCode: string) => get<{ categories: MenuCategory[] }>('/api/customer/menu', { terminal_code: terminals.customer(tableCode) }),

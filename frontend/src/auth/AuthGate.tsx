@@ -14,7 +14,7 @@ export function AuthGate({ roles, children }: { roles: UserRole[]; children: Rea
     let cancelled = false;
     void cafeApi.me().then((data) => {
       if (cancelled) return;
-      storeAuth(localStorage.getItem('cafe.auth.token') || '', data.user);
+      storeAuth(data.user);
       setUser(data.user);
     }).catch(() => {
       if (cancelled) return;

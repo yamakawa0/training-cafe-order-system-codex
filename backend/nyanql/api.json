@@ -183,9 +183,21 @@
     "sql": ["./sql/auth_get_user_session.sql"],
     "description": "セッショントークンから現在ユーザーを取得する"
   },
+  "auth/sessions/raw": {
+    "sql": ["./sql/auth_get_session_raw.sql"],
+    "description": "失効理由判定用にセッションを取得する"
+  },
   "auth/sessions/delete": {
     "sql": ["./sql/auth_delete_user_session.sql"],
     "description": "ユーザーセッションを削除する"
+  },
+  "auth/users/login-failure": {
+    "sql": ["./sql/auth_record_login_failure.sql"],
+    "description": "ログイン失敗回数とロック状態を更新する"
+  },
+  "auth/users/login-success": {
+    "sql": ["./sql/auth_record_login_success.sql"],
+    "description": "ログイン成功時に失敗回数とロック状態をリセットする"
   },
   "admin/users": {
     "sql": ["./sql/admin_list_users.sql"],

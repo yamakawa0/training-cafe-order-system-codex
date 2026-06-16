@@ -5,19 +5,25 @@ SMOKE_NAME="smoke-auth"
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 saved_token=""
+saved_cookie=""
 
 save_token() {
   saved_token="$AUTH_TOKEN"
+  saved_cookie="$(mktemp)"
+  cp "$AUTH_COOKIE_JAR" "$saved_cookie"
 }
 
 restore_token() {
   AUTH_TOKEN="$saved_token"
+  if [ -n "$saved_cookie" ] && [ -f "$saved_cookie" ]; then cp "$saved_cookie" "$AUTH_COOKIE_JAR"; fi
   export AUTH_TOKEN
 }
 
 without_token() {
   AUTH_TOKEN=""
-  export AUTH_TOKEN
+  AUTH_SEND_BEARER=0
+  : > "$AUTH_COOKIE_JAR"
+  export AUTH_TOKEN AUTH_SEND_BEARER
 }
 
 expect_401() {
@@ -35,13 +41,30 @@ login_as manager manager123 analytics-manager
 manager_token="$AUTH_TOKEN"
 call_get "api/auth/me"
 assert_json 'return root.user && root.user.role === "manager" && root.user.loginId === "manager"' "manager の me が不正です"
+assert_json 'return !root.token' "/me response が token を露出しています"
+assert_sql_number_ge "SELECT COUNT(*) FROM user_sessions WHERE session_token = '$manager_token' AND revoked_at IS NULL AND last_seen_at IS NOT NULL" 1 "manager session が作成されていません"
 
 step "wrong password is rejected"
 without_token
 call_post "api/auth/login" '{"loginId":"manager","password":"wrong","terminalCode":"analytics-manager"}' rejected
 expect_401 "誤パスワードが 401 で拒否されていません"
+assert_sql_number_ge "SELECT failed_login_count FROM users WHERE login_id = 'manager'" 1 "failed_login_count が増えていません"
+
+step "repeated wrong password locks user temporarily"
+for _ in 1 2 3 4; do
+  call_post "api/auth/login" '{"loginId":"manager","password":"wrong","terminalCode":"analytics-manager"}' rejected
+  expect_401 "連続誤パスワードが 401 で拒否されていません"
+done
+assert_sql_number_ge "SELECT failed_login_count FROM users WHERE login_id = 'manager'" 5 "failed_login_count が lock threshold に達していません"
+assert_sql_number_ge "SELECT COUNT(*) FROM users WHERE login_id = 'manager' AND locked_until > CURRENT_TIMESTAMP" 1 "manager が一時ロックされていません"
+call_post "api/auth/login" '{"loginId":"manager","password":"manager123","terminalCode":"analytics-manager"}' rejected
+expect_401 "locked user の正しい password login が 401 で拒否されていません"
+sql_scalar "UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE login_id = 'manager';" >/dev/null
+login_as manager manager123 analytics-manager
+manager_token="$AUTH_TOKEN"
 
 step "protected APIs reject missing token"
+without_token
 call_get "api/admin/users?terminal_code=analytics-manager" rejected
 expect_401 "token なし admin が 401 ではありません"
 call_get "api/analytics/summary?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY" rejected
@@ -55,9 +78,12 @@ expect_401 "token なし hall が 401 ではありません"
 
 step "nonexistent token is rejected"
 AUTH_TOKEN="token-not-found"
+AUTH_SEND_BEARER=1
 export AUTH_TOKEN
 call_get "api/admin/users?terminal_code=analytics-manager" rejected
 expect_401 "存在しない token が 401 で拒否されていません"
+AUTH_SEND_BEARER=0
+export AUTH_SEND_BEARER
 
 step "viewer can use analytics but not operational/admin APIs"
 login_as viewer viewer123 analytics-manager
@@ -76,8 +102,6 @@ expect_403 "viewer の hall API が 403 ではありません"
 
 step "expired session token is rejected"
 sql_scalar "UPDATE user_sessions SET expires_at = CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE session_token = '$viewer_token';" >/dev/null
-AUTH_TOKEN="$viewer_token"
-export AUTH_TOKEN
 call_get "api/analytics/summary?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY" rejected
 expect_401 "期限切れ token が 401 で拒否されていません"
 
@@ -92,6 +116,13 @@ without_token
 call_post "api/auth/login" '{"loginId":"viewer","password":"viewer123","terminalCode":"analytics-manager"}' rejected
 expect_401 "inactive user の login が 401 で拒否されていません"
 sql_scalar "UPDATE users SET active = TRUE WHERE id = 'user-viewer';" >/dev/null
+
+step "revoked session is rejected"
+login_as viewer viewer123 analytics-manager
+viewer_token="$AUTH_TOKEN"
+sql_scalar "UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE session_token = '$viewer_token';" >/dev/null
+call_get "api/analytics/summary?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY" rejected
+expect_401 "revoked session が 401 で拒否されていません"
 
 step "cashier can use checkout but not admin/analytics/kitchen/hall"
 login_as cashier cashier123 checkout-main
@@ -126,8 +157,8 @@ call_get "api/admin/menu/items?terminal_code=analytics-manager" rejected
 expect_403 "hall の admin API が 403 ではありません"
 
 step "manager can use admin, analytics, checkout, kitchen and hall APIs"
-AUTH_TOKEN="$manager_token"
-export AUTH_TOKEN
+login_as manager manager123 analytics-manager
+manager_token="$AUTH_TOKEN"
 call_get "api/admin/users?terminal_code=analytics-manager"
 assert_json 'return Array.isArray(root.users) && root.users.some(user => user.loginId === "manager")' "ユーザー一覧が取得できません"
 call_get "api/admin/audit-logs?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY"
@@ -158,15 +189,18 @@ call_post "api/customer/staff-call" '{"terminal_code":"customer-T01","table_code
 call_post "api/customer/payment/request" '{"terminal_code":"customer-T01","table_code":"T01"}'
 
 step "audit log records user actor for admin and terminal actor for customer"
-AUTH_TOKEN="$manager_token"
-export AUTH_TOKEN
+login_as manager manager123 analytics-manager
 call_post "api/admin/menu/items/toggle-sold-out" '{"terminal_code":"analytics-manager","item_id":"item-iced-tea","sold_out":true}'
 assert_sql_number_ge "SELECT COUNT(*) FROM audit_logs WHERE action = 'admin_menu_item_sold_out_changed' AND actor_user_id = 'user-manager'" 1 "管理操作の actor_user_id が記録されていません"
 assert_sql_number_ge "SELECT COUNT(*) FROM audit_logs WHERE action = 'customer_staff_called' AND actor_user_id IS NULL AND actor_terminal_code = 'customer-T01'" 1 "顧客操作の terminal actor が記録されていません"
+assert_sql_number_ge "SELECT COUNT(*) FROM audit_logs WHERE action = 'auth_login_succeeded' AND actor_user_id = 'user-manager'" 1 "auth_login_succeeded が記録されていません"
+assert_sql_number_ge "SELECT COUNT(*) FROM audit_logs WHERE action IN ('auth_login_failed', 'auth_user_locked')" 1 "auth_login_failed/auth_user_locked が記録されていません"
+assert_sql "SELECT COUNT(*) FROM audit_logs WHERE request_data::text ILIKE '%password%'" 0 "audit log に password が含まれています"
 
 step "protected API rejects after logout"
 logout_auth
 call_get "api/admin/users?terminal_code=analytics-manager" rejected
 expect_401 "logout 後の protected API が 401 で拒否されていません"
+assert_sql_number_ge "SELECT COUNT(*) FROM audit_logs WHERE action = 'auth_logout'" 1 "auth_logout が記録されていません"
 
 pass
