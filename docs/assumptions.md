@@ -49,11 +49,15 @@
 ## 監査ログ
 
 - `audit_logs` は物理削除しない。
+- MVP では監査ログ全件を同一 `audit_logs` テーブルに保持する。
+- 本番では保持期間を 1 年以上などに設定し、古いログは archive table または外部 storage へ移す方針を検討する。
 - 認証済み操作では `actor_user_id`, `actor_user_display_name`, `actor_user_role` を記録する。
 - 顧客操作など未ログイン操作では terminal actor を主に記録する。
 - 認証ログの `request_data` に password を含めない。
+- 監査ログ CSV エクスポートは manager のみ許可する。
+- 監査ログ CSV には password、session_token、生 token を含めない。
 - ログ書き込み失敗時は本体処理を原則継続する。
-- 監査ログ CSV エクスポート、保持期間、アーカイブ、改ざん検知は今後対応。
+- 改ざん防止署名は未対応。将来は hash chain、append-only storage、外部保管、外部監査システム / SIEM 連携を検討する。
 
 ## フロントエンド / 開発環境
 
@@ -76,8 +80,9 @@
 - 複雑な割引 / クーポン
 - 商品画像アップロード
 - 商品オプション編集 UI の高度化
-- 監査ログ CSV エクスポート
-- 監査ログ保持期間 / アーカイブ
+- 監査ログアーカイブ実装
+- 監査ログ署名 / 改ざん検知
+- 外部監査システム / SIEM 連携
 - httpOnly cookie の完全本番運用
 - bcrypt / argon2 等の本番向け password hash
 - CSRF token

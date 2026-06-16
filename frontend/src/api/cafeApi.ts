@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AuditLogDetail, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -185,13 +185,29 @@ export const cafeApi = {
     order_id: orderId,
     cancel_note: cancelNote
   }),
-  adminAuditLogs: (filters: { fromDate?: string; toDate?: string; action?: string; targetType?: string; actorTerminalCode?: string; status?: string; keyword?: string } = {}) => get<{ logs: AuditLogSummary[] }>('/api/admin/audit-logs', {
+  adminAuditLogs: (filters: AuditLogSearchFilters = {}) => get<{ logs: AuditLogSummary[] }>('/api/admin/audit-logs', {
     terminal_code: terminals.analytics,
     from_date: filters.fromDate,
     to_date: filters.toDate,
     action: filters.action,
     target_type: filters.targetType,
+    target_label: filters.targetLabel,
     actor_terminal_code: filters.actorTerminalCode,
+    actor_user_id: filters.actorUserId,
+    actor_user_role: filters.actorUserRole,
+    status: filters.status,
+    keyword: filters.keyword
+  }),
+  adminAuditLogsExportCsv: (filters: AuditLogSearchFilters = {}) => get<{ contentType: string; filename: string; csv: string }>('/api/admin/audit-logs/export-csv', {
+    terminal_code: terminals.analytics,
+    from_date: filters.fromDate,
+    to_date: filters.toDate,
+    action: filters.action,
+    target_type: filters.targetType,
+    target_label: filters.targetLabel,
+    actor_terminal_code: filters.actorTerminalCode,
+    actor_user_id: filters.actorUserId,
+    actor_user_role: filters.actorUserRole,
     status: filters.status,
     keyword: filters.keyword
   }),

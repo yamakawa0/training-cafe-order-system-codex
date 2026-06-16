@@ -172,7 +172,7 @@
 - 追加した画面: `frontend/src/pages/AdminAuditLogsPage.tsx` と `/admin/audit-logs`。`/analytics`, `/admin/menu`, `/admin/tables`, `/admin/orders` から遷移できる。
 - 追加した smoke script: `scripts/smoke-audit-logs.sh`。注文確定、会計依頼、精算、商品売切、明細取消、非管理者拒否、一覧・詳細取得を確認する。
 - ログ対象操作: `admin_order_item_cancelled`, `admin_order_cancelled`, `admin_menu_item_created`, `admin_menu_item_updated`, `admin_menu_item_active_changed`, `admin_menu_item_sold_out_changed`, `admin_menu_item_moved`, `admin_table_status_changed`, `admin_session_force_closed`, `admin_terminal_active_changed`, `checkout_settled`, `checkout_settle_rejected`, `customer_order_submitted`, `customer_payment_requested`, `customer_staff_called`。
-- 未対応の監査要件: ログ改ざん防止署名、ログアーカイブ、ログ削除、監査ログ CSV エクスポート、複数店舗対応、外部監査システム連携。
+- 当時未対応だった監査要件: ログ改ざん防止署名、ログアーカイブ、ログ削除、監査ログ CSV エクスポート、複数店舗対応、外部監査システム連携。監査ログ CSV エクスポートと運用方針整理は Phase 8 で対応した。
 
 ## 2026-06-15 Phase 6 簡易ログイン・権限ロール管理
 
@@ -228,7 +228,23 @@
 - 更新対象ファイル: `docs/01_product_requirements.md`, `docs/02_architecture.md`, `docs/03_data_model.md`, `docs/04_api_design.md`, `docs/05_screen_spec.md`, `docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/assumptions.md`, `docs/development-notes.md`。
 - 実装済みとして反映した機能: 顧客注文、キッチン、ホール、レジ精算、分析、売上 CSV、メニュー管理、席・端末管理、注文管理、明細取消、注文全体取消、取消明細の会計・分析除外、監査ログ、簡易ログイン、ロール認可、ユーザー管理、session 有効期限・失効・inactive user 拒否、連続ログイン失敗ロック、監査ログ actor user 対応、Node / npm 推奨環境、Vite dev server 公開範囲、npm audit 0 件化。
 - 現行仕様として整理した内容: フロントエンドは Nyan8 の `/api/*` のみを呼び出す。NyanQL は Nyan8 から内部 API として呼ぶ。顧客 API は token 不要、protected API は role 制御を行う。`terminal_code` は端末種別・active 判定・監査ログ補助情報に使う。現行認証は `cafe_session` cookie 主方式を設計上の主方式とし、Nyan8 制約により Bearer / `token` 互換を併用する。
-- まだ未対応として残した機能: 実決済連携、返金、在庫管理、複数店舗、予約、顧客会員、複雑な割引 / クーポン、商品画像アップロード、商品オプション編集 UI 高度化、監査ログ CSV エクスポート、監査ログ保持期間 / アーカイブ、Nyan8 制約を前提にしない実 HTTP header の httpOnly cookie 完全運用、bcrypt / argon2 等の本番向け password hash、CSRF token、多要素認証、OAuth / SSO、CI/CD、本番デプロイ手順。
-- 次フェーズ: Phase 8 は監査ログ運用強化、Phase 9 は本番デプロイ準備、Phase 10 は CI / 自動テスト、Phase 11 以降は商品・在庫・オプション、決済・返金・レシート、顧客・予約・複数店舗の拡張とする。
+- まだ未対応として残した機能: 実決済連携、返金、在庫管理、複数店舗、予約、顧客会員、複雑な割引 / クーポン、商品画像アップロード、商品オプション編集 UI 高度化、監査ログアーカイブ実装、監査ログ署名 / 改ざん検知、外部監査連携、Nyan8 制約を前提にしない実 HTTP header の httpOnly cookie 完全運用、bcrypt / argon2 等の本番向け password hash、CSRF token、多要素認証、OAuth / SSO、CI/CD、本番デプロイ手順。
+- 次フェーズ: Phase 8 は監査ログ運用強化として実装済み。Phase 9 は本番デプロイ準備、Phase 10 は CI / 自動テスト、Phase 11 以降は商品・在庫・オプション、決済・返金・レシート、顧客・予約・複数店舗の拡張とする。
 - 検証結果: README、`backend/nyan8/api.json`, `backend/nyanql/api.json`, `backend/nyanql/sql/schema.sql`, `frontend/src/App.tsx`, `frontend/src/api/cafeApi.ts`, `frontend/src/domain/types.ts`, `frontend/package.json`, `scripts/` を確認し、docs の画面一覧、API 一覧、role、状態値、smoke script 対応表を現行実装へ合わせた。コマンド実行結果は本セクションの後続作業結果を参照する。
 - コマンド検証結果: システム既定は Node.js `v16.17.1` / npm `8.15.0` で推奨未満だったため、Codex bundled Node.js `v24.14.0` を PATH 先頭に置いて確認した。`npm install` は成功したが、npm はローカル shim の `8.15.0` が使われたため engine warning が出た。`npm run build` は成功した。初回 `npm audit` は sandbox のネットワーク制限で失敗し、承認付き再実行では `found 0 vulnerabilities` だった。
+
+## 2026-06-16 Phase 8 監査ログ運用強化
+
+- 追加した API: `GET /api/admin/audit-logs/export-csv`。manager role と session 認証を要求し、CSV 出力操作自体を `admin_audit_logs_exported` として監査ログに記録する。
+- 追加した SQL: `backend/nyanql/sql/admin_export_audit_logs.sql`。一覧と同じ検索条件で CSV 用の詳細項目を返す。`admin_list_audit_logs.sql` は `target_label`, `actor_user_id`, `actor_user_role` の個別条件を追加した。
+- DB index: `idx_audit_logs_actor_user_role` を追加した。既存の `occurred_at`, `action`, `target_type,target_id`, `actor_terminal_code`, `actor_user_id`, `status` は維持した。
+- 追加した frontend API: `adminAuditLogsExportCsv(filters)`。`AuditLogSearchFilters` を追加し、一覧と CSV で同じ検索条件を使う。
+- 更新した画面: `/admin/audit-logs` に actor user id / role filter、CSV 出力ボタン、CSV 成功 / 失敗メッセージ、before_data / after_data の比較表示、JSON 表示時の秘匿情報 mask を追加した。
+- CSV 出力仕様: JSON ラップ形式で `contentType`, `filename`, `csv` を返す。列は `occurred_at`, `status`, `action`, `actor_user_id`, `actor_user_display_name`, `actor_user_role`, `actor_terminal_code`, `actor_terminal_type`, `target_type`, `target_id`, `target_label`, `error_message`, `request_data`, `before_data`, `after_data`。JSONB は 1 行 JSON 文字列にして CSV escape する。
+- 検索条件: `from_date`, `to_date`, `action`, `target_type`, `target_label`, `actor_terminal_code`, `actor_user_id`, `actor_user_role`, `status`, `keyword`。keyword は `action`, `target_type`, `target_id`, `target_label`, `actor_terminal_code`, `actor_user_display_name`, `actor_user_role`, `error_message` を対象にする。
+- 秘匿情報除外方針: audit 書き込み時と CSV JSONB 出力時に `password`, `session_token`, `token`, `authorization`, `cookie` 系 key を mask する。認証ログの request_data には引き続き password を含めない。
+- 更新した docs: README、`docs/03_data_model.md`, `docs/04_api_design.md`, `docs/05_screen_spec.md`, `docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/assumptions.md`。
+- 更新した smoke script: `scripts/smoke-audit-logs.sh`。action / actor_user_role / keyword filter、詳細 before/after、manager CSV 出力、非 manager CSV 拒否、CSV header、password / session_token 非出力、CSV 出力操作ログを確認する。
+- 運用方針: MVP では `audit_logs` を物理削除せず同一テーブルに保持する。本番では 1 年以上などの保持期間、archive table または外部 storage への移行を検討する。
+- 未対応事項: ログ物理削除、アーカイブ実装、ログ署名 / hash chain、append-only storage、WORM storage、外部監査システム / SIEM 連携、複数店舗別ログ分離。
+- 検証結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。`npm install` は成功した。`npm audit` は sandbox の DNS 制限で一度失敗し、承認付き再実行で `found 0 vulnerabilities` を確認した。Codex bundled Node.js `v24.14.0` を PATH 先頭に置いた `npm run build` は成功した。ローカル環境由来の `pyenv: cannot rehash` と npm log 権限 warning は継続して出る。

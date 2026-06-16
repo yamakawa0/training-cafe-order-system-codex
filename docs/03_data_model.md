@@ -123,7 +123,7 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - 主なカラム: `id`, `occurred_at`, `actor_terminal_code`, `actor_terminal_type`, `actor_user_id`, `actor_user_display_name`, `actor_user_role`, `action`, `target_type`, `target_id`, `target_label`, `status`, `before_data`, `after_data`, `request_data`, `error_message`, `created_at`
 - 主な状態値: `status` は `success`, `failure`
 - 関連テーブル: `users`
-- 注意点: audit_logs は物理削除しない前提。password は `request_data` に入れない。CSV エクスポート、保持期間、アーカイブは今後対応。
+- 注意点: audit_logs は物理削除しない前提。MVP では全件を同一テーブルに保持する。password、session_token、生 token は `request_data` や CSV に含めない。本番では 1 年以上などの保持期間と archive table / 外部 storage への移行方針を検討する。改ざん防止署名、hash chain、append-only storage、外部監査連携は今後対応。
 
 ## 重要な前提
 

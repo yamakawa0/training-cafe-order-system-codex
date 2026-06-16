@@ -552,6 +552,36 @@ function analyticsExportSalesCsv() {
   return ok({ contentType: "text/csv", filename: "sales-" + fromDate + "-" + toDate + ".csv", csv: csv });
 }
 
+function csvEscape(value) {
+  var text = String(value === undefined || value === null ? "" : value);
+  return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+
+function csvJson(value) {
+  if (value === undefined || value === null || value === "") return "";
+  var parsed = parseJsonValue(value, value);
+  try {
+    return JSON.stringify(sanitizeAuditValue(parsed));
+  } catch (event) {
+    return JSON.stringify({ serializationError: String(event) });
+  }
+}
+
+function auditLogFilters(input) {
+  return {
+    from_date: input.from_date || "",
+    to_date: input.to_date || "",
+    action: input.action || "",
+    target_type: input.target_type || "",
+    target_label: input.target_label || "",
+    actor_terminal_code: input.actor_terminal_code || "",
+    actor_user_id: input.actor_user_id || "",
+    actor_user_role: input.actor_user_role || "",
+    status: input.status || "",
+    keyword: input.keyword || ""
+  };
+}
+
 function adminCategory(row) {
   return {
     id: row.id,
@@ -1063,15 +1093,7 @@ function adminListOrders() {
 function adminListAuditLogs() {
   var input = params();
   assertAdminTerminal(input);
-  return ok({ logs: rows(nyanqlGet("admin/audit-logs", {
-    from_date: input.from_date || "",
-    to_date: input.to_date || "",
-    action: input.action || "",
-    target_type: input.target_type || "",
-    actor_terminal_code: input.actor_terminal_code || "",
-    status: input.status || "",
-    keyword: input.keyword || ""
-  })).map(adminAuditLog) });
+  return ok({ logs: rows(nyanqlGet("admin/audit-logs", auditLogFilters(input))).map(adminAuditLog) });
 }
 
 function adminGetAuditLogDetail() {
@@ -1081,6 +1103,66 @@ function adminGetAuditLogDetail() {
   var detail = first(nyanqlGet("admin/audit-logs/detail", { id: input.id }));
   if (!detail) throw error(404, "監査ログが見つかりません");
   return ok({ log: adminAuditLogDetail(detail) });
+}
+
+function adminExportAuditLogsCsv() {
+  var input = params();
+  var actor = assertAdminTerminal(input);
+  var filters = auditLogFilters(input);
+  var exportRows = rows(nyanqlGet("admin/audit-logs/export", filters));
+  var header = [
+    "occurred_at",
+    "status",
+    "action",
+    "actor_user_id",
+    "actor_user_display_name",
+    "actor_user_role",
+    "actor_terminal_code",
+    "actor_terminal_type",
+    "target_type",
+    "target_id",
+    "target_label",
+    "error_message",
+    "request_data",
+    "before_data",
+    "after_data"
+  ];
+  var lines = [header].concat(exportRows.map(function(row) {
+    return [
+      row.occurred_at,
+      row.status,
+      row.action,
+      row.actor_user_id,
+      row.actor_user_display_name,
+      row.actor_user_role,
+      row.actor_terminal_code,
+      row.actor_terminal_type,
+      row.target_type,
+      row.target_id,
+      row.target_label,
+      row.error_message,
+      csvJson(row.request_data),
+      csvJson(row.before_data),
+      csvJson(row.after_data)
+    ];
+  }));
+  var csv = lines.map(function(line) {
+    return line.map(csvEscape).join(",");
+  }).join("\n");
+  writeAuditLog({
+    actorTerminalCode: actor.terminal_code,
+    actorTerminalType: actor.terminal_type,
+    action: "admin_audit_logs_exported",
+    targetType: "audit_log",
+    targetId: "",
+    targetLabel: "audit_logs_csv",
+    status: "success",
+    afterData: { row_count: exportRows.length, filters: filters },
+    requestData: filters
+  });
+  var fromDate = filters.from_date || today();
+  var toDate = filters.to_date || today();
+  return ok({ contentType: "text/csv; charset=utf-8", filename: "audit-logs-" + fromDate + "-" + toDate + ".csv", csv: csv });
 }
 
 function adminGetOrderDetail() {

@@ -237,4 +237,5 @@ CREATE INDEX idx_audit_logs_action ON audit_logs (action);
 CREATE INDEX idx_audit_logs_target_type_id ON audit_logs (target_type, target_id);
 CREATE INDEX idx_audit_logs_actor_terminal_code ON audit_logs (actor_terminal_code);
 CREATE INDEX idx_audit_logs_actor_user_id ON audit_logs (actor_user_id);
+CREATE INDEX idx_audit_logs_actor_user_role ON audit_logs (actor_user_role);
 CREATE INDEX idx_audit_logs_status ON audit_logs (status);

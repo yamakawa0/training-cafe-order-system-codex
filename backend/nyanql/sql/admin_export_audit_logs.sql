@@ -11,7 +11,11 @@ SELECT
     target_id,
     target_label,
     status,
-    error_message
+    before_data,
+    after_data,
+    request_data,
+    error_message,
+    created_at
 FROM audit_logs
 WHERE occurred_at::date BETWEEN COALESCE(NULLIF(/*from_date*/'', '')::date, CURRENT_DATE - INTERVAL '30 days')::date
       AND COALESCE(NULLIF(/*to_date*/'', '')::date, CURRENT_DATE)::date
@@ -34,4 +38,4 @@ WHERE occurred_at::date BETWEEN COALESCE(NULLIF(/*from_date*/'', '')::date, CURR
       OR error_message ILIKE '%' || NULLIF(/*keyword*/'', '') || '%'
   )
 ORDER BY occurred_at DESC, id DESC
-LIMIT 300;
+LIMIT 5000;

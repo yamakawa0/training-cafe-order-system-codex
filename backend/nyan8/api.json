@@ -189,6 +189,11 @@
     "script": "./javascript/apis/admin_audit_log_detail.js",
     "description": "管理画面向け監査ログ詳細"
   },
+  "api/admin/audit-logs/export-csv": {
+    "type": "api",
+    "script": "./javascript/apis/admin_audit_logs_export_csv.js",
+    "description": "管理画面向け監査ログ CSV 出力"
+  },
   "api/admin/users": {
     "type": "api",
     "script": "./javascript/apis/admin_users.js",

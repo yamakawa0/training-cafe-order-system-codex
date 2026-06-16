@@ -298,6 +298,19 @@ export interface AuditLogDetail extends AuditLogSummary {
   createdAt: string;
 }
 
+export interface AuditLogSearchFilters {
+  fromDate?: string;
+  toDate?: string;
+  action?: string;
+  targetType?: string;
+  targetLabel?: string;
+  actorTerminalCode?: string;
+  actorUserId?: string;
+  actorUserRole?: UserRole | '';
+  status?: 'success' | 'failure' | '';
+  keyword?: string;
+}
+
 export interface CartItem {
   localId: string;
   menuItem: MenuItem;

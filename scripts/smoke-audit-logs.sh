@@ -60,8 +60,44 @@ call_get "api/admin/audit-logs?terminal_code=analytics-manager&from_date=$TODAY&
 assert_json 'return Array.isArray(root.logs) && root.logs.some(log => log.action === "checkout_settled")' "監査ログ一覧に checkout_settled がありません"
 audit_log_id="$(extract_json 'return (root.logs || [])[0] && root.logs[0].id' "監査ログ ID が取得できません")"
 
+step "監査ログ一覧の action filter が効く"
+call_get "api/admin/audit-logs?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY&action=checkout_settled"
+assert_json 'return Array.isArray(root.logs) && root.logs.length >= 1 && root.logs.every(log => log.action === "checkout_settled")' "action filter が効いていません"
+
+step "監査ログ一覧の actor_user_role filter が効く"
+call_get "api/admin/audit-logs?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY&actor_user_role=manager"
+assert_json 'return Array.isArray(root.logs) && root.logs.some(log => log.action === "checkout_settled") && root.logs.every(log => log.actorUserRole === "manager")' "actor_user_role filter が効いていません"
+
+step "監査ログ一覧の keyword filter が効く"
+call_get "api/admin/audit-logs?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY&keyword=checkout_settled"
+assert_json 'return Array.isArray(root.logs) && root.logs.some(log => log.action === "checkout_settled")' "keyword filter が効いていません"
+
 step "監査ログ詳細を取得"
 call_get "api/admin/audit-logs/detail?terminal_code=analytics-manager&id=$audit_log_id"
 assert_json 'return root.log && root.log.id && root.log.action && root.log.requestData !== undefined' "監査ログ詳細が取得できません"
+assert_json 'return root.log && Object.prototype.hasOwnProperty.call(root.log, "beforeData") && Object.prototype.hasOwnProperty.call(root.log, "afterData")' "監査ログ詳細で before/after が確認できません"
+
+step "manager が監査ログ CSV を出力できる"
+call_get "api/admin/audit-logs/export-csv?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY&action=checkout_settled"
+assert_json 'return root.contentType && root.contentType.includes("text/csv") && root.filename && typeof root.csv === "string"' "監査ログ CSV レスポンスが不正です"
+assert_json 'return root.csv.split(/\r?\n/)[0] === "occurred_at,status,action,actor_user_id,actor_user_display_name,actor_user_role,actor_terminal_code,actor_terminal_type,target_type,target_id,target_label,error_message,request_data,before_data,after_data"' "監査ログ CSV header が不正です"
+assert_json 'return root.csv.includes("checkout_settled") && !root.csv.includes("customer_order_submitted")' "監査ログ CSV に検索条件が反映されていません"
+assert_json 'return !/password/i.test(root.csv)' "監査ログ CSV に password が含まれています"
+assert_json 'return !/session_token/i.test(root.csv)' "監査ログ CSV に session_token が含まれています"
+assert_audit_action admin_audit_logs_exported
+
+step "viewer / cashier / kitchen / hall は監査ログ CSV を出力できない"
+login_as viewer viewer123 analytics-manager
+call_get "api/admin/audit-logs/export-csv?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY" rejected
+assert_json 'return data.status === 403' "viewer の監査ログ CSV 出力が拒否されていません"
+login_as cashier cashier123 checkout-main
+call_get "api/admin/audit-logs/export-csv?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY" rejected
+assert_json 'return data.status === 403' "cashier の監査ログ CSV 出力が拒否されていません"
+login_as kitchen kitchen123 kitchen-main
+call_get "api/admin/audit-logs/export-csv?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY" rejected
+assert_json 'return data.status === 403' "kitchen の監査ログ CSV 出力が拒否されていません"
+login_as hall hall123 hall-main
+call_get "api/admin/audit-logs/export-csv?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY" rejected
+assert_json 'return data.status === 403' "hall の監査ログ CSV 出力が拒否されていません"
 
 pass

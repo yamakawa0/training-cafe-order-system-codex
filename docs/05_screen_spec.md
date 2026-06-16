@@ -118,11 +118,11 @@
 
 - 目的: 重要操作と認証イベントの監査ログを検索・確認する。
 - 主な利用者: 店長 / 管理者。
-- 主な表示項目: 発生日時、操作、対象、terminal actor、user actor、結果、詳細 JSON。
-- 主な操作: フィルタ、キーワード検索、詳細表示。
+- 主な表示項目: 発生日時、成功 / 失敗、操作種別、操作ユーザー名、操作ユーザーロール、操作端末コード、対象種別、対象 ID、対象ラベル、エラーメッセージ、request_data、before_data、after_data。
+- 主な操作: フィルタ、キーワード検索、詳細表示、検索条件を反映した CSV エクスポート。
 - 必要な role: `manager`
-- 関連 API: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`
-- 注意点: 顧客操作は user actor がなく terminal actor のみになる場合がある。CSV エクスポート、保持期間、アーカイブは未対応。
+- 関連 API: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`, `GET /api/admin/audit-logs/export-csv`
+- 注意点: 顧客操作は user actor がなく terminal actor のみになる場合がある。JSON は整形表示し、before_data / after_data は比較表示する。password / session_token / token は万一含まれていても画面表示で mask する。
 
 ## `/admin/users`
 

@@ -1,10 +1,29 @@
 function jsonForAudit(value) {
   if (value === undefined || value === null) return "";
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(sanitizeAuditValue(value));
   } catch (event) {
     return JSON.stringify({ serializationError: String(event) });
   }
+}
+
+function isSensitiveAuditKey(key) {
+  return /password|session_token|sessionToken|token|authorization|cookie/i.test(String(key || ""));
+}
+
+function sanitizeAuditValue(value) {
+  if (value === undefined || value === null) return value;
+  if (Array.isArray(value)) {
+    return value.map(function(item) { return sanitizeAuditValue(item); });
+  }
+  if (typeof value === "object") {
+    var sanitized = {};
+    Object.keys(value).forEach(function(key) {
+      sanitized[key] = isSensitiveAuditKey(key) ? "[masked]" : sanitizeAuditValue(value[key]);
+    });
+    return sanitized;
+  }
+  return value;
 }
 
 function auditLogDebug(message) {

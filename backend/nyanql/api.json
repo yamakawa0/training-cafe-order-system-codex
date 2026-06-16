@@ -167,6 +167,10 @@
     "sql": ["./sql/admin_get_audit_log_detail.sql"],
     "description": "管理画面向け監査ログ詳細を取得する"
   },
+  "admin/audit-logs/export": {
+    "sql": ["./sql/admin_export_audit_logs.sql"],
+    "description": "管理画面向け監査ログ CSV 出力用明細を取得する"
+  },
   "audit-logs": {
     "sql": ["./sql/insert_audit_log.sql"],
     "description": "監査ログを登録する"

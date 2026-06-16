@@ -30,6 +30,12 @@
 - 席・端末管理で席一覧、席詳細、端末一覧、端末有効 / 無効、条件付きセッション強制クローズができる。
 - 注文管理で注文一覧、注文詳細、明細取消、注文全体取消ができる。
 - 監査ログで重要操作と認証イベントの一覧・詳細を確認できる。
+- manager は監査ログ CSV を出力できる。
+- manager 以外は監査ログ CSV を出力できない。
+- 監査ログ CSV は現在の検索条件を反映する。
+- 監査ログ CSV に password / session_token / 生 token が含まれない。
+- 監査ログ CSV 出力操作が audit log に記録される。
+- 監査ログ詳細で before_data / after_data を確認できる。
 - ユーザー管理でユーザー作成、更新、有効 / 無効切替ができる。
 
 ## 認証・認可
@@ -52,7 +58,7 @@
 | Script | 主な受け入れ条件 |
 |---|---|
 | `scripts/smoke-auth.sh` | login / logout / me、role 制御、token なし、expired / revoked / inactive session、ログイン失敗ロック、最後の manager 保護、auth audit log |
-| `scripts/smoke-audit-logs.sh` | 注文、会計依頼、精算、商品売切、明細取消、非管理者拒否、監査ログ一覧・詳細 |
+| `scripts/smoke-audit-logs.sh` | 注文、会計依頼、精算、商品売切、明細取消、非管理者拒否、監査ログ一覧・詳細、action / role / keyword filter、manager CSV 出力、非 manager CSV 拒否、CSV 秘匿情報除外、CSV 操作ログ |
 | `scripts/smoke-admin-orders.sh` | 注文一覧・詳細、明細取消、注文全体取消、取消明細の会計・分析除外、ready / 精算済み取消拒否 |
 | `scripts/smoke-admin-menu.sh` | 商品追加・編集、表示 / 非表示、売切 / 売切解除、並び順変更、顧客メニュー反映 |
 | `scripts/smoke-admin-tables.sh` | 席一覧・詳細、席状態更新、端末有効 / 無効、強制クローズ条件 |

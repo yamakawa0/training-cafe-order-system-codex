@@ -262,7 +262,7 @@ npm run dev
 - 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
 - 席・端末管理: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
 - 注文管理: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
-- 操作ログ: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`
+- 操作ログ: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`, `GET /api/admin/audit-logs/export-csv`
 - ユーザー管理: `GET /api/admin/users`, `POST /api/admin/users`, `POST /api/admin/users/update`, `POST /api/admin/users/toggle-active`
 
 NyanQL 単体の疎通は次で確認します。
@@ -303,9 +303,13 @@ Nyan8 経由の業務フローは次で確認します。
 
 この script は DB 初期化、管理者端末での注文一覧・詳細取得、非管理端末拒否、単品注文の明細取消、一部明細取消後の会計サマリ・分析除外、ready 明細の取消拒否、精算済み注文の取消拒否、既存 smoke の成功を確認します。
 
-操作ログ・監査ログ機能は `/admin/audit-logs` で確認します。manager ロールのユーザーが、操作日時、操作ユーザー、ロール、操作端末、対象種別、対象 ID / ラベル、変更前後の JSON、リクエスト、成功 / 失敗、エラーメッセージを検索・絞り込みできます。
+操作ログ・監査ログ機能は `/admin/audit-logs` で確認します。manager ロールのユーザーが、操作日時、操作ユーザー、ロール、操作端末、対象種別、対象 ID / ラベル、変更前後の JSON、リクエスト、成功 / 失敗、エラーメッセージを検索・絞り込みできます。`CSV 出力` は現在の検索条件を反映して監査ログ CSV をダウンロードします。
 
-監査ログ対象は、注文明細取消、注文全体取消、商品追加・編集・表示切替・売切切替・並び順変更、席ステータス変更、セッション強制クローズ、端末有効切替、ユーザー作成・更新・有効切替、精算完了、重要な精算拒否、顧客の注文確定・会計依頼・スタッフ呼び出し、認証成功・失敗・logout・session 失効・session revoked・一時ロックです。監査ログ API は session 認証と manager ロールを要求します。ログイン済み操作では `actor_user_id`, `actor_user_display_name`, `actor_user_role` を記録し、未ログインの顧客操作では `actor_terminal_code` / `actor_terminal_type` を記録します。認証ログの `request_data` には password を保存しません。ログ削除、ログ CSV エクスポート、改ざん防止署名は未対応です。
+監査ログ対象は、注文明細取消、注文全体取消、商品追加・編集・表示切替・売切切替・並び順変更、席ステータス変更、セッション強制クローズ、端末有効切替、ユーザー作成・更新・有効切替、精算完了、重要な精算拒否、顧客の注文確定・会計依頼・スタッフ呼び出し、認証成功・失敗・logout・session 失効・session revoked・一時ロック、監査ログ CSV 出力です。監査ログ API は session 認証と manager ロールを要求します。ログイン済み操作では `actor_user_id`, `actor_user_display_name`, `actor_user_role` を記録し、未ログインの顧客操作では `actor_terminal_code` / `actor_terminal_type` を記録します。認証ログの `request_data` と CSV には password、session_token、生 token を保存・出力しません。ログ物理削除、アーカイブ実装、改ざん防止署名、外部監査連携は未対応です。
+
+監査ログ CSV は `GET /api/admin/audit-logs/export-csv` で取得します。検索条件は一覧 API と同じ `from_date`, `to_date`, `action`, `target_type`, `target_label`, `actor_terminal_code`, `actor_user_id`, `actor_user_role`, `status`, `keyword` です。CSV 列は `occurred_at`, `status`, `action`, `actor_user_id`, `actor_user_display_name`, `actor_user_role`, `actor_terminal_code`, `actor_terminal_type`, `target_type`, `target_id`, `target_label`, `error_message`, `request_data`, `before_data`, `after_data` です。JSONB は 1 行 JSON 文字列として escape します。
+
+監査ログ保持方針は、MVP では `audit_logs` を物理削除せず同一テーブルに保持します。本番では 1 年以上などの保持期間を定め、古いログを archive table または外部 storage へ移す方針を検討します。改ざん防止署名は未対応で、将来は hash chain、append-only storage、外部保管を検討します。
 
 操作ログ機能は次で確認します。
 
@@ -313,7 +317,7 @@ Nyan8 経由の業務フローは次で確認します。
 ./scripts/smoke-audit-logs.sh
 ```
 
-この script は DB 初期化、顧客注文、会計依頼、レジ精算、商品売切、注文明細取消、非管理者拒否、監査ログ一覧・詳細取得を確認します。
+この script は DB 初期化、顧客注文、会計依頼、レジ精算、商品売切、注文明細取消、action / actor_user_role / keyword filter、監査ログ詳細取得、manager CSV 出力、viewer / cashier / kitchen / hall の CSV 拒否、CSV header、CSV 秘匿情報除外、CSV 出力操作ログを確認します。
 
 `smoke-e2e.sh` は次の流れを実行します。
 
@@ -371,7 +375,7 @@ CSRF 方針は MVP として SameSite=Lax + JSON API 前提です。state changi
 
 ## CSV API 仕様
 
-`GET /api/analytics/export-sales-csv` は Nyan8 ランタイムが JavaScript 戻り値を JSON として処理する制約に合わせ、CSV 本文を直接返さず JSON API として返します。
+`GET /api/analytics/export-sales-csv` と `GET /api/admin/audit-logs/export-csv` は Nyan8 ランタイムが JavaScript 戻り値を JSON として処理する制約に合わせ、CSV 本文を直接返さず JSON API として返します。
 
 ```json
 {

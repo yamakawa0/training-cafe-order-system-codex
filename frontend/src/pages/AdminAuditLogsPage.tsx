@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cafeApi } from '../api/cafeApi';
 import { AppHeader, Badge, Banner, EmptyState, SectionTitle } from '../components/ui';
-import type { AuditLogDetail, AuditLogSummary } from '../domain/types';
+import type { AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, UserRole } from '../domain/types';
 
 const actionLabels: Record<string, string> = {
   admin_order_item_cancelled: '明細キャンセル',
@@ -18,7 +18,14 @@ const actionLabels: Record<string, string> = {
   checkout_settle_rejected: '精算拒否',
   customer_order_submitted: '注文確定',
   customer_payment_requested: '会計依頼',
-  customer_staff_called: 'スタッフ呼び出し'
+  customer_staff_called: 'スタッフ呼び出し',
+  admin_audit_logs_exported: '監査ログ CSV 出力',
+  auth_login_succeeded: 'ログイン成功',
+  auth_login_failed: 'ログイン失敗',
+  auth_logout: 'ログアウト',
+  auth_session_expired: 'セッション期限切れ',
+  auth_session_revoked: 'セッション失効',
+  auth_user_locked: 'ユーザーロック'
 };
 
 const targetLabels: Record<string, string> = {
@@ -29,8 +36,20 @@ const targetLabels: Record<string, string> = {
   session: 'セッション',
   terminal: '端末',
   payment: '精算',
-  hall_task: 'ホールタスク'
+  hall_task: 'ホールタスク',
+  user: 'ユーザー',
+  auth_user: '認証ユーザー',
+  auth_session: '認証セッション',
+  audit_log: '監査ログ'
 };
+
+const roleOptions: Array<{ value: UserRole; label: string }> = [
+  { value: 'manager', label: 'manager' },
+  { value: 'cashier', label: 'cashier' },
+  { value: 'kitchen', label: 'kitchen' },
+  { value: 'hall', label: 'hall' },
+  { value: 'viewer', label: 'viewer' }
+];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -46,7 +65,18 @@ function labelOf(source: Record<string, string>, value: string) {
 
 function jsonText(value: unknown) {
   if (value === null || value === undefined || value === '') return '-';
-  return JSON.stringify(value, null, 2);
+  return JSON.stringify(maskSensitive(value), null, 2);
+}
+
+function maskSensitive(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(maskSensitive);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, raw]) => [
+      key,
+      /password|session_token|sessionToken|token|authorization|cookie/i.test(key) ? '[masked]' : maskSensitive(raw)
+    ]));
+  }
+  return value;
 }
 
 function actorUserLabel(log: Pick<AuditLogSummary, 'actorUserDisplayName'>) {
@@ -62,10 +92,14 @@ export function AdminAuditLogsPage() {
   const [action, setAction] = useState('');
   const [targetType, setTargetType] = useState('');
   const [actorTerminalCode, setActorTerminalCode] = useState('');
+  const [actorUserId, setActorUserId] = useState('');
+  const [actorUserRole, setActorUserRole] = useState<UserRole | ''>('');
   const [status, setStatus] = useState('');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState('');
 
   const selected = useMemo(
     () => logs.find((log) => log.id === selectedId) || logs[0] || null,
@@ -77,18 +111,22 @@ export function AdminAuditLogsPage() {
     setDetail(data.log);
   };
 
+  const currentFilters = (): AuditLogSearchFilters => ({
+    fromDate: fromDate || undefined,
+    toDate: toDate || undefined,
+    action: action || undefined,
+    targetType: targetType || undefined,
+    actorTerminalCode: actorTerminalCode || undefined,
+    actorUserId: actorUserId || undefined,
+    actorUserRole: actorUserRole || undefined,
+    status: (status as AuditLogSearchFilters['status']) || undefined,
+    keyword: keyword || undefined
+  });
+
   const load = () => {
     setLoading(true);
     setError('');
-    void cafeApi.adminAuditLogs({
-      fromDate: fromDate || undefined,
-      toDate: toDate || undefined,
-      action: action || undefined,
-      targetType: targetType || undefined,
-      actorTerminalCode: actorTerminalCode || undefined,
-      status: status || undefined,
-      keyword: keyword || undefined
-    }).then(async (data) => {
+    void cafeApi.adminAuditLogs(currentFilters()).then(async (data) => {
       setLogs(data.logs);
       const nextId = selectedId && data.logs.some((log) => log.id === selectedId) ? selectedId : data.logs[0]?.id || '';
       setSelectedId(nextId);
@@ -99,17 +137,41 @@ export function AdminAuditLogsPage() {
 
   useEffect(() => {
     load();
-  }, [fromDate, toDate, action, targetType, status]);
+  }, [fromDate, toDate, action, targetType, actorUserRole, status]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => load(), 250);
     return () => window.clearTimeout(timer);
-  }, [actorTerminalCode, keyword]);
+  }, [actorTerminalCode, actorUserId, keyword]);
 
   useEffect(() => {
     if (!selected?.id) return;
     void loadDetail(selected.id).catch((event: Error) => setError(event.message));
   }, [selected?.id]);
+
+  const exportCsv = async () => {
+    setExporting(true);
+    setExportMessage('');
+    setError('');
+    try {
+      const data = await cafeApi.adminAuditLogsExportCsv(currentFilters());
+      const blob = new Blob([data.csv], { type: data.contentType || 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = data.filename || 'audit-logs.csv';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setExportMessage('監査ログ CSV を出力しました。');
+      void load();
+    } catch (event) {
+      setError(event instanceof Error ? event.message : 'CSV 出力に失敗しました。');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <main className="shell adminAuditLogs">
@@ -133,17 +195,24 @@ export function AdminAuditLogsPage() {
               <option value="success">成功</option>
               <option value="failure">失敗</option>
             </select>
+            <select value={actorUserRole} onChange={(event) => setActorUserRole(event.target.value as UserRole | '')}>
+              <option value="">全ロール</option>
+              {roleOptions.map((role) => <option value={role.value} key={role.value}>{role.label}</option>)}
+            </select>
             <input value={actorTerminalCode} onChange={(event) => setActorTerminalCode(event.target.value)} placeholder="端末コード" />
+            <input value={actorUserId} onChange={(event) => setActorUserId(event.target.value)} placeholder="ユーザー ID" />
             <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="キーワード" />
             <a className="button" href="/analytics">分析</a>
             <a className="button" href="/admin/menu">メニュー管理</a>
             <a className="button" href="/admin/tables">席・端末管理</a>
             <a className="button" href="/admin/orders">注文管理</a>
+            <button onClick={exportCsv} disabled={exporting}>{exporting ? 'CSV 出力中' : 'CSV 出力'}</button>
             <button className="primary" onClick={load}>更新</button>
           </div>
         )}
       />
       {loading && <Banner>操作ログを読み込み中です。</Banner>}
+      {exportMessage && <Banner tone="success">{exportMessage}</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
       <section className="auditGrid">
         <section className="panel auditList">
@@ -188,10 +257,16 @@ export function AdminAuditLogsPage() {
                 <div><span>対象ラベル</span><strong>{detail.targetLabel || '-'}</strong></div>
               </div>
               {detail.errorMessage && <Banner tone="danger">{detail.errorMessage}</Banner>}
-              <SectionTitle title="変更前" />
-              <pre className="jsonBlock">{jsonText(detail.beforeData)}</pre>
-              <SectionTitle title="変更後" />
-              <pre className="jsonBlock">{jsonText(detail.afterData)}</pre>
+              <div className="auditJsonCompare">
+                <div>
+                  <SectionTitle title="変更前" />
+                  <pre className="jsonBlock">{jsonText(detail.beforeData)}</pre>
+                </div>
+                <div>
+                  <SectionTitle title="変更後" />
+                  <pre className="jsonBlock">{jsonText(detail.afterData)}</pre>
+                </div>
+              </div>
               <SectionTitle title="リクエスト" />
               <pre className="jsonBlock">{jsonText(detail.requestData)}</pre>
             </>
