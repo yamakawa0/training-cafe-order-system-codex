@@ -66,6 +66,15 @@
 - LAN 端末検証時のみ `npm run dev:host` を使う。
 - Vite dev server は本番公開しない。
 - 本番相当では `npm run build` の静的成果物を reverse proxy 等で配信する。
+- 本番では HTTPS を前提とする。
+- 本番では `frontend/dist` を静的配信する。
+- `/api/*` は reverse proxy で Nyan8 へ転送する。
+- `DATABASE_URL` は環境変数で管理する。
+- 実 secret は commit しない。
+- `backend/nyanql/sql/schema.sql` は開発 reset 用で、本番 DB に安易に実行しない。
+- 本番 migration は今後の課題とする。
+- DB backup は運用必須とする。
+- cookie の実 header 運用は reverse proxy / Nyan8 実行環境で検証が必要である。
 - WebSocket Push は現行未実装で、画面更新は再取得 / ポーリングで扱う。
 - CSV エクスポート API は Nyan8 ランタイム制約により CSV 本文を直接返さず、`success/status/result` の JSON 内に `contentType`, `filename`, `csv` を返す。フロントエンドが `csv` を Blob 化してダウンロードする。
 

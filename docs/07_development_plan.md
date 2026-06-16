@@ -88,8 +88,12 @@
 
 - 監査ログ CSV エクスポート
 - 監査ログ検索条件強化
+- actor_user_id / actor_user_role filter
+- target_label / keyword filter
 - before / after 表示改善
-- 監査ログ運用方針整理
+- CSV 出力時の秘匿情報 mask
+- admin_audit_logs_exported の audit log 記録
+- smoke-audit-logs.sh 強化
 
 残課題:
 
@@ -104,7 +108,7 @@
 
 目的:
 
-- 本番相当環境で安全に動かす。
+- 本番相当環境で安全に起動・配信・運用できる状態にする。
 
 主な作業:
 
@@ -113,9 +117,10 @@
 - HTTPS 前提整理
 - 実 `Set-Cookie` header / cookie 受信 header の運用方針
 - 環境変数 / secret 管理
-- DB バックアップ方針
+- DB バックアップ / リストア
 - 起動・停止手順
-- ログ出力方針
+- ログ出力 / ローテーション
+- 本番 smoke script
 
 ### Phase 10: CI / 自動テスト
 

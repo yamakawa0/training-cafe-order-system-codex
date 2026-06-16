@@ -248,3 +248,18 @@
 - 運用方針: MVP では `audit_logs` を物理削除せず同一テーブルに保持する。本番では 1 年以上などの保持期間、archive table または外部 storage への移行を検討する。
 - 未対応事項: ログ物理削除、アーカイブ実装、ログ署名 / hash chain、append-only storage、WORM storage、外部監査システム / SIEM 連携、複数店舗別ログ分離。
 - 検証結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は成功した。`npm install` は成功した。`npm audit` は sandbox の DNS 制限で一度失敗し、承認付き再実行で `found 0 vulnerabilities` を確認した。Codex bundled Node.js `v24.14.0` を PATH 先頭に置いた `npm run build` は成功した。ローカル環境由来の `pyenv: cannot rehash` と npm log 権限 warning は継続して出る。
+
+## 2026-06-17 Phase 9 本番デプロイ準備
+
+- 追加した deploy file: `deploy/nginx/cafe-order-system.conf.example`。`frontend/dist` の静的配信、SPA fallback、`/api/` の Nyan8 proxy、HTTPS redirect、`X-Forwarded-*` header、cookie / auth header 検証コメントを記載した。
+- 追加した env example: `.env.example`, `.env.production.example`。`DATABASE_URL`, NyanQL / Nyan8 port, `APP_BASE_URL`, cookie 方針、`LOG_DIR`, NyanQL BasicAuth を整理した。`.env.production` は `.gitignore` 対象にした。
+- 追加した script: `scripts/prod-build.sh`, `scripts/prod-start-nyanql.sh`, `scripts/prod-start-nyan8.sh`, `scripts/prod-stop.sh`, `scripts/prod-status.sh`, `scripts/smoke-prod-readiness.sh`。
+- 本番配信方針: Vite dev server は公開せず、`frontend/dist` を Nginx 等で静的配信する。`/api/*` は reverse proxy から Nyan8 へ転送し、Nyan8 が NyanQL を内部 API として呼ぶ。
+- NyanQL / Nyan8 起動方針: production script は `.env.production` を読み、runtime 配下へ config / api / sql / javascript を配置する。NyanQL config は `DATABASE_URL` から生成し、Nyan8 runtime の NyanQL 接続先と BasicAuth も env から反映する。
+- cookie / header 方針: `cafe_session` cookie 主方式を維持し、本番では HTTPS, Secure, HttpOnly, SameSite=Lax を前提とする。現行 Nyan8 の実 header 伝播は本番実行方式で検証が必要なため、未検証の proxy 変換は確定実装にしない。
+- DB backup 方針: `pg_dump "$DATABASE_URL"` と `psql "$DATABASE_URL" < backup.sql` の手順を `docs/08_operations.md` に追加した。`schema.sql` は開発 reset 用で `DROP TABLE` を含むため本番 DB に安易に実行しない。
+- ログ方針: `${LOG_DIR}` の stdout / stderr、runtime log、Nginx access / error log、DB の `audit_logs` を確認対象にした。stdout / stderr と Nginx log は OS logrotate 等でローテーションする。
+- 追加した docs: `docs/08_operations.md`。更新した docs: README、`docs/02_architecture.md`, `docs/04_api_design.md`, `docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/assumptions.md`。
+- 検証結果: `bash -n` で追加 production script の構文を確認した。`./scripts/smoke-prod-readiness.sh` は system npm `8.15.0` では推奨未満として失敗することを確認し、検証用に `/private/tmp` へ npm `10.9.8` を一時導入して Codex bundled Node.js `v24.14.0` と組み合わせた実行では成功した。`cd frontend && npm install`, `npm audit`, `npm run build` は同じ推奨環境で成功し、`npm audit` は `found 0 vulnerabilities` だった。
+- 既存 smoke 検証: 開発用 NyanQL / Nyan8 を起動し、`./scripts/dev-reset-db.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh` は成功した。初回 `smoke-auth.sh` は Nyan8 の API 登録完了前に実行して接続不可で失敗し、登録完了後の再実行では成功した。
+- 未対応事項: 実サーバーへのデプロイ、GitHub Actions 自動デプロイ、Docker 化、Kubernetes、Terraform、実ドメイン証明書発行、外部決済連携、OAuth / SSO、多要素認証、CSRF token 本実装、bcrypt / argon2 / pgcrypto 移行、systemd / PM2 化、本番 migration 管理。

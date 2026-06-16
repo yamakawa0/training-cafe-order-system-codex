@@ -51,7 +51,9 @@
 - LAN 検証時のみ `npm run dev:host`
 - 本番公開に Vite dev server は使わない
 
-本番相当では `npm run build` の静的成果物を配信し、Nyan8 の前段に reverse proxy を置く想定とする。HTTPS、secret 管理、cookie header 変換、CSRF 方針は本番デプロイ準備で整理する。
+本番配信では `npm run build` で生成される `frontend/dist` を Nginx などで静的配信する。Vite dev server は本番公開しない。`/api/*` は HTTPS reverse proxy が Nyan8 へ転送し、Nyan8 は NyanQL を内部 API として呼ぶ。NyanQL は外部公開せず、PostgreSQL 接続先は `DATABASE_URL` で指定する。
+
+本番は HTTPS 前提とし、`cafe_session` cookie の実 `Set-Cookie` と受信 `Cookie` header の扱いは reverse proxy / Nyan8 実行環境で検証する。必要な場合だけ、検証済みの方式で cookie を Authorization header へ変換する。未検証の header 変換は確定実装として扱わない。
 
 ## ポート例
 

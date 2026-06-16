@@ -11,6 +11,20 @@
 - Node.js `>=20.19` / npm `>=10` を推奨する。
 - フロントエンドは Nyan8 の `/api/*` のみを呼び、NyanQL を直接呼ばない。
 
+## Phase 9 本番デプロイ準備
+
+- frontend production build が成功する。
+- `frontend/dist` が存在する。
+- Nginx / reverse proxy 設定例が存在する。
+- `.env.example` / `.env.production.example` が存在する。
+- 本番起動・停止・状態確認 script が存在する。
+- 本番 readiness smoke が成功する。
+- DB backup / restore 手順が docs にある。
+- `schema.sql` の `DROP TABLE` 注意が docs にある。
+- Vite dev server を本番公開しない方針が明記されている。
+- `npm audit` が high / critical 0 件である。
+- 既存 smoke script が成功する。
+
 ## 業務フロー
 
 - 顧客注文 happy path が通る。

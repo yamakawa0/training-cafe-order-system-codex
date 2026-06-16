@@ -216,6 +216,60 @@ npm run dev
 - 操作ログ: `http://localhost:5173/admin/audit-logs`
 - ユーザー管理: `http://localhost:5173/admin/users`
 
+## 本番相当デプロイ準備
+
+詳細手順は `docs/08_operations.md` を参照してください。実サーバーへのデプロイ、Docker 化、systemd 化、自動デプロイは現時点の対象外です。
+
+推奨配置例:
+
+```txt
+/opt/cafe-order-system/
+  frontend/dist/
+  backend/nyan8/
+  backend/nyanql/
+  scripts/
+  deploy/nginx/
+  logs/
+  .env.production
+```
+
+本番では Vite dev server を公開せず、`frontend/dist` を Nginx などで静的配信します。`/api/*` は HTTPS reverse proxy から Nyan8 へ転送し、Nyan8 が NyanQL を内部 API として呼びます。
+
+`.env.production.example` を `.env.production` にコピーし、`DATABASE_URL`, NyanQL BasicAuth, log path, URL を本番値に変更してください。`.env.production` と実 secret は commit しません。本番 DB に `backend/nyanql/sql/schema.sql` を安易に実行しないでください。このファイルは開発 reset 用で `DROP TABLE IF EXISTS ... CASCADE` を含みます。
+
+```bash
+cp .env.production.example .env.production
+./scripts/prod-build.sh
+./scripts/prod-start-nyanql.sh
+./scripts/prod-start-nyan8.sh
+./scripts/prod-status.sh
+```
+
+停止:
+
+```bash
+./scripts/prod-stop.sh
+```
+
+Nginx 設定例は `deploy/nginx/cafe-order-system.conf.example` にあります。HTTPS 前提、HTTP から HTTPS への redirect、`frontend/dist` の静的配信、SPA fallback、`/api/` の Nyan8 proxy、`X-Forwarded-*` header を含みます。
+
+認証は `cafe_session` cookie 主方式を維持します。開発環境では Nyan8 制約により Bearer / `token` 互換も使います。本番では Secure, HttpOnly, SameSite=Lax の cookie を HTTPS reverse proxy 前提で扱い、実 `Set-Cookie` / `Cookie` header の挙動を検証します。必要な場合だけ、検証済みの cookie-to-Authorization 変換を導入します。
+
+DB backup / restore:
+
+```bash
+pg_dump "$DATABASE_URL" > "backup_$(date +%Y%m%d_%H%M%S).sql"
+psql "$DATABASE_URL" < backup.sql
+```
+
+ログは `${LOG_DIR}` と runtime 配下の `logs/`、Nginx access / error log、DB の `audit_logs` を確認します。stdout / stderr と Nginx log は OS の logrotate 等でローテーションしてください。
+
+本番相当環境へ進む前に readiness smoke を実行します。この script は本番 DB を初期化せず、`dev-reset-db.sh` も呼びません。
+
+```bash
+./scripts/smoke-prod-readiness.sh
+```
+
 ## 画面概要
 
 - 顧客注文画面: カテゴリ別メニュー、商品カード、オプション選択モーダル、カート、注文履歴、スタッフ呼び出し、会計依頼を表示します。会計依頼後または精算済みの席では注文操作がロックされます。

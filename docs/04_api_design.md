@@ -4,6 +4,8 @@
 
 フロントエンドは Nyan8 の `/api/*` のみを呼び出す。NyanQL は Nyan8 から内部 API として呼び出す。API レスポンスは原則として `success`, `status`, `result`, `message` を持つ JSON とする。
 
+本番運用では `/api/*` を HTTPS reverse proxy 経由で Nyan8 へ転送する。NyanQL は直接公開しない。管理系 API は session 認証済みの `manager` role を必須とし、認証済み API は `cafe_session` cookie 主方式を設計上の主方式にする。Nyan8 の header / cookie 制約に対応するため Bearer token と `token` パラメータ互換は残すが、本番では実 `Set-Cookie` / `Cookie` header の扱いを reverse proxy / Nyan8 実行環境で検証する。HTTPS は必須とする。
+
 ## 認可ルール
 
 - 顧客 API: token 不要
