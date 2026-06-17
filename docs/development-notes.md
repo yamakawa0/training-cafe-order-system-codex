@@ -280,3 +280,15 @@
 - Nyan8 / NyanQL 整合チェック結果: Nyan8 `api.json` の全 JavaScript 参照先、NyanQL `api.json` の全 SQL 参照先が存在することを確認した。
 - production readiness 検証結果: `./scripts/smoke-prod-readiness.sh` は成功した。sandbox DNS 制限で `npm audit` が一度失敗したため、承認付きネットワーク実行で再確認した。
 - 未対応事項: GitHub Actions の実リモート実行結果確認、自動デプロイ、実 DB を使う CI、実 NyanQL / Nyan8 runtime を GitHub Actions 上で起動する CI、Playwright / E2E ブラウザテスト。
+
+## 2026-06-18 Phase 10.5 CI 実行確認・full smoke 回帰確認
+
+- GitHub Actions 実リモート確認: `master` の最新 CI run `27697746137`、head SHA `18e226813abddea693804c1efdca221a5a2f52f1`、commit title `Harden CI and smoke scripts` が `completed / success` であることを確認した。run URL は `https://github.com/yamakawa0/training-cafe-order-system-codex/actions/runs/27697746137`。
+- GitHub Actions job 確認: `static-checks` は `Shell syntax check` と `Repository consistency check` を含めて成功した。`frontend` は `Install frontend dependencies`, `Audit frontend dependencies`, `Build frontend`, `Production readiness static check` を含めて成功した。
+- workflow 更新: `.github/workflows/ci.yml` に `workflow_dispatch`、`permissions: contents: read`、`concurrency` を追加した。Node.js 20 actions deprecated 警告への対応として `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` は維持し、`actions/checkout@v4` と `actions/setup-node@v4` は現行のままとした。
+- local CI 確認: Codex bundled Node.js `v24.14.0` と npm `10.9.8` で `cd frontend && npm ci`, `npm audit --audit-level=high`, `npm run build` は成功した。`npm audit` は sandbox DNS 制限で一度失敗したため、承認付きネットワーク実行で `found 0 vulnerabilities` を確認した。
+- local static check 確認: `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `./scripts/smoke-prod-readiness.sh`, `git diff --check` は成功した。`ci-shellcheck.sh` は `bash -n` と shellcheck の両方を通した。
+- full smoke 回帰確認: `./scripts/dev-reset-db.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh` は順次実行で成功した。
+- docs 更新: README、`docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/08_operations.md`, `docs/assumptions.md`, `docs/development-notes.md` に Phase 10.5 の確認結果と CI / full smoke の役割分離を反映した。
+- 開発計画の現在地: Phase 10 は完了済みへ移動し、Phase 11 を現在フェーズにした。Phase 11 の実装は今回行っていない。
+- 未対応事項: GitHub Actions 自動デプロイ、実 DB を使う CI、実 NyanQL / Nyan8 runtime を GitHub Actions 上で起動する CI、Playwright / E2E ブラウザテスト、Docker / Kubernetes / Terraform、systemd / PM2 化、本番 migration 管理。

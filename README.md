@@ -151,7 +151,9 @@ npm audit
 
 ## GitHub Actions CI
 
-`.github/workflows/ci.yml` で pull request と `master` push に対する lightweight CI を実行します。GitHub Actions では Node 20.19 以上を使い、frontend job で次を確認します。
+`.github/workflows/ci.yml` で pull request、`master` push、手動実行に対する lightweight CI を実行します。実行結果は GitHub repository の Actions tab で確認します。CI が失敗した場合は、失敗 job と step を確認し、修正して CI が成功してから `master` へ反映してください。
+
+GitHub Actions では Node 20.19 以上を使い、frontend job で次を確認します。
 
 ```bash
 cd frontend
@@ -171,7 +173,7 @@ static-checks job では次を確認します。
 
 CI では実 DB、NyanQL runtime、Nyan8 runtime を起動しません。`dev-reset-db.sh` も実行しません。CI lightweight checks は構文、build、audit、設定ファイルと実ファイルの整合性を確認し、local full smoke は開発者環境で PostgreSQL / NyanQL / Nyan8 を起動して業務フローを確認する位置づけです。
 
-PR 作成前の推奨ローカル確認:
+PR 作成前、または Phase 11 以降の大きな機能追加前後の推奨ローカル確認:
 
 ```bash
 cd frontend
@@ -181,7 +183,9 @@ npm run build
 cd ..
 ./scripts/ci-shellcheck.sh
 ./scripts/ci-repo-consistency.sh
+./scripts/ci-prod-readiness-static.sh
 ./scripts/smoke-prod-readiness.sh
+git diff --check
 ```
 
 実ランタイム込みの full smoke は、開発用 DB 初期化と NyanQL / Nyan8 起動後に順番に実行します。各 script は DB を初期化するものがあるため並列実行しないでください。

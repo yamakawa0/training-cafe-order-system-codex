@@ -25,6 +25,7 @@
 - 監査ログ運用方針整理
 - 本番デプロイ準備
 - GitHub Actions CI / 自動テスト
+- CI 実行確認と full smoke 回帰確認
 
 ## 2. 完了済みフェーズ
 
@@ -119,50 +120,39 @@
 - ログ出力 / ローテーション方針
 - docs/08_operations.md
 
-## 3. 現在フェーズ
-
 ### Phase 10: CI / 自動テスト
 
-目的:
-
-- Codex 開発の回帰リスクを下げる。
-
-主な作業:
-
-- GitHub Actions workflow
-- npm install / npm audit / npm run build
-- production readiness smoke
-- shell script 構文チェック
-- SQL / API 定義整合チェック
-- Nyan8 api.json と JavaScript file の存在チェック
-- NyanQL api.json と SQL file の存在チェック
-- README / docs の重要記述チェック
-
-完了条件:
+完了範囲:
 
 - GitHub Actions CI workflow
 - frontend npm ci / npm audit / build
 - shell script syntax check
-- Nyan8 / NyanQL 定義整合チェック
+- Nyan8 api.json と JavaScript file の存在チェック
+- NyanQL api.json と SQL file の存在チェック
 - production readiness static check
 - CI と local full smoke の役割分離
+- CI 実リモート実行確認
+- local full smoke 回帰確認
+- README / docs の CI 記述
 
-## 4. 次フェーズ
+## 3. 現在フェーズ
 
 ### Phase 11: 商品・在庫・オプション強化
 
 目的:
 
-- 店舗運用に近づける。
+- 店舗運用に近づけるため、商品情報、オプション、在庫、売切管理を強化する。
 
 候補:
 
 - 商品画像アップロード
 - 商品オプション編集 UI
+- カテゴリ管理 UI 強化
 - 原価 / 粗利
 - 在庫数
 - 売切自動化
-- カテゴリ管理 UI 強化
+
+## 4. 次フェーズ
 
 ### Phase 12: 決済・返金・レシート
 

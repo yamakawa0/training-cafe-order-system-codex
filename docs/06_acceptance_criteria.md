@@ -40,6 +40,9 @@
 - CI で本番 DB を破壊しない。
 - CI では `dev-reset-db.sh` を実行しない。
 - CI では実 PostgreSQL / NyanQL / Nyan8 runtime を起動しない。
+- GitHub Actions の最新 `master` 実行結果が成功していることを確認する。GitHub Actions にアクセスできない場合は、同等の local CI check 結果を記録する。
+- local full smoke は CI ではなく、開発者環境または専用検証環境で順次実行し成功する。
+- Phase 11 以降の大きな機能追加前に、local full smoke が成功している。
 
 ## 業務フロー
 
