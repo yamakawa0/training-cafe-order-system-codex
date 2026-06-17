@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SMOKE_NAME="smoke-admin-tables"
+export SMOKE_NAME="smoke-admin-tables"
+# shellcheck source=scripts/lib/smoke-lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db

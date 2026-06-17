@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SMOKE_NAME="smoke-invalid-operations"
+export SMOKE_NAME="smoke-invalid-operations"
+# shellcheck source=scripts/lib/smoke-lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 reset_db

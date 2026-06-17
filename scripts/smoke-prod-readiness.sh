@@ -28,12 +28,32 @@ NODE
 
 require_file() {
   local path="$1"
-  [ -f "$ROOT_DIR/$path" ] && ok "$path exists" || ng "$path is missing"
+  if [ -f "$ROOT_DIR/$path" ]; then
+    ok "$path exists"
+  else
+    ng "$path is missing"
+  fi
 }
 
 require_dir() {
   local path="$1"
-  [ -d "$ROOT_DIR/$path" ] && ok "$path exists" || ng "$path is missing"
+  if [ -d "$ROOT_DIR/$path" ]; then
+    ok "$path exists"
+  else
+    ng "$path is missing"
+  fi
+}
+
+require_grep() {
+  local pattern="$1"
+  local path="$2"
+  local ok_message="$3"
+  local ng_message="$4"
+  if grep -q "$pattern" "$ROOT_DIR/$path"; then
+    ok "$ok_message"
+  else
+    ng "$ng_message"
+  fi
 }
 
 node_version="$(node -v 2>/dev/null || true)"
@@ -94,9 +114,9 @@ fi
 
 require_file "deploy/nginx/cafe-order-system.conf.example"
 
-grep -q "本番相当デプロイ準備" "$ROOT_DIR/README.md" && ok "README production section exists" || ng "README production section missing"
-grep -q "Phase 9: 本番デプロイ準備" "$ROOT_DIR/docs/07_development_plan.md" && ok "development plan has Phase 9" || ng "Phase 9 missing in development plan"
-grep -q "本番 readiness smoke" "$ROOT_DIR/docs/06_acceptance_criteria.md" && ok "acceptance criteria has production readiness smoke" || ng "production readiness criteria missing"
+require_grep "本番相当デプロイ準備" "README.md" "README production section exists" "README production section missing"
+require_grep "Phase 9: 本番デプロイ準備" "docs/07_development_plan.md" "development plan has Phase 9" "Phase 9 missing in development plan"
+require_grep "本番 readiness smoke" "docs/06_acceptance_criteria.md" "acceptance criteria has production readiness smoke" "production readiness criteria missing"
 
 if [ "$FAILED" -eq 0 ]; then
   echo

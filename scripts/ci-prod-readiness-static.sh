@@ -15,12 +15,32 @@ ng() {
 
 require_file() {
   local path="$1"
-  [ -f "$ROOT_DIR/$path" ] && ok "$path exists" || ng "$path is missing"
+  if [ -f "$ROOT_DIR/$path" ]; then
+    ok "$path exists"
+  else
+    ng "$path is missing"
+  fi
 }
 
 require_dir() {
   local path="$1"
-  [ -d "$ROOT_DIR/$path" ] && ok "$path exists" || ng "$path is missing"
+  if [ -d "$ROOT_DIR/$path" ]; then
+    ok "$path exists"
+  else
+    ng "$path is missing"
+  fi
+}
+
+require_grep() {
+  local pattern="$1"
+  local path="$2"
+  local ok_message="$3"
+  local ng_message="$4"
+  if grep -q "$pattern" "$ROOT_DIR/$path"; then
+    ok "$ok_message"
+  else
+    ng "$ng_message"
+  fi
 }
 
 require_file "frontend/dist/index.html"
@@ -40,14 +60,14 @@ for key in DATABASE_URL NYANQL_HOST NYANQL_PORT NYAN8_HOST NYAN8_PORT APP_BASE_U
   fi
 done
 
-grep -q "本番相当デプロイ準備" "$ROOT_DIR/README.md" && ok "README has production deployment section" || ng "README production deployment section missing"
-grep -q "GitHub Actions CI" "$ROOT_DIR/README.md" && ok "README has CI section" || ng "README CI section missing"
-grep -q "Phase 9 本番デプロイ準備" "$ROOT_DIR/docs/06_acceptance_criteria.md" && ok "acceptance criteria has Phase 9" || ng "Phase 9 acceptance criteria missing"
-grep -q "Phase 10 CI / 自動テスト" "$ROOT_DIR/docs/06_acceptance_criteria.md" && ok "acceptance criteria has Phase 10" || ng "Phase 10 acceptance criteria missing"
-grep -q "Phase 9: 本番デプロイ準備" "$ROOT_DIR/docs/07_development_plan.md" && ok "development plan has Phase 9" || ng "Phase 9 missing in development plan"
-grep -q "Phase 10: CI / 自動テスト" "$ROOT_DIR/docs/07_development_plan.md" && ok "development plan has Phase 10" || ng "Phase 10 missing in development plan"
-grep -q "現在フェーズ" "$ROOT_DIR/docs/07_development_plan.md" && ok "development plan marks current phase" || ng "current phase marker missing"
-grep -q "CI lightweight checks" "$ROOT_DIR/docs/08_operations.md" && ok "operations doc has CI lightweight checks" || ng "operations CI lightweight checks missing"
+require_grep "本番相当デプロイ準備" "README.md" "README has production deployment section" "README production deployment section missing"
+require_grep "GitHub Actions CI" "README.md" "README has CI section" "README CI section missing"
+require_grep "Phase 9 本番デプロイ準備" "docs/06_acceptance_criteria.md" "acceptance criteria has Phase 9" "Phase 9 acceptance criteria missing"
+require_grep "Phase 10 CI / 自動テスト" "docs/06_acceptance_criteria.md" "acceptance criteria has Phase 10" "Phase 10 acceptance criteria missing"
+require_grep "Phase 9: 本番デプロイ準備" "docs/07_development_plan.md" "development plan has Phase 9" "Phase 9 missing in development plan"
+require_grep "Phase 10: CI / 自動テスト" "docs/07_development_plan.md" "development plan has Phase 10" "Phase 10 missing in development plan"
+require_grep "現在フェーズ" "docs/07_development_plan.md" "development plan marks current phase" "current phase marker missing"
+require_grep "CI lightweight checks" "docs/08_operations.md" "operations doc has CI lightweight checks" "operations CI lightweight checks missing"
 
 if [ "$FAILED" -eq 0 ]; then
   echo

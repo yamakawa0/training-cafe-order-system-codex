@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SMOKE_NAME="smoke-admin-orders"
+export SMOKE_NAME="smoke-admin-orders"
+# shellcheck source=scripts/lib/smoke-lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 order_id_by_no() {

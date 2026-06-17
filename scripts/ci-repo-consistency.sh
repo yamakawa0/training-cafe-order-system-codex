@@ -15,12 +15,32 @@ ng() {
 
 require_file() {
   local path="$1"
-  [ -f "$ROOT_DIR/$path" ] && ok "$path exists" || ng "$path is missing"
+  if [ -f "$ROOT_DIR/$path" ]; then
+    ok "$path exists"
+  else
+    ng "$path is missing"
+  fi
 }
 
 require_dir() {
   local path="$1"
-  [ -d "$ROOT_DIR/$path" ] && ok "$path exists" || ng "$path is missing"
+  if [ -d "$ROOT_DIR/$path" ]; then
+    ok "$path exists"
+  else
+    ng "$path is missing"
+  fi
+}
+
+require_grep() {
+  local pattern="$1"
+  local path="$2"
+  local ok_message="$3"
+  local ng_message="$4"
+  if grep -q "$pattern" "$ROOT_DIR/$path"; then
+    ok "$ok_message"
+  else
+    ng "$ng_message"
+  fi
 }
 
 required_files=(
@@ -93,10 +113,10 @@ else
   ng "NyanQL api.json consistency check failed"
 fi
 
-grep -q "GitHub Actions CI" "$ROOT_DIR/README.md" && ok "README has CI section" || ng "README CI section missing"
-grep -q "CI / 自動テスト" "$ROOT_DIR/docs/07_development_plan.md" && ok "development plan has Phase 10" || ng "Phase 10 missing in development plan"
-grep -q "Phase 10 CI / 自動テスト" "$ROOT_DIR/docs/06_acceptance_criteria.md" && ok "acceptance criteria has Phase 10" || ng "Phase 10 acceptance criteria missing"
-grep -q "CI lightweight checks" "$ROOT_DIR/docs/08_operations.md" && ok "operations doc separates CI and full smoke" || ng "CI/full smoke separation missing in operations doc"
+require_grep "GitHub Actions CI" "README.md" "README has CI section" "README CI section missing"
+require_grep "CI / 自動テスト" "docs/07_development_plan.md" "development plan has Phase 10" "Phase 10 missing in development plan"
+require_grep "Phase 10 CI / 自動テスト" "docs/06_acceptance_criteria.md" "acceptance criteria has Phase 10" "Phase 10 acceptance criteria missing"
+require_grep "CI lightweight checks" "docs/08_operations.md" "operations doc separates CI and full smoke" "CI/full smoke separation missing in operations doc"
 
 if [ "$FAILED" -eq 0 ]; then
   echo

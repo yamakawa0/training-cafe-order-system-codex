@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SMOKE_NAME="smoke-cancel-flow"
+export SMOKE_NAME="smoke-cancel-flow"
+# shellcheck source=scripts/lib/smoke-lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 create_single_order() {

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SMOKE_NAME="smoke-auth"
+export SMOKE_NAME="smoke-auth"
+# shellcheck source=scripts/lib/smoke-lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/smoke-lib.sh"
 
 saved_token=""

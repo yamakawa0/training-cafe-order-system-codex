@@ -3,6 +3,8 @@
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BASE_URL="${NYAN8_BASE_URL:-http://localhost:8889}"
 DATABASE_URL="${DATABASE_URL:-postgres://codex:codex@localhost:5432/cafe_order_system}"
+# TODAY is consumed by smoke scripts that source this helper.
+# shellcheck disable=SC2034
 TODAY="$(date +%F)"
 LAST_BODY=""
 LAST_STATUS=""

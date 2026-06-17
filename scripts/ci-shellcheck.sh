@@ -18,7 +18,7 @@ if [ "${#SHELL_FILES[@]}" -eq 0 ]; then
 fi
 
 for file in "${SHELL_FILES[@]}"; do
-  relative="${file#$ROOT_DIR/}"
+  relative="${file#"$ROOT_DIR"/}"
   if bash -n "$file"; then
     echo "OK: bash -n $relative"
   else
@@ -29,8 +29,8 @@ done
 
 if command -v shellcheck >/dev/null 2>&1; then
   for file in "${SHELL_FILES[@]}"; do
-    relative="${file#$ROOT_DIR/}"
-    if shellcheck "$file"; then
+    relative="${file#"$ROOT_DIR"/}"
+    if shellcheck -x "$file"; then
       echo "OK: shellcheck $relative"
     else
       echo "NG: shellcheck failed: $relative" >&2
