@@ -43,6 +43,11 @@ node_check() {
   node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => { const data = JSON.parse(input); const result = data.result || data; if (!($expression)) { console.error(JSON.stringify(data)); process.exit(1); } });"
 }
 
+sql_scalar() {
+  local query="$1"
+  psql "$DATABASE_URL" -Atq -c "$query"
+}
+
 sync_cookie_from_response() {
   local response="$1"
   local cookie_line
@@ -205,6 +210,61 @@ audit_option_response="$(json_get "$NYAN8_BASE_URL/api/admin/audit-logs?terminal
 printf '%s\n' "$audit_option_response"
 printf '%s' "$audit_option_response" | node_check "data.success === true && result.logs.length > 0"
 
+echo "8.7 inventory reservation rejects shortage and auto sold out at zero"
+stock_update_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update-stock" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"track_stock\":true,\"stock_quantity\":2,\"low_stock_threshold\":1}")"
+printf '%s\n' "$stock_update_response"
+printf '%s' "$stock_update_response" | node_check "data.success === true && result.item.trackStock === true && result.item.stockQuantity === 2 && result.item.lowStockThreshold === 1"
+customer_low_stock_response="$(json_get "$NYAN8_BASE_URL/api/customer/menu?terminal_code=customer-T02")"
+printf '%s\n' "$customer_low_stock_response"
+printf '%s' "$customer_low_stock_response" | node_check "result.categories.flatMap(category => category.items).some(item => item.id === '$item_id' && item.trackStock === true && item.stockQuantity === 2 && item.lowStock === false)"
+t02_open_response="$(json_post "$NYAN8_BASE_URL/api/customer/session/open" '{"terminal_code":"customer-T02","table_code":"T02","guest_count":1}')"
+printf '%s\n' "$t02_open_response"
+printf '%s' "$t02_open_response" | node_check "data.success === true && result.session"
+shortage_response="$(json_post "$NYAN8_BASE_URL/api/customer/order/submit" "{\"terminal_code\":\"customer-T02\",\"table_code\":\"T02\",\"items\":[{\"menu_item_id\":\"$item_id\",\"quantity\":3,\"choice_ids\":[\"$choice_id\"],\"customer_note\":\"\"}]}")"
+printf '%s\n' "$shortage_response"
+printf '%s' "$shortage_response" | node_check "data.success === false && data.status === 409"
+stock_after_shortage="$(sql_scalar "SELECT stock_quantity FROM menu_items WHERE id = '$item_id'")"
+[ "$stock_after_shortage" = "2" ]
+inventory_order_one="$(json_post "$NYAN8_BASE_URL/api/customer/order/submit" "{\"terminal_code\":\"customer-T02\",\"table_code\":\"T02\",\"items\":[{\"menu_item_id\":\"$item_id\",\"quantity\":1,\"choice_ids\":[\"$choice_id\"],\"customer_note\":\"\"}]}")"
+printf '%s\n' "$inventory_order_one"
+printf '%s' "$inventory_order_one" | node_check "data.success === true"
+stock_after_one="$(sql_scalar "SELECT stock_quantity FROM menu_items WHERE id = '$item_id'")"
+[ "$stock_after_one" = "1" ]
+customer_low_stock_after_one="$(json_get "$NYAN8_BASE_URL/api/customer/menu?terminal_code=customer-T02")"
+printf '%s\n' "$customer_low_stock_after_one"
+printf '%s' "$customer_low_stock_after_one" | node_check "result.categories.flatMap(category => category.items).some(item => item.id === '$item_id' && item.lowStock === true && item.soldOut === false)"
+inventory_order_two="$(json_post "$NYAN8_BASE_URL/api/customer/order/submit" "{\"terminal_code\":\"customer-T02\",\"table_code\":\"T02\",\"items\":[{\"menu_item_id\":\"$item_id\",\"quantity\":1,\"choice_ids\":[\"$choice_id\"],\"customer_note\":\"\"}]}")"
+printf '%s\n' "$inventory_order_two"
+printf '%s' "$inventory_order_two" | node_check "data.success === true"
+stock_after_two="$(sql_scalar "SELECT stock_quantity || ':' || sold_out FROM menu_items WHERE id = '$item_id'")"
+[ "$stock_after_two" = "0:true" ]
+customer_auto_sold_out_response="$(json_get "$NYAN8_BASE_URL/api/customer/menu?terminal_code=customer-T02")"
+printf '%s\n' "$customer_auto_sold_out_response"
+printf '%s' "$customer_auto_sold_out_response" | node_check "result.categories.flatMap(category => category.items).some(item => item.id === '$item_id' && item.soldOut === true)"
+sold_out_order_response="$(json_post "$NYAN8_BASE_URL/api/customer/order/submit" "{\"terminal_code\":\"customer-T02\",\"table_code\":\"T02\",\"items\":[{\"menu_item_id\":\"$item_id\",\"quantity\":1,\"choice_ids\":[\"$choice_id\"],\"customer_note\":\"\"}]}")"
+printf '%s\n' "$sold_out_order_response"
+printf '%s' "$sold_out_order_response" | node_check "data.success === false && data.status === 409"
+inventory_order_two_no="$(printf '%s' "$inventory_order_two" | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).result.orderNo));")"
+inventory_order_two_id="$(sql_scalar "SELECT id FROM orders WHERE order_no = '$inventory_order_two_no'")"
+inventory_order_item_id="$(sql_scalar "SELECT id FROM order_items WHERE order_id = '$inventory_order_two_id' AND menu_item_id = '$item_id' LIMIT 1")"
+cancel_inventory_item_response="$(json_post "$NYAN8_BASE_URL/api/admin/orders/cancel-item" "{\"terminal_code\":\"analytics-manager\",\"order_item_id\":\"$inventory_order_item_id\",\"cancel_note\":\"在庫 smoke\"}")"
+printf '%s\n' "$cancel_inventory_item_response"
+printf '%s' "$cancel_inventory_item_response" | node_check "data.success === true"
+stock_after_cancel="$(sql_scalar "SELECT stock_quantity || ':' || sold_out FROM menu_items WHERE id = '$item_id'")"
+[ "$stock_after_cancel" = "1:true" ]
+stock_unsold_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/toggle-sold-out" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"sold_out\":false}")"
+printf '%s\n' "$stock_unsold_response"
+printf '%s' "$stock_unsold_response" | node_check "result.item.soldOut === false && result.item.stockQuantity === 1"
+audit_stock_update_response="$(json_get "$NYAN8_BASE_URL/api/admin/audit-logs?terminal_code=analytics-manager&action=admin_menu_item_stock_updated")"
+printf '%s\n' "$audit_stock_update_response"
+printf '%s' "$audit_stock_update_response" | node_check "data.success === true && result.logs.length > 0"
+audit_stock_reserved_response="$(json_get "$NYAN8_BASE_URL/api/admin/audit-logs?terminal_code=analytics-manager&action=customer_order_stock_reserved")"
+printf '%s\n' "$audit_stock_reserved_response"
+printf '%s' "$audit_stock_reserved_response" | node_check "data.success === true && result.logs.length > 0"
+audit_stock_restored_response="$(json_get "$NYAN8_BASE_URL/api/admin/audit-logs?terminal_code=analytics-manager&action=admin_order_item_stock_restored")"
+printf '%s\n' "$audit_stock_restored_response"
+printf '%s' "$audit_stock_restored_response" | node_check "data.success === true && result.logs.length > 0"
+
 echo "9 mark sold out"
 sold_out_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/toggle-sold-out" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"sold_out\":true}")"
 printf '%s\n' "$sold_out_response"
@@ -240,6 +300,9 @@ printf '%s' "$viewer_category_rejected" | node_check "data.success === false && 
 viewer_option_rejected="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/options" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"name\":\"viewer-ng\",\"required\":false,\"multi_select\":false,\"min_select\":0,\"max_select\":1,\"active\":true,\"display_order\":99}")"
 printf '%s\n' "$viewer_option_rejected"
 printf '%s' "$viewer_option_rejected" | node_check "data.success === false && data.status === 403"
+viewer_stock_rejected="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update-stock" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"track_stock\":true,\"stock_quantity\":5,\"low_stock_threshold\":1}")"
+printf '%s\n' "$viewer_stock_rejected"
+printf '%s' "$viewer_stock_rejected" | node_check "data.success === false && data.status === 403"
 
 echo "15 existing smoke checks"
 "$ROOT_DIR/scripts/smoke-menu.sh"

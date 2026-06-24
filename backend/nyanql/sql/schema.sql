@@ -84,12 +84,19 @@ CREATE TABLE menu_items (
     kitchen_station VARCHAR(50) NOT NULL DEFAULT 'main',
     allergy_note TEXT NOT NULL DEFAULT '',
     sold_out BOOLEAN NOT NULL DEFAULT FALSE,
+    track_stock BOOLEAN NOT NULL DEFAULT FALSE,
+    stock_quantity INTEGER NOT NULL DEFAULT 0,
+    low_stock_threshold INTEGER NOT NULL DEFAULT 0,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     display_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CHECK (price >= 0)
+    CHECK (price >= 0),
+    CHECK (stock_quantity >= 0),
+    CHECK (low_stock_threshold >= 0)
 );
+
+CREATE INDEX IF NOT EXISTS idx_menu_items_stock ON menu_items (track_stock, stock_quantity);
 
 CREATE TABLE menu_item_options (
     id VARCHAR(50) PRIMARY KEY,

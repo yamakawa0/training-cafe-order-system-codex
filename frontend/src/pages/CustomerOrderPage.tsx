@@ -214,6 +214,7 @@ export function CustomerOrderPage({ tableCode }: Props) {
                   <p>{item.description}</p>
                   <div className="badgeRow">
                     {item.soldOut && <Badge tone="danger">売切</Badge>}
+                    {!item.soldOut && item.lowStock && <Badge tone="warning">残りわずか</Badge>}
                     {item.allergyNote && <Badge tone="danger">アレルギー: {item.allergyNote}</Badge>}
                     {item.options.length > 0 && <Badge tone="info">オプションあり</Badge>}
                   </div>

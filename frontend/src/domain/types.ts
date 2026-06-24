@@ -65,6 +65,10 @@ export interface MenuItem {
   taxRate: number;
   imageUrl?: string;
   soldOut: boolean;
+  trackStock?: boolean;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  lowStock?: boolean;
   allergyNote: string;
   options: MenuItemOption[];
 }
@@ -186,6 +190,10 @@ export interface AdminMenuItem {
   displayOrder: number;
   active: boolean;
   soldOut: boolean;
+  trackStock: boolean;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  lowStock?: boolean;
   allergyNote: string | null;
   updatedAt: string | null;
 }
@@ -200,6 +208,9 @@ export type AdminMenuItemInput = {
   display_order: number;
   active: boolean;
   sold_out: boolean;
+  track_stock: boolean;
+  stock_quantity: number;
+  low_stock_threshold: number;
   allergy_note: string;
 };
 
@@ -279,6 +290,7 @@ export interface AdminOrderDetail extends AdminOrderSummary {
   closedAt: string | null;
   items: Array<{
     orderItemId: string;
+    menuItemId?: string;
     itemName: string;
     quantity: number;
     unitPrice: number;

@@ -49,10 +49,10 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 ### menu_items
 
 - 目的: 販売商品を管理する。
-- 主なカラム: `id`, `category_id`, `name`, `description`, `price`, `tax_rate`, `image_url`, `kitchen_station`, `allergy_note`, `sold_out`, `active`, `display_order`
+- 主なカラム: `id`, `category_id`, `name`, `description`, `price`, `tax_rate`, `image_url`, `kitchen_station`, `allergy_note`, `sold_out`, `track_stock`, `stock_quantity`, `low_stock_threshold`, `active`, `display_order`
 - 主な状態値: `active`, `sold_out`
 - 関連テーブル: `menu_categories`, `menu_item_options`, `order_items`
-- 注意点: 金額はフロントエンド送信値を正とせず、DB の商品価格・税率から計算する。`active=false` は顧客メニュー非表示、`sold_out=true` は注文不可。
+- 注意点: 金額はフロントエンド送信値を正とせず、DB の商品価格・税率から計算する。`active=false` は顧客メニュー非表示、`sold_out=true` は注文不可。`track_stock=false` の商品は在庫数を見ない。`track_stock=true` の商品は注文確定時に `stock_quantity` を引き当て、不足時は注文全体を拒否する。注文成功で `stock_quantity=0` になった場合は `sold_out=true` にする。キャンセル時は在庫を戻すが、`sold_out=false` への自動解除は行わない。将来課題として `inventory_movements`、入荷 / 棚卸 / 廃棄、在庫履歴、複数店舗別在庫を扱う。
 
 ### menu_item_options
 

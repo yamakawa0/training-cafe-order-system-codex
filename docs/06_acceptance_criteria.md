@@ -69,6 +69,15 @@
 - 必須オプション未選択や最大選択数超過は注文 API で拒否される。
 - オプション追加料金は注文履歴、キッチン ticket、レジ精算、売上分析、商品ランキング、売上 CSV、注文管理に反映される。
 - カテゴリ・オプション・選択肢変更は audit log に記録される。
+- 商品に在庫管理対象フラグを設定できる。
+- 商品在庫数と低在庫閾値を設定できる。
+- 在庫不足の注文は 409 で拒否され、売上・分析・CSV・キッチン ticket に出ない。
+- 注文成功時に在庫が減り、同一注文内の同一商品は合算数量で在庫判定される。
+- 在庫 0 で `sold_out=true` になる。
+- キャンセル時に在庫が戻る。
+- 在庫が戻っても `sold_out` は自動解除されない。
+- manager 以外は在庫管理 API を使えない。
+- 在庫更新、在庫引当、在庫戻し、自動売切が audit log に記録される。
 - 席・端末管理で席一覧、席詳細、端末一覧、端末有効 / 無効、条件付きセッション強制クローズができる。
 - 注文管理で注文一覧、注文詳細、明細取消、注文全体取消ができる。
 - 監査ログで重要操作と認証イベントの一覧・詳細を確認できる。
@@ -102,7 +111,7 @@
 | `scripts/smoke-auth.sh` | login / logout / me、role 制御、token なし、expired / revoked / inactive session、ログイン失敗ロック、最後の manager 保護、auth audit log |
 | `scripts/smoke-audit-logs.sh` | 注文、会計依頼、精算、商品売切、明細取消、非管理者拒否、監査ログ一覧・詳細、action / role / keyword filter、manager CSV 出力、非 manager CSV 拒否、CSV 秘匿情報除外、CSV 操作ログ |
 | `scripts/smoke-admin-orders.sh` | 注文一覧・詳細、明細取消、注文全体取消、取消明細の会計・分析除外、ready / 精算済み取消拒否 |
-| `scripts/smoke-admin-menu.sh` | 商品追加・編集、表示 / 非表示、売切 / 売切解除、並び順変更、顧客メニュー反映 |
+| `scripts/smoke-admin-menu.sh` | 商品追加・編集、表示 / 非表示、売切 / 売切解除、並び順変更、カテゴリ・オプション管理、在庫設定、在庫不足拒否、在庫引当、自動売切、取消時在庫戻し、顧客メニュー反映 |
 | `scripts/smoke-admin-tables.sh` | 席一覧・詳細、席状態更新、端末有効 / 無効、強制クローズ条件 |
 | `scripts/smoke-menu.sh` | 顧客メニュー取得、端末判定、active / sold out の扱い |
 | `scripts/smoke-e2e.sh` | 顧客注文、キッチン、ホール、会計依頼、精算、片付け、分析反映 |

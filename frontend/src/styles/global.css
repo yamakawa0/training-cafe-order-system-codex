@@ -943,7 +943,7 @@ h3 {
 
 .adminMenuRow {
   display: grid;
-  grid-template-columns: minmax(150px, 1.4fr) minmax(100px, 0.8fr) 86px 60px 76px 76px 58px minmax(140px, 1fr) minmax(300px, 1.8fr);
+  grid-template-columns: minmax(150px, 1.3fr) minmax(100px, 0.75fr) 86px 60px 76px 76px minmax(112px, 0.9fr) minmax(140px, 1fr) minmax(300px, 1.8fr);
   gap: 10px;
   align-items: center;
   min-height: 60px;
@@ -1006,6 +1006,15 @@ h3 {
   border-top: 1px solid #eadcc5;
   margin-top: 18px;
   padding-top: 16px;
+}
+
+.stockEditor {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #eadcc5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fffaf2;
 }
 
 .optionList {

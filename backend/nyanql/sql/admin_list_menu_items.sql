@@ -9,6 +9,9 @@ SELECT
     mi.display_order,
     mi.active,
     mi.sold_out,
+    mi.track_stock,
+    mi.stock_quantity,
+    mi.low_stock_threshold,
     mi.allergy_note,
     mi.updated_at
 FROM menu_items mi

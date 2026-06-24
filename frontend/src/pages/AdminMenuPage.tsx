@@ -14,6 +14,9 @@ type FormState = {
   displayOrder: string;
   active: boolean;
   soldOut: boolean;
+  trackStock: boolean;
+  stockQuantity: string;
+  lowStockThreshold: string;
   allergyNote: string;
 };
 
@@ -50,6 +53,9 @@ const emptyForm: FormState = {
   displayOrder: '10',
   active: true,
   soldOut: false,
+  trackStock: false,
+  stockQuantity: '0',
+  lowStockThreshold: '0',
   allergyNote: ''
 };
 
@@ -80,6 +86,9 @@ function toForm(item: AdminMenuItem): FormState {
     displayOrder: String(item.displayOrder),
     active: item.active,
     soldOut: item.soldOut,
+    trackStock: item.trackStock,
+    stockQuantity: String(item.stockQuantity),
+    lowStockThreshold: String(item.lowStockThreshold),
     allergyNote: item.allergyNote || ''
   };
 }
@@ -94,6 +103,9 @@ function toInput(form: FormState): AdminMenuItemInput {
     display_order: Number(form.displayOrder),
     active: form.active,
     sold_out: form.soldOut,
+    track_stock: form.trackStock,
+    stock_quantity: Number(form.stockQuantity),
+    low_stock_threshold: Number(form.lowStockThreshold),
     allergy_note: form.allergyNote
   };
 }
@@ -117,6 +129,8 @@ function validate(form: FormState) {
   if (!Number.isInteger(Number(form.price)) || Number(form.price) < 0) return '価格は 0 以上の整数で入力してください。';
   if (!Number.isFinite(Number(form.taxRate)) || Number(form.taxRate) < 0) return '税率は 0 以上で入力してください。';
   if (!Number.isInteger(Number(form.displayOrder))) return '表示順は整数で入力してください。';
+  if (!Number.isInteger(Number(form.stockQuantity)) || Number(form.stockQuantity) < 0) return '在庫数は 0 以上の整数で入力してください。';
+  if (!Number.isInteger(Number(form.lowStockThreshold)) || Number(form.lowStockThreshold) < 0) return '低在庫閾値は 0 以上の整数で入力してください。';
   return '';
 }
 
@@ -235,6 +249,32 @@ export function AdminMenuPage() {
       setItems(data.items);
     } catch (event) {
       setError(event instanceof Error ? event.message : '更新に失敗しました。');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveStock() {
+    if (!form.id) return;
+    if (!Number.isInteger(Number(form.stockQuantity)) || Number(form.stockQuantity) < 0 || !Number.isInteger(Number(form.lowStockThreshold)) || Number(form.lowStockThreshold) < 0) {
+      setError('在庫数と低在庫閾値は 0 以上の整数で入力してください。');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const result = await cafeApi.adminUpdateMenuItemStock({
+        item_id: form.id,
+        track_stock: form.trackStock,
+        stock_quantity: Number(form.stockQuantity),
+        low_stock_threshold: Number(form.lowStockThreshold)
+      });
+      setForm(toForm(result.item));
+      setMessage('在庫設定を更新しました。');
+      const data = await cafeApi.adminMenuItems({ categoryId: selectedCategoryId || undefined, keyword: keyword || undefined });
+      setItems(data.items);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : '在庫更新に失敗しました。');
     } finally {
       setSaving(false);
     }
@@ -365,7 +405,7 @@ export function AdminMenuPage() {
       {loading && <Banner>メニュー管理データを読み込み中です。</Banner>}
       {message && <Banner tone="success">{message}</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
-      <Banner>保存した商品名、価格、表示状態、売切状態は顧客メニューへ反映されます。</Banner>
+      <Banner>保存した商品名、価格、表示状態、売切状態、在庫状態は顧客メニューへ反映されます。</Banner>
       <section className="adminMenuGrid">
         <aside className="panel adminCategoryList">
           <SectionTitle title="カテゴリ一覧" subtitle={`${categories.length} 件`} />
@@ -400,7 +440,7 @@ export function AdminMenuPage() {
           {items.length === 0 && !loading && <EmptyState>条件に一致する商品はありません。</EmptyState>}
           <div className="adminMenuTable" role="table">
             <div className="adminMenuRow header" role="row">
-              <span>商品名</span><span>カテゴリ</span><span>価格</span><span>税率</span><span>状態</span><span>売切</span><span>順</span><span>更新日時</span><span>操作</span>
+              <span>商品名</span><span>カテゴリ</span><span>価格</span><span>税率</span><span>状態</span><span>売切</span><span>在庫</span><span>更新日時</span><span>操作</span>
             </div>
             {items.map((item) => (
               <div className="adminMenuRow" key={item.id} role="row">
@@ -410,7 +450,11 @@ export function AdminMenuPage() {
                 <span>{item.taxRate}%</span>
                 <span><Badge tone={item.active ? 'success' : 'warning'}>{item.active ? '表示' : '非表示'}</Badge></span>
                 <span><Badge tone={item.soldOut ? 'danger' : 'neutral'}>{item.soldOut ? '売切' : '販売可'}</Badge></span>
-                <span>{item.displayOrder}</span>
+                <span>
+                  {item.trackStock ? `${item.stockQuantity} / 閾 ${item.lowStockThreshold}` : '対象外'}
+                  {item.trackStock && item.stockQuantity <= item.lowStockThreshold && item.stockQuantity > 0 && <Badge tone="warning">低在庫</Badge>}
+                  {item.trackStock && item.stockQuantity === 0 && <Badge tone="danger">0</Badge>}
+                </span>
                 <span>{formatDate(item.updatedAt)}</span>
                 <div className="rowActions">
                   <button onClick={() => startEditItem(item)}>編集</button>
@@ -438,6 +482,20 @@ export function AdminMenuPage() {
             <label><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> 表示する</label>
             <label><input type="checkbox" checked={form.soldOut} onChange={(event) => setForm({ ...form, soldOut: event.target.checked })} /> 売切</label>
           </div>
+          <section className="stockEditor">
+            <div className="optionEditorHeader">
+              <strong>在庫</strong>
+              {form.trackStock && Number(form.stockQuantity) === 0 && <Badge tone="danger">在庫 0</Badge>}
+              {form.trackStock && Number(form.stockQuantity) > 0 && Number(form.stockQuantity) <= Number(form.lowStockThreshold) && <Badge tone="warning">低在庫</Badge>}
+            </div>
+            <label><input type="checkbox" checked={form.trackStock} onChange={(event) => setForm({ ...form, trackStock: event.target.checked })} /> 在庫管理対象</label>
+            <div className="editorTwoCol">
+              <label className="fieldLabel">現在在庫数<input type="number" min="0" step="1" disabled={!form.trackStock} value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} /></label>
+              <label className="fieldLabel">低在庫閾値<input type="number" min="0" step="1" disabled={!form.trackStock} value={form.lowStockThreshold} onChange={(event) => setForm({ ...form, lowStockThreshold: event.target.value })} /></label>
+            </div>
+            {form.trackStock && Number(form.stockQuantity) === 0 && <Banner tone="warning">在庫 0 の商品は注文成功時に自動で売切になります。売切解除は管理者操作で行います。</Banner>}
+            {form.id && <button disabled={saving} onClick={() => void saveStock()}>在庫のみ更新</button>}
+          </section>
           <button className="primary largeButton" disabled={saving} onClick={() => void save()}>{saving ? '保存中' : '保存'}</button>
           {form.id && (
             <section className="optionEditor">

@@ -47,6 +47,10 @@
     "sql": ["./sql/admin_toggle_menu_item_sold_out.sql"],
     "description": "管理画面からメニュー商品の売切状態を切り替える"
   },
+  "admin/menu/items/update-stock": {
+    "sql": ["./sql/admin_update_menu_item_stock.sql"],
+    "description": "管理画面からメニュー商品の在庫設定を更新する"
+  },
   "admin/menu/items/move": {
     "sql": ["./sql/admin_move_menu_item.sql"],
     "description": "管理画面からメニュー商品の表示順を変更する"
@@ -150,6 +154,14 @@
   "order-item-options": {
     "sql": ["./sql/insert_order_item_option.sql"],
     "description": "注文明細オプションを登録する"
+  },
+  "menu/items/reserve-stock": {
+    "sql": ["./sql/reserve_menu_item_stock.sql"],
+    "description": "注文確定時にメニュー商品の在庫を引き当てる"
+  },
+  "menu/items/restore-stock": {
+    "sql": ["./sql/restore_menu_item_stock.sql"],
+    "description": "注文取消時にメニュー商品の在庫を戻す"
   },
   "orders/history": {
     "sql": ["./sql/list_order_history.sql"],

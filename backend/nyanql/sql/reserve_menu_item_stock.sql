@@ -1,8 +1,13 @@
 UPDATE menu_items
 SET
-    display_order = GREATEST(0, display_order + CASE WHEN /*direction*/'up' = 'up' THEN -15 ELSE 15 END),
+    stock_quantity = stock_quantity - /*quantity*/1,
+    sold_out = CASE WHEN stock_quantity - /*quantity*/1 = 0 THEN TRUE ELSE sold_out END,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = /*item_id*/'item-admin'
+  AND active = TRUE
+  AND sold_out = FALSE
+  AND track_stock = TRUE
+  AND stock_quantity >= /*quantity*/1
 RETURNING
     id,
     category_id,

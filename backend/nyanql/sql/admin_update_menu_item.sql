@@ -8,6 +8,9 @@ SET
     display_order = /*display_order*/0,
     active = /*active*/TRUE,
     sold_out = /*sold_out*/FALSE,
+    track_stock = COALESCE(/*track_stock*/FALSE, FALSE),
+    stock_quantity = GREATEST(0, /*stock_quantity*/0),
+    low_stock_threshold = GREATEST(0, /*low_stock_threshold*/0),
     allergy_note = COALESCE(/*allergy_note*/'', ''),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = /*item_id*/'item-admin'
@@ -22,5 +25,8 @@ RETURNING
     display_order,
     active,
     sold_out,
+    track_stock,
+    stock_quantity,
+    low_stock_threshold,
     allergy_note,
     updated_at;

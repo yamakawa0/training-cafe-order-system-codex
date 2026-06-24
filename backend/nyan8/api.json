@@ -139,6 +139,11 @@
     "script": "./javascript/apis/admin_menu_item_toggle_sold_out.js",
     "description": "管理画面向けメニュー商品売切状態切替"
   },
+  "api/admin/menu/items/update-stock": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_update_stock.js",
+    "description": "管理画面向けメニュー商品在庫設定更新"
+  },
   "api/admin/menu/items/move": {
     "type": "api",
     "script": "./javascript/apis/admin_menu_item_move.js",

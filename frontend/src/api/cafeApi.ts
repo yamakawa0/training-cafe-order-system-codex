@@ -148,6 +148,10 @@ export const cafeApi = {
     item_id: itemId,
     sold_out: soldOut
   }),
+  adminUpdateMenuItemStock: (input: { item_id: string; track_stock: boolean; stock_quantity: number; low_stock_threshold: number }) => post<{ item: AdminMenuItem }>('/api/admin/menu/items/update-stock', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
   adminMoveMenuItem: (itemId: string, direction: 'up' | 'down') => post<{ item: AdminMenuItem }>('/api/admin/menu/items/move', {
     terminal_code: terminals.analytics,
     item_id: itemId,

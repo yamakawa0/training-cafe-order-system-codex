@@ -47,6 +47,7 @@ SELECT
     COALESCE((
         SELECT jsonb_agg(jsonb_build_object(
             'orderItemId', oi.id,
+            'menuItemId', oi.menu_item_id,
             'itemName', oi.item_name,
             'quantity', oi.quantity,
             'unitPrice', oi.unit_price,

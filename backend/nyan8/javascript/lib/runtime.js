@@ -175,6 +175,10 @@ function buildMenu(rawRows) {
         kitchenStation: row.kitchen_station,
         allergyNote: row.allergy_note,
         soldOut: Boolean(row.sold_out),
+        trackStock: Boolean(row.track_stock),
+        stockQuantity: Number(row.stock_quantity || 0),
+        lowStockThreshold: Number(row.low_stock_threshold || 0),
+        lowStock: Boolean(row.track_stock) && Number(row.stock_quantity || 0) > 0 && Number(row.stock_quantity || 0) <= Number(row.low_stock_threshold || 0),
         options: {}
       };
     }
@@ -248,7 +252,11 @@ function customerMenu() {
         imageUrl: row.image_url,
         kitchenStation: row.kitchen_station,
         allergyNote: row.allergy_note,
-        soldOut: Boolean(row.sold_out),
+        trackStock: Boolean(row.track_stock),
+        stockQuantity: Number(row.stock_quantity || 0),
+        lowStockThreshold: Number(row.low_stock_threshold || 0),
+        lowStock: Boolean(row.track_stock) && Number(row.stock_quantity || 0) > 0 && Number(row.stock_quantity || 0) <= Number(row.low_stock_threshold || 0),
+        soldOut: Boolean(row.sold_out) || (Boolean(row.track_stock) && Number(row.stock_quantity || 0) <= 0),
         options: []
       };
       category.items.push(item);
@@ -324,34 +332,82 @@ function customerSubmitOrder() {
   var session = first(nyanqlGet("sessions/current", { table_code: input.table_code }));
   if (!session || ["seated", "ordering"].indexOf(session.status) < 0) throw error(409, "order is not allowed for this session");
   var menu = buildMenu(rows(nyanqlGet("menu")));
+  var requiredStockByItemId = {};
   var lines = input.items.map(function(cartItem) {
     assertQuantity(cartItem.quantity);
     var menuItem = menu[cartItem.menu_item_id];
-    if (!menuItem || menuItem.soldOut) throw error(400, "menu item is unavailable: " + cartItem.menu_item_id);
+    if (!menuItem || menuItem.soldOut) throw error(409, "menu item is unavailable: " + cartItem.menu_item_id);
+    if (menuItem.trackStock) requiredStockByItemId[menuItem.id] = (requiredStockByItemId[menuItem.id] || 0) + Number(cartItem.quantity);
     var selectedChoices = validateChoices(menuItem, cartItem.choice_ids || []);
     var subtotal = lineSubtotal({ price: menuItem.price, quantity: cartItem.quantity }, selectedChoices);
     return { menuItem: menuItem, quantity: Number(cartItem.quantity), customerNote: String(cartItem.customer_note || ""), selectedChoices: selectedChoices, subtotal: subtotal, taxAmount: taxFor(subtotal, menuItem.taxRate) };
   });
+  Object.keys(requiredStockByItemId).forEach(function(itemId) {
+    var target = menu[itemId];
+    if (target.stockQuantity < requiredStockByItemId[itemId]) throw error(409, "在庫が不足しています");
+  });
   var totals = totalize(lines);
-  var order = first(nyanqlPost("orders", { id: newId("ord"), session_id: session.id, order_no: businessNo("ORD"), subtotal: totals.subtotal, tax_amount: totals.taxAmount, total_amount: totals.totalAmount }));
-  lines.forEach(function(line) {
-    var orderItem = first(nyanqlPost("order-items", { id: newId("oi"), order_id: order.id, menu_item_id: line.menuItem.id, item_name: line.menuItem.name, unit_price: line.menuItem.price, quantity: line.quantity, kitchen_station: line.menuItem.kitchenStation, allergy_note: line.menuItem.allergyNote, customer_note: line.customerNote }));
-    line.selectedChoices.forEach(function(choice) {
-      nyanqlPost("order-item-options", { id: newId("oio"), order_item_id: orderItem.id, option_name: choice.optionName, choice_name: choice.choiceName, price_delta: choice.priceDelta });
+  var reservedStock = [];
+  var orderId = newId("ord");
+  var orderNo = businessNo("ORD");
+  try {
+    Object.keys(requiredStockByItemId).forEach(function(itemId) {
+      var before = menu[itemId];
+      var reserved = first(nyanqlPost("menu/items/reserve-stock", { item_id: itemId, quantity: requiredStockByItemId[itemId] }));
+      if (!reserved) throw error(409, "在庫が不足しています");
+      reservedStock.push({ itemId: itemId, quantity: requiredStockByItemId[itemId], before: before, after: adminMenuItem(reserved) });
+      writeAuditLog({
+        actorTerminalCode: terminal.terminal_code,
+        actorTerminalType: terminal.terminal_type,
+        action: "customer_order_stock_reserved",
+        targetType: "menu_item",
+        targetId: itemId,
+        targetLabel: before.name,
+        status: "success",
+        beforeData: stockAuditData(before, { delta: -requiredStockByItemId[itemId], order_id: orderId, order_no: orderNo }),
+        afterData: stockAuditData(reserved, { delta: -requiredStockByItemId[itemId], order_id: orderId, order_no: orderNo }),
+        requestData: { table_code: input.table_code, item_id: itemId, quantity: requiredStockByItemId[itemId], order_id: orderId, order_no: orderNo }
+      });
+      if (Boolean(reserved.sold_out) && !before.soldOut) {
+        writeAuditLog({
+          actorTerminalCode: terminal.terminal_code,
+          actorTerminalType: terminal.terminal_type,
+          action: "admin_menu_item_auto_sold_out",
+          targetType: "menu_item",
+          targetId: itemId,
+          targetLabel: before.name,
+          status: "success",
+          beforeData: stockAuditData(before, { order_id: orderId, order_no: orderNo }),
+          afterData: stockAuditData(reserved, { order_id: orderId, order_no: orderNo }),
+          requestData: { table_code: input.table_code, item_id: itemId, order_id: orderId, order_no: orderNo }
+        });
+      }
     });
-  });
-  writeAuditLog({
-    actorTerminalCode: terminal.terminal_code,
-    actorTerminalType: terminal.terminal_type,
-    action: "customer_order_submitted",
-    targetType: "order",
-    targetId: order.id,
-    targetLabel: order.order_no,
-    status: "success",
-    afterData: { orderNo: order.order_no, tableCode: input.table_code, totals: totals },
-    requestData: { table_code: input.table_code, items: input.items }
-  });
-  return ok({ orderNo: order.order_no, subtotal: totals.subtotal, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount });
+    var order = first(nyanqlPost("orders", { id: orderId, session_id: session.id, order_no: orderNo, subtotal: totals.subtotal, tax_amount: totals.taxAmount, total_amount: totals.totalAmount }));
+    lines.forEach(function(line) {
+      var orderItem = first(nyanqlPost("order-items", { id: newId("oi"), order_id: order.id, menu_item_id: line.menuItem.id, item_name: line.menuItem.name, unit_price: line.menuItem.price, quantity: line.quantity, kitchen_station: line.menuItem.kitchenStation, allergy_note: line.menuItem.allergyNote, customer_note: line.customerNote }));
+      line.selectedChoices.forEach(function(choice) {
+        nyanqlPost("order-item-options", { id: newId("oio"), order_item_id: orderItem.id, option_name: choice.optionName, choice_name: choice.choiceName, price_delta: choice.priceDelta });
+      });
+    });
+    writeAuditLog({
+      actorTerminalCode: terminal.terminal_code,
+      actorTerminalType: terminal.terminal_type,
+      action: "customer_order_submitted",
+      targetType: "order",
+      targetId: order.id,
+      targetLabel: order.order_no,
+      status: "success",
+      afterData: { orderNo: order.order_no, tableCode: input.table_code, totals: totals, stock: reservedStock.map(function(row) { return { itemId: row.itemId, quantity: row.quantity }; }) },
+      requestData: { table_code: input.table_code, items: input.items }
+    });
+    return ok({ orderNo: order.order_no, subtotal: totals.subtotal, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount });
+  } catch (event) {
+    reservedStock.forEach(function(row) {
+      nyanqlPost("menu/items/restore-stock", { item_id: row.itemId, quantity: row.quantity });
+    });
+    throw event;
+  }
 }
 
 function customerRequestPayment() {
@@ -657,9 +713,29 @@ function adminMenuItem(row) {
     displayOrder: Number(row.display_order),
     active: Boolean(row.active),
     soldOut: Boolean(row.sold_out),
+    trackStock: Boolean(row.track_stock),
+    stockQuantity: Number(row.stock_quantity || 0),
+    lowStockThreshold: Number(row.low_stock_threshold || 0),
+    lowStock: Boolean(row.track_stock) && Number(row.stock_quantity || 0) > 0 && Number(row.stock_quantity || 0) <= Number(row.low_stock_threshold || 0),
     allergyNote: row.allergy_note || "",
     updatedAt: row.updated_at
   };
+}
+
+function stockAuditData(row, extra) {
+  if (!row) return null;
+  var data = {
+    item_id: row.item_id || row.id || "",
+    item_name: row.item_name || row.name || "",
+    track_stock: Boolean(row.track_stock !== undefined ? row.track_stock : row.trackStock),
+    stock_quantity: Number(row.stock_quantity !== undefined ? row.stock_quantity : row.stockQuantity || 0),
+    low_stock_threshold: Number(row.low_stock_threshold !== undefined ? row.low_stock_threshold : row.lowStockThreshold || 0),
+    sold_out: Boolean(row.sold_out !== undefined ? row.sold_out : row.soldOut)
+  };
+  Object.keys(extra || {}).forEach(function(key) {
+    data[key] = extra[key];
+  });
+  return data;
 }
 
 function findAdminMenuItem(itemId) {
@@ -690,7 +766,20 @@ function validateAdminMenuItemInput(input, requireId) {
     display_order: integerValue(input.display_order, "表示順"),
     active: booleanValue(input.active, true),
     sold_out: booleanValue(input.sold_out, false),
+    track_stock: booleanValue(input.track_stock, false),
+    stock_quantity: input.stock_quantity === undefined ? 0 : integerValue(input.stock_quantity, "在庫数", 0),
+    low_stock_threshold: input.low_stock_threshold === undefined ? 0 : integerValue(input.low_stock_threshold, "低在庫閾値", 0),
     allergy_note: String(input.allergy_note || "")
+  };
+}
+
+function validateStockInput(input) {
+  requireField(input.item_id, "item_id");
+  return {
+    item_id: input.item_id,
+    track_stock: booleanValue(input.track_stock, false),
+    stock_quantity: integerValue(input.stock_quantity, "在庫数", 0),
+    low_stock_threshold: integerValue(input.low_stock_threshold, "低在庫閾値", 0)
   };
 }
 
@@ -866,6 +955,34 @@ function adminToggleMenuItemSoldOut() {
     return ok({ item: adminMenuItem(item) });
   } catch (event) {
     auditFailure(input, "admin_menu_item_sold_out_changed", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
+    throw event;
+  }
+}
+
+function adminUpdateMenuItemStock() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateStockInput(input);
+    before = findAdminMenuItem(input.item_id);
+    var item = first(nyanqlPost("admin/menu/items/update-stock", values));
+    if (!item) throw error(404, "商品が見つかりません");
+    writeAuditLog({
+      actorTerminalCode: actor.terminal_code,
+      actorTerminalType: actor.terminal_type,
+      action: "admin_menu_item_stock_updated",
+      targetType: "menu_item",
+      targetId: menuItemAuditId(item),
+      targetLabel: menuItemAuditName(item),
+      status: "success",
+      beforeData: stockAuditData(before),
+      afterData: stockAuditData(item),
+      requestData: input
+    });
+    return ok({ item: adminMenuItem(item) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_stock_updated", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
     throw event;
   }
 }
@@ -1439,6 +1556,40 @@ function getAdminOrderDetail(orderId) {
   return adminOrderDetail(detail);
 }
 
+function restoreStockForOrderItems(items, context) {
+  var restored = [];
+  (items || []).forEach(function(item) {
+    if (!item || !item.menuItemId || !item.canCancel) return;
+    var quantity = Number(item.quantity || 0);
+    if (quantity <= 0) return;
+    var before = findAdminMenuItem(item.menuItemId);
+    if (!before || !Boolean(before.track_stock !== undefined ? before.track_stock : before.trackStock)) return;
+    var updated = first(nyanqlPost("menu/items/restore-stock", { item_id: item.menuItemId, quantity: quantity }));
+    if (!updated) return;
+    var payload = {
+      order_id: context.orderId || "",
+      order_no: context.orderNo || "",
+      order_item_id: item.orderItemId || "",
+      delta: quantity,
+      reason: context.reason || "cancel"
+    };
+    writeAuditLog({
+      actorTerminalCode: context.actor.terminal_code,
+      actorTerminalType: context.actor.terminal_type,
+      action: context.action,
+      targetType: "menu_item",
+      targetId: item.menuItemId,
+      targetLabel: item.itemName || before.name,
+      status: "success",
+      beforeData: stockAuditData(before, payload),
+      afterData: stockAuditData(updated, payload),
+      requestData: context.requestData || {}
+    });
+    restored.push({ item: item, before: before, after: adminMenuItem(updated) });
+  });
+  return restored;
+}
+
 function adminListOrders() {
   var input = params();
   assertAdminTerminal(input);
@@ -1553,8 +1704,9 @@ function adminCancelOrderItem() {
       cancel_note: input.cancel_note || ""
     }));
     if (!updated) throw error(409, "注文明細をキャンセルできませんでした");
+    var restored = restoreStockForOrderItems([item], { actor: actor, action: "admin_order_item_stock_restored", orderId: detail.orderId, orderNo: detail.orderNo, reason: "item_cancel", requestData: input });
     var after = getAdminOrderDetail(context.order_id);
-    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_order_item_cancelled", targetType: "order_item", targetId: input.order_item_id, targetLabel: detail.orderNo, status: "success", beforeData: { order: detail, item: item }, afterData: { order: after, cancelledItem: updated }, requestData: input });
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_order_item_cancelled", targetType: "order_item", targetId: input.order_item_id, targetLabel: detail.orderNo, status: "success", beforeData: { order: detail, item: item }, afterData: { order: after, cancelledItem: updated, restoredStock: restored }, requestData: input });
     return ok({ order: after });
   } catch (event) {
     auditFailure(input, "admin_order_item_cancelled", "order_item", input.order_item_id || "", detail ? detail.orderNo : "", event, detail);
@@ -1582,8 +1734,9 @@ function adminCancelOrder() {
       cancel_note: input.cancel_note || ""
     }));
     if (!updated) throw error(409, "注文をキャンセルできませんでした");
+    var restored = restoreStockForOrderItems((detail.items || []).filter(function(item) { return item.canCancel; }), { actor: actor, action: "admin_order_stock_restored", orderId: detail.orderId, orderNo: detail.orderNo, reason: "order_cancel", requestData: input });
     var after = getAdminOrderDetail(input.order_id);
-    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_order_cancelled", targetType: "order", targetId: input.order_id, targetLabel: detail.orderNo, status: "success", beforeData: detail, afterData: after, requestData: input });
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_order_cancelled", targetType: "order", targetId: input.order_id, targetLabel: detail.orderNo, status: "success", beforeData: detail, afterData: { order: after, restoredStock: restored }, requestData: input });
     return ok({ order: after });
   } catch (event) {
     auditFailure(input, "admin_order_cancelled", "order", input.order_id || "", detail ? detail.orderNo : "", event, detail);

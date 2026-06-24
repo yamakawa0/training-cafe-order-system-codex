@@ -1,6 +1,8 @@
 UPDATE menu_items
 SET
-    display_order = GREATEST(0, display_order + CASE WHEN /*direction*/'up' = 'up' THEN -15 ELSE 15 END),
+    track_stock = COALESCE(/*track_stock*/FALSE, FALSE),
+    stock_quantity = GREATEST(0, /*stock_quantity*/0),
+    low_stock_threshold = GREATEST(0, /*low_stock_threshold*/0),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = /*item_id*/'item-admin'
 RETURNING

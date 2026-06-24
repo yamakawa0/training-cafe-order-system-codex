@@ -304,3 +304,19 @@
 - smoke 結果: `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-prod-readiness.sh` は成功した。`smoke-admin-menu.sh` 内で `smoke-menu.sh` と `smoke-e2e.sh` も成功した。
 - CI / static check 結果: `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `git diff --check`, Nyan8 / NyanQL API 参照先整合チェックは成功した。`smoke-prod-readiness.sh` は `NPM_BIN` で npm 10 を指定できるようにした。
 - 後続対象: 商品画像アップロード、在庫数、売切自動化、原価 / 粗利、仕入管理、複数店舗別メニュー、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、返金処理、実決済連携。
+
+## 2026-06-24 Phase 11 商品・在庫・オプション強化 第2段階
+
+- DB / SQL: `menu_items` に `track_stock`, `stock_quantity`, `low_stock_threshold` と `idx_menu_items_stock` を追加した。顧客メニュー、管理メニュー一覧・作成・更新・表示切替・売切切替・並び順変更 SQL は在庫項目を返す。`admin_update_menu_item_stock.sql`, `reserve_menu_item_stock.sql`, `restore_menu_item_stock.sql` を追加した。
+- NyanQL API: `admin/menu/items/update-stock`, `menu/items/reserve-stock`, `menu/items/restore-stock` を追加した。
+- Nyan8 API: `POST /api/admin/menu/items/update-stock` を追加した。`adjust-stock` は在庫履歴設計と合わせて後続対応とする。
+- frontend: `AdminMenuItem`, `MenuItem`, `AdminMenuItemInput` に在庫項目を追加し、`cafeApi.adminUpdateMenuItemStock()` を追加した。`/admin/menu` に在庫管理対象、在庫数、低在庫閾値、低在庫 / 在庫 0 badge、在庫のみ更新ボタンを追加した。`/customer/:tableCode` は売切と残りわずかを表示する。
+- 在庫引当仕様: 注文確定前に同一注文内の同一商品数量を合算して在庫を検証し、不足があれば注文全体を 409 で拒否する。成功時だけ在庫を減らし、在庫 0 で `sold_out=true` にする。売上、分析、CSV、キッチン ticket には拒否注文を出さない。
+- 在庫戻し仕様: 管理者の明細取消 / 注文全体取消で、取消可能だった在庫管理対象明細だけ `stock_quantity` を戻す。精算済み注文と ready / served 明細は既存仕様どおり取消不可のため在庫戻ししない。在庫が戻っても `sold_out=false` へは自動解除しない。
+- 監査ログ: `admin_menu_item_stock_updated`, `customer_order_stock_reserved`, `admin_order_item_stock_restored`, `admin_order_stock_restored`, `admin_menu_item_auto_sold_out` を追加した。商品 ID、商品名、在庫数、閾値、売切状態、delta、注文 ID / 注文番号、明細 ID を before / after に含める。
+- smoke: `scripts/smoke-admin-menu.sh` に在庫設定、顧客メニューへの在庫反映、在庫不足拒否、在庫引当、自動売切、売切注文拒否、取消時在庫戻し、売切自動解除なし、在庫 audit log、非 manager 拒否を追加した。
+- docs: README、データモデル、API 設計、画面仕様、受け入れ条件、開発計画、assumptions を更新した。
+- 未対応事項: 商品画像アップロード、原価 / 粗利、仕入 / 入荷 / 棚卸、在庫履歴画面、`adjust-stock` API、複数店舗別在庫、オプション選択肢別在庫、商品一括 import / export。
+- 検証結果: `node --check backend/nyan8/javascript/lib/runtime.js`、Nyan8 / NyanQL API 定義整合チェック、`bash -n scripts/smoke-admin-menu.sh`、frontend `npm ci`, `npm audit --audit-level=high`, `npm run build` は成功した。`npm audit` と `smoke-prod-readiness.sh` は sandbox DNS 制限で一度失敗し、承認付きネットワーク実行で `found 0 vulnerabilities` と production readiness 成功を確認した。
+- full smoke 結果: `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-prod-readiness.sh` は成功した。`smoke-admin-menu.sh` 内で在庫数・自動売切・在庫戻し・在庫 audit log を検証した。
+- CI / static check 結果: `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `git diff --check` は成功した。ローカルの `pyenv: cannot rehash` と npm log 権限 warning は環境由来で、検証結果には影響しない。

@@ -14,5 +14,8 @@ RETURNING
     display_order,
     active,
     sold_out,
+    track_stock,
+    stock_quantity,
+    low_stock_threshold,
     allergy_note,
     updated_at;
