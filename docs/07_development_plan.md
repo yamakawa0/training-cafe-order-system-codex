@@ -162,6 +162,21 @@
 - 複数店舗別在庫
 - カテゴリ管理の高度化
 
+### Phase 11.5: Phase 11 整合確認
+
+目的:
+
+- Phase 11 第1〜第2段階の実装、docs、smoke、GitHub 反映状況を照合し、新機能追加前に状態を揃える。
+
+確認済み:
+
+- `master` と `origin/master` は一致しており、未 push commit はない。
+- 作業ディレクトリと GitHub remote は `git@github.com:yamakawa0/training-cafe-order-system-codex.git` で一致している。
+- Phase 11 第1段階のカテゴリ管理、商品オプション管理、顧客注文画面のオプション選択、オプション追加料金の注文・会計・分析・CSV 反映は実装と docs が一致している。
+- Phase 11 第2段階の在庫数、在庫不足時の注文拒否、在庫 0 時の自動売切、キャンセル時の在庫戻し、低在庫 / 売切表示、在庫 audit log は実装と docs が一致している。
+- `scripts/smoke-admin-menu.sh` はカテゴリ、オプション、在庫の Phase 11 第1〜第2段階を検証している。
+- full smoke、frontend build、npm audit、CI static checks は成功している。
+
 ## 4. 次フェーズ
 
 ### Phase 12: 決済・返金・レシート
