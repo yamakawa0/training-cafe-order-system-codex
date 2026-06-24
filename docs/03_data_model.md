@@ -53,6 +53,7 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - 主な状態値: `active`, `sold_out`
 - 関連テーブル: `menu_categories`, `menu_item_options`, `order_items`
 - 注意点: 金額はフロントエンド送信値を正とせず、DB の商品価格・税率から計算する。`active=false` は顧客メニュー非表示、`sold_out=true` は注文不可。`track_stock=false` の商品は在庫数を見ない。`track_stock=true` の商品は注文確定時に `stock_quantity` を引き当て、不足時は注文全体を拒否する。注文成功で `stock_quantity=0` になった場合は `sold_out=true` にする。キャンセル時は在庫を戻すが、`sold_out=false` への自動解除は行わない。将来課題として `inventory_movements`、入荷 / 棚卸 / 廃棄、在庫履歴、複数店舗別在庫を扱う。
+- `image_url`: 商品画像 URL。空値可。顧客注文画面の商品カードに表示し、管理画面から編集できる。MVP では画像ファイル本体を DB に保存しない。本格 upload / resize / CDN は将来課題。
 
 ### menu_item_options
 

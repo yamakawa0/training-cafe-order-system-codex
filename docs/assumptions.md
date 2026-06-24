@@ -94,6 +94,9 @@
 - CI では NyanQL / Nyan8 runtime を必須にしない。
 - full smoke はローカルまたは専用検証環境で実行する。
 - Phase 11 以降の大きな機能追加前後では、local full smoke を順次実行して回帰を確認する。
+- Phase 11 第3段階の MVP 商品画像は URL 管理とし、画像ファイル本体は DB に保存しない。
+- 商品画像 URL は空値、`http://` / `https://`、または `/` から始まるパスのみ許可し、`data:` / `javascript:` / `file:` URL は禁止する。
+- 本格的な画像 upload / resize / CDN は Phase 11 後続の将来課題とする。
 - `package-lock.json` は CI の再現性のため commit する。
 
 ## 今後の未対応事項

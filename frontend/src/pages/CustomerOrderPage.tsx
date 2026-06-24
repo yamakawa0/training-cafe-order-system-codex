@@ -36,6 +36,21 @@ function selectedOptionText(menuItem: MenuItem, choiceIds: string[]) {
   }).join(' / ');
 }
 
+function CustomerMenuImage({ src, alt }: { src?: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  const imageUrl = (src || '').trim();
+
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
+
+  if (!imageUrl || failed) {
+    return <div className="itemImageFallback">画像なし</div>;
+  }
+
+  return <img src={imageUrl} alt={alt} onError={() => setFailed(true)} />;
+}
+
 export function CustomerOrderPage({ tableCode }: Props) {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string>('');
@@ -205,7 +220,7 @@ export function CustomerOrderPage({ tableCode }: Props) {
             {categories.length > 0 && visibleItems.length === 0 && !loading && !error && <EmptyState>このカテゴリには商品がありません</EmptyState>}
             {visibleItems.map((item) => (
               <article className={`itemCard ${item.soldOut ? 'soldOut' : ''}`} key={item.id}>
-                {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                <CustomerMenuImage src={item.imageUrl} alt={item.name} />
                 <div className="itemBody">
                   <div className="itemHeading">
                     <h2>{item.name}</h2>

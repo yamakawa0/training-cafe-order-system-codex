@@ -10,6 +10,7 @@ type FormState = {
   description: string;
   price: string;
   taxRate: string;
+  imageUrl: string;
   categoryId: string;
   displayOrder: string;
   active: boolean;
@@ -49,6 +50,7 @@ const emptyForm: FormState = {
   description: '',
   price: '0',
   taxRate: '10',
+  imageUrl: '',
   categoryId: '',
   displayOrder: '10',
   active: true,
@@ -82,6 +84,7 @@ function toForm(item: AdminMenuItem): FormState {
     description: item.description,
     price: String(item.price),
     taxRate: String(item.taxRate),
+    imageUrl: item.imageUrl || '',
     categoryId: item.categoryId,
     displayOrder: String(item.displayOrder),
     active: item.active,
@@ -100,6 +103,7 @@ function toInput(form: FormState): AdminMenuItemInput {
     description: form.description,
     price: Number(form.price),
     tax_rate: Number(form.taxRate),
+    image_url: form.imageUrl.trim(),
     display_order: Number(form.displayOrder),
     active: form.active,
     sold_out: form.soldOut,
@@ -123,6 +127,16 @@ function optionToForm(option: AdminMenuItemOption): OptionFormState {
   };
 }
 
+function validateImageUrl(value: string) {
+  const imageUrl = value.trim();
+  const lower = imageUrl.toLowerCase();
+  if (!imageUrl) return '';
+  if (imageUrl.length > 2048) return '画像 URL は 2048 文字以内で入力してください。';
+  if (lower.startsWith('data:') || lower.startsWith('javascript:') || lower.startsWith('file:')) return '画像 URL は http(s) URL または / から始まるパスを指定してください';
+  if (lower.startsWith('http://') || lower.startsWith('https://') || imageUrl.startsWith('/')) return '';
+  return '画像 URL は http(s) URL または / から始まるパスを指定してください';
+}
+
 function validate(form: FormState) {
   if (!form.name.trim()) return '商品名は必須です。';
   if (!form.categoryId) return 'カテゴリは必須です。';
@@ -131,7 +145,24 @@ function validate(form: FormState) {
   if (!Number.isInteger(Number(form.displayOrder))) return '表示順は整数で入力してください。';
   if (!Number.isInteger(Number(form.stockQuantity)) || Number(form.stockQuantity) < 0) return '在庫数は 0 以上の整数で入力してください。';
   if (!Number.isInteger(Number(form.lowStockThreshold)) || Number(form.lowStockThreshold) < 0) return '低在庫閾値は 0 以上の整数で入力してください。';
+  const imageError = validateImageUrl(form.imageUrl);
+  if (imageError) return imageError;
   return '';
+}
+
+function MenuImagePreview({ src, alt, compact = false }: { src: string; alt: string; compact?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const imageUrl = src.trim();
+
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
+
+  if (!imageUrl || failed) {
+    return <div className={compact ? 'adminMenuThumb imageFallback' : 'adminImagePreview imageFallback'}>画像なし</div>;
+  }
+
+  return <img className={compact ? 'adminMenuThumb' : 'adminImagePreview'} src={imageUrl} alt={alt} onError={() => setFailed(true)} />;
 }
 
 function formatDate(value: string | null) {
@@ -440,10 +471,11 @@ export function AdminMenuPage() {
           {items.length === 0 && !loading && <EmptyState>条件に一致する商品はありません。</EmptyState>}
           <div className="adminMenuTable" role="table">
             <div className="adminMenuRow header" role="row">
-              <span>商品名</span><span>カテゴリ</span><span>価格</span><span>税率</span><span>状態</span><span>売切</span><span>在庫</span><span>更新日時</span><span>操作</span>
+              <span>画像</span><span>商品名</span><span>カテゴリ</span><span>価格</span><span>税率</span><span>状態</span><span>売切</span><span>在庫</span><span>更新日時</span><span>操作</span>
             </div>
             {items.map((item) => (
               <div className="adminMenuRow" key={item.id} role="row">
+                <MenuImagePreview src={item.imageUrl || ''} alt={item.name} compact />
                 <strong>{item.name}</strong>
                 <span>{item.categoryName}</span>
                 <span>{yen(item.price)}</span>
@@ -472,6 +504,14 @@ export function AdminMenuPage() {
           <label className="fieldLabel">商品名<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
           <label className="fieldLabel">説明<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
           <label className="fieldLabel">カテゴリ<select value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+          <label className="fieldLabel">
+            商品画像 URL
+            <div className="imageUrlInput">
+              <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://example.com/menu.jpg または /images/menu.jpg" />
+              <button type="button" onClick={() => setForm({ ...form, imageUrl: '' })}>クリア</button>
+            </div>
+          </label>
+          <MenuImagePreview src={form.imageUrl} alt={form.name || '商品画像'} />
           <div className="editorTwoCol">
             <label className="fieldLabel">価格<input type="number" min="0" step="1" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} /></label>
             <label className="fieldLabel">税率<input type="number" min="0" step="1" value={form.taxRate} onChange={(event) => setForm({ ...form, taxRate: event.target.value })} /></label>

@@ -30,11 +30,11 @@
 
 - 目的: 顧客が席端末からセルフ注文、スタッフ呼び出し、会計依頼を行う。
 - 主な利用者: 顧客。
-- 主な表示項目: カテゴリ、商品カード、売切 / 低在庫表示、オプション選択、カート、注文履歴、会計状態。
+- 主な表示項目: カテゴリ、商品カード、商品画像、画像未設定 / 読み込み失敗時の fallback、売切 / 低在庫表示、オプション選択、カート、注文履歴、会計状態。
 - 主な操作: 席セッション開始、商品追加、オプション選択、注文確定、スタッフ呼び出し、会計依頼。
 - 必要な role: ログイン不要。顧客端末。
 - 関連 API: `GET /api/customer/menu`, `POST /api/customer/session/open`, `GET /api/customer/session/current`, `POST /api/customer/order/submit`, `GET /api/customer/order/history`, `POST /api/customer/payment/request`, `POST /api/customer/staff-call`
-- 注意点: 会計依頼後または精算済みの席では注文操作をロックする。売切商品は注文不可。`track_stock=true` かつ `stock_quantity=0` の商品は売切表示、`stock_quantity <= low_stock_threshold` の商品は残りわずか表示にする。注文直前に在庫不足になった場合は API エラーを表示する。
+- 注意点: 会計依頼後または精算済みの席では注文操作をロックする。売切商品は注文不可。`track_stock=true` かつ `stock_quantity=0` の商品は売切表示、`stock_quantity <= low_stock_threshold` の商品は残りわずか表示にする。商品画像 URL がある場合はカード上部に表示し、未設定または読み込み失敗時は固定サイズの「画像なし」fallback を表示してレイアウトを保つ。注文直前に在庫不足になった場合は API エラーを表示する。
 
 ## `/kitchen`
 
@@ -88,11 +88,11 @@
 
 - 目的: メニューカテゴリ、商品、商品オプションを管理する。
 - 主な利用者: 店長 / 管理者。
-- 主な表示項目: カテゴリ一覧、カテゴリ商品数、商品一覧、商品フォーム、表示状態、売切状態、在庫管理対象、現在在庫数、低在庫閾値、低在庫警告、並び順、オプショングループ、選択肢、追加料金。
-- 主な操作: カテゴリ追加・編集・表示 / 非表示・並び順変更、商品追加、編集、表示 / 非表示、売切 / 売切解除、在庫設定更新、並び順変更、カテゴリ絞り込み、商品名検索、オプショングループ追加・編集・表示 / 非表示・並び順変更、選択肢追加・編集・表示 / 非表示・並び順変更。
+- 主な表示項目: カテゴリ一覧、カテゴリ商品数、商品一覧、商品サムネイル、商品フォーム、商品画像 URL 入力、商品画像プレビュー、表示状態、売切状態、在庫管理対象、現在在庫数、低在庫閾値、低在庫警告、並び順、オプショングループ、選択肢、追加料金。
+- 主な操作: カテゴリ追加・編集・表示 / 非表示・並び順変更、商品追加、編集、商品画像 URL 登録・更新・クリア、表示 / 非表示、売切 / 売切解除、在庫設定更新、並び順変更、カテゴリ絞り込み、商品名検索、オプショングループ追加・編集・表示 / 非表示・並び順変更、選択肢追加・編集・表示 / 非表示・並び順変更。
 - 必要な role: `manager`
 - 関連 API: `GET/POST /api/admin/menu/categories`, `POST /api/admin/menu/categories/update`, `POST /api/admin/menu/categories/toggle-active`, `POST /api/admin/menu/categories/move`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/update-stock`, `POST /api/admin/menu/items/move`, `GET/POST /api/admin/menu/items/options`, `POST /api/admin/menu/items/options/update`, `POST /api/admin/menu/items/options/toggle-active`, `POST /api/admin/menu/items/options/move`, `POST /api/admin/menu/items/options/choices`, `POST /api/admin/menu/items/options/choices/update`, `POST /api/admin/menu/items/options/choices/toggle-active`, `POST /api/admin/menu/items/options/choices/move`
-- 注意点: 商品が属するカテゴリを非表示にすると、顧客注文画面ではカテゴリごと非表示になる。`track_stock=false` の場合は在庫数入力を無効化する。`stock_quantity=0` は売切化を促し、注文成功で在庫 0 になった場合は自動で `sold_out=true` になる。売切解除は管理者操作で行う。商品画像アップロード、原価 / 粗利、在庫履歴は後続対応。
+- 注意点: 商品が属するカテゴリを非表示にすると、顧客注文画面ではカテゴリごと非表示になる。`track_stock=false` の場合は在庫数入力を無効化する。`stock_quantity=0` は売切化を促し、注文成功で在庫 0 になった場合は自動で `sold_out=true` になる。売切解除は管理者操作で行う。商品画像 URL は空値、`http(s)`、または `/` から始まるパスだけ許可する。画像未設定または読み込み失敗時は一覧とプレビューに「画像なし」を表示する。本格的な商品画像アップロード、原価 / 粗利、在庫履歴は後続対応。
 
 ## `/admin/tables`
 

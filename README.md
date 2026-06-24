@@ -373,7 +373,7 @@ psql "$DATABASE_URL" < backup.sql
 - レジ: `GET /api/checkout/summary`, `POST /api/checkout/settle`
 - 分析: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
 - 認証: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
-- 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
+- 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/update-stock`, `POST /api/admin/menu/items/move`
 - 席・端末管理: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
 - 注文管理: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
 - 操作ログ: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`, `GET /api/admin/audit-logs/export-csv`
@@ -397,7 +397,7 @@ Nyan8 経由の業務フローは次で確認します。
 ./scripts/smoke-admin-menu.sh
 ```
 
-この script は DB 初期化、管理者端末でのカテゴリ・商品一覧取得、商品追加、商品編集、売切化、非表示化、顧客メニュー API への反映、非管理端末の拒否、既存 `smoke-menu.sh` / `smoke-e2e.sh` の成功を確認します。
+この script は DB 初期化、管理者端末でのカテゴリ・商品一覧取得、商品追加、商品編集、商品画像 URL の登録・更新・空戻し・不正 URL 拒否、画像 URL 変更 audit log、在庫設定、売切化、非表示化、顧客メニュー API への反映、非 manager 拒否、既存 `smoke-menu.sh` / `smoke-e2e.sh` の成功を確認します。
 
 席・端末管理機能は次で確認します。
 
@@ -513,7 +513,8 @@ CSRF 方針は MVP として SameSite=Lax + JSON API 前提です。state changi
 - 顧客注文画面のオプション選択 UI は商品詳細モーダルとして実装しています。必須オプションは初期値として先頭候補を選択し、画面上で変更できます。
 - Phase 11 第1段階では `/admin/menu` でカテゴリ、商品オプショングループ、選択肢を編集できます。カテゴリ・オプション・選択肢は物理削除せず `active=false` で非表示にします。
 - Phase 11 第2段階では `/admin/menu` で商品単位の在庫管理対象、在庫数、低在庫閾値を更新できます。在庫不足時は注文 API が 409 で拒否し、注文成功時に在庫を減らします。在庫 0 になった商品は自動で `sold_out=true` になります。キャンセル時は在庫を戻しますが、`sold_out=false` への自動解除は MVP では行わず、管理者が売切解除します。`scripts/smoke-admin-menu.sh` は在庫不足拒否、在庫引当、自動売切、取消時在庫戻し、在庫 audit log、非 manager 拒否を確認します。
-- 商品画像アップロード、原価 / 粗利、仕入 / 入荷 / 棚卸、在庫履歴、複数店舗別在庫、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、返金処理、実決済連携は Phase 11 後続以降の対象です。
+- Phase 11 第3段階では `/admin/menu` で商品画像 URL を管理できます。商品一覧にはサムネイルまたは「画像なし」を表示し、商品編集フォームではプレビューを表示します。顧客注文画面の商品カードにも画像 URL が反映され、未設定または読み込み失敗時は固定サイズの fallback を表示します。MVP では画像ファイル本体を DB に保存せず、`http(s)` URL または `/` から始まるパスだけを扱います。
+- 本格的な商品画像アップロード、画像リサイズ / 圧縮、画像 CDN / 外部 storage、原価 / 粗利、仕入 / 入荷 / 棚卸、在庫履歴、複数店舗別在庫、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、返金処理、実決済連携は Phase 11 後続以降の対象です。
 - 精算はダミー決済です。金額はフロントエンド送信値ではなく、DB の注文明細から Nyan8 側で再計算します。
 - API ランタイムが起動していない場合、フロントエンドには API エラーメッセージが表示されます。
 - Nyan8 から NyanQL への呼び出し先は `backend/nyan8/javascript/lib/runtime.js` の `NYANQL_BASE_URL` で定義しています。開発既定値は `http://nyanql:change-me@localhost:8890` です。

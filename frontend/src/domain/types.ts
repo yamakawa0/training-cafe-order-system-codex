@@ -187,6 +187,7 @@ export interface AdminMenuItem {
   description: string;
   price: number;
   taxRate: number;
+  imageUrl: string;
   displayOrder: number;
   active: boolean;
   soldOut: boolean;
@@ -205,6 +206,7 @@ export type AdminMenuItemInput = {
   description: string;
   price: number;
   tax_rate: number;
+  image_url: string;
   display_order: number;
   active: boolean;
   sold_out: boolean;

@@ -6,6 +6,7 @@ SELECT
     mi.description,
     mi.price,
     mi.tax_rate,
+    mi.image_url,
     mi.display_order,
     mi.active,
     mi.sold_out,

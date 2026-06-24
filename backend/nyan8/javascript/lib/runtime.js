@@ -249,7 +249,7 @@ function customerMenu() {
         description: row.description,
         price: Number(row.price),
         taxRate: Number(row.tax_rate),
-        imageUrl: row.image_url,
+        imageUrl: row.image_url || "",
         kitchenStation: row.kitchen_station,
         allergyNote: row.allergy_note,
         trackStock: Boolean(row.track_stock),
@@ -710,6 +710,7 @@ function adminMenuItem(row) {
     description: row.description || "",
     price: Number(row.price),
     taxRate: Number(row.tax_rate),
+    imageUrl: row.image_url || "",
     displayOrder: Number(row.display_order),
     active: Boolean(row.active),
     soldOut: Boolean(row.sold_out),
@@ -720,6 +721,19 @@ function adminMenuItem(row) {
     allergyNote: row.allergy_note || "",
     updatedAt: row.updated_at
   };
+}
+
+function imageUrlValue(value) {
+  if (value === undefined || value === null) return "";
+  var imageUrl = String(value).trim();
+  var lower = imageUrl.toLowerCase();
+  if (!imageUrl) return "";
+  if (imageUrl.length > 2048) throw error(400, "画像 URL は 2048 文字以内で入力してください");
+  if (lower.indexOf("data:") === 0 || lower.indexOf("javascript:") === 0 || lower.indexOf("file:") === 0) {
+    throw error(400, "画像 URL は http(s) URL または / から始まるパスを指定してください");
+  }
+  if (lower.indexOf("http://") === 0 || lower.indexOf("https://") === 0 || imageUrl.indexOf("/") === 0) return imageUrl;
+  throw error(400, "画像 URL は http(s) URL または / から始まるパスを指定してください");
 }
 
 function stockAuditData(row, extra) {
@@ -763,6 +777,7 @@ function validateAdminMenuItemInput(input, requireId) {
     description: String(input.description || ""),
     price: integerValue(input.price, "価格", 0),
     tax_rate: numberValue(input.tax_rate, "税率", 0),
+    image_url: imageUrlValue(input.image_url),
     display_order: integerValue(input.display_order, "表示順"),
     active: booleanValue(input.active, true),
     sold_out: booleanValue(input.sold_out, false),
