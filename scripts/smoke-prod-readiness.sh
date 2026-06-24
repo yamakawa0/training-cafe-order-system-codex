@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FAILED=0
+NPM_BIN="${NPM_BIN:-npm}"
 
 ok() {
   echo "OK: $*"
@@ -63,7 +64,7 @@ else
   ng "Node.js >=20.19 is required, actual: ${node_version:-not found}"
 fi
 
-npm_version="$(npm -v 2>/dev/null || true)"
+npm_version="$("$NPM_BIN" -v 2>/dev/null || true)"
 if [ -n "$npm_version" ] && version_gte "$npm_version" "10.0.0"; then
   ok "npm $npm_version"
 else
@@ -73,7 +74,7 @@ fi
 require_file "frontend/dist/index.html"
 require_dir "frontend/dist/assets"
 
-if (cd "$ROOT_DIR/frontend" && npm audit --audit-level=high >/tmp/cafe-order-system-npm-audit.log 2>&1); then
+if (cd "$ROOT_DIR/frontend" && "$NPM_BIN" audit --audit-level=high >/tmp/cafe-order-system-npm-audit.log 2>&1); then
   ok "npm audit high/critical 0"
 else
   cat /tmp/cafe-order-system-npm-audit.log >&2 || true

@@ -103,6 +103,7 @@ export function CheckoutPage() {
                 <div>
                   <strong>{item.itemName}</strong>
                   <span>{item.status} / {yen(item.unitPrice + item.optionTotal)} x {item.quantity}</span>
+                  {item.optionsText && <small>{item.optionsText}</small>}
                 </div>
                 <strong>{yen(item.lineSubtotal + item.lineTax)}</strong>
               </div>

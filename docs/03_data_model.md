@@ -57,18 +57,18 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 ### menu_item_options
 
 - 目的: 商品ごとのオプション項目を管理する。
-- 主なカラム: `id`, `item_id`, `name`, `required`, `multi_select`, `display_order`
-- 主な状態値: `required`, `multi_select`
+- 主なカラム: `id`, `item_id`, `name`, `required`, `multi_select`, `min_select`, `max_select`, `active`, `display_order`, `created_at`, `updated_at`
+- 主な状態値: `required`, `multi_select`, `active`
 - 関連テーブル: `menu_items`, `menu_option_choices`
-- 注意点: 顧客画面ではオプション選択モーダルで利用する。高度な編集 UI は今後対応。
+- 注意点: 顧客画面では `active=true` のオプションだけ表示する。`required=true` は最低 1 つ必須、`multi_select=false` は最大 1 つ、`multi_select=true` は `max_select` がある場合その数まで選択できる。物理削除ではなく `active=false` を優先する。
 
 ### menu_option_choices
 
 - 目的: オプションの選択肢を管理する。
-- 主なカラム: `id`, `option_id`, `name`, `price_delta`, `active`, `display_order`
+- 主なカラム: `id`, `option_id`, `name`, `price_delta`, `active`, `display_order`, `created_at`, `updated_at`
 - 主な状態値: `active`
 - 関連テーブル: `menu_item_options`, `order_item_options`
-- 注意点: 選択肢の追加料金は会計計算に含める。
+- 注意点: `price_delta` は 1 個あたりの追加料金。注文確定時に `order_item_options.price_delta` へ履歴保存し、会計、分析、商品ランキング、売上 CSV に含める。顧客画面には `active=true` の選択肢だけ表示する。
 
 ### table_sessions
 
@@ -99,7 +99,7 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - 目的: 注文時点のオプション選択を履歴として保持する。
 - 主なカラム: `id`, `order_item_id`, `option_name`, `choice_name`, `price_delta`
 - 関連テーブル: `order_items`
-- 注意点: 商品・オプション定義が後から変更されても注文時点の名称と金額差分を保持する。
+- 注意点: 商品・オプション定義が後から変更されても注文時点の名称と金額差分を保持する。`price_delta` は注文明細単価に加算し、取消明細は会計・分析・CSV から除外する。
 
 ### hall_tasks
 

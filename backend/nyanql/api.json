@@ -11,6 +11,22 @@
     "sql": ["./sql/admin_list_menu_categories.sql"],
     "description": "管理画面向けメニューカテゴリ一覧を取得する"
   },
+  "admin/menu/categories/create": {
+    "sql": ["./sql/admin_create_menu_category.sql"],
+    "description": "管理画面からメニューカテゴリを作成する"
+  },
+  "admin/menu/categories/update": {
+    "sql": ["./sql/admin_update_menu_category.sql"],
+    "description": "管理画面からメニューカテゴリを更新する"
+  },
+  "admin/menu/categories/toggle-active": {
+    "sql": ["./sql/admin_toggle_menu_category_active.sql"],
+    "description": "管理画面からメニューカテゴリの表示状態を切り替える"
+  },
+  "admin/menu/categories/move": {
+    "sql": ["./sql/admin_move_menu_category.sql"],
+    "description": "管理画面からメニューカテゴリの表示順を変更する"
+  },
   "admin/menu/items": {
     "sql": ["./sql/admin_list_menu_items.sql"],
     "description": "管理画面向けメニュー商品一覧を取得する"
@@ -34,6 +50,42 @@
   "admin/menu/items/move": {
     "sql": ["./sql/admin_move_menu_item.sql"],
     "description": "管理画面からメニュー商品の表示順を変更する"
+  },
+  "admin/menu/items/options": {
+    "sql": ["./sql/admin_list_menu_item_options.sql"],
+    "description": "管理画面向け商品オプション一覧を取得する"
+  },
+  "admin/menu/items/options/create": {
+    "sql": ["./sql/admin_create_menu_item_option.sql"],
+    "description": "管理画面から商品オプションを作成する"
+  },
+  "admin/menu/items/options/update": {
+    "sql": ["./sql/admin_update_menu_item_option.sql"],
+    "description": "管理画面から商品オプションを更新する"
+  },
+  "admin/menu/items/options/toggle-active": {
+    "sql": ["./sql/admin_toggle_menu_item_option_active.sql"],
+    "description": "管理画面から商品オプションの表示状態を切り替える"
+  },
+  "admin/menu/items/options/move": {
+    "sql": ["./sql/admin_move_menu_item_option.sql"],
+    "description": "管理画面から商品オプションの表示順を変更する"
+  },
+  "admin/menu/items/options/choices/create": {
+    "sql": ["./sql/admin_create_menu_option_choice.sql"],
+    "description": "管理画面から商品オプション選択肢を作成する"
+  },
+  "admin/menu/items/options/choices/update": {
+    "sql": ["./sql/admin_update_menu_option_choice.sql"],
+    "description": "管理画面から商品オプション選択肢を更新する"
+  },
+  "admin/menu/items/options/choices/toggle-active": {
+    "sql": ["./sql/admin_toggle_menu_option_choice_active.sql"],
+    "description": "管理画面から商品オプション選択肢の表示状態を切り替える"
+  },
+  "admin/menu/items/options/choices/move": {
+    "sql": ["./sql/admin_move_menu_option_choice.sql"],
+    "description": "管理画面から商品オプション選択肢の表示順を変更する"
   },
   "admin/tables": {
     "sql": ["./sql/admin_list_tables.sql"],

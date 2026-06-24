@@ -104,6 +104,21 @@
     "script": "./javascript/apis/admin_menu_categories.js",
     "description": "管理画面向けメニューカテゴリ一覧"
   },
+  "api/admin/menu/categories/update": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_category_update.js",
+    "description": "管理画面向けメニューカテゴリ更新"
+  },
+  "api/admin/menu/categories/toggle-active": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_category_toggle_active.js",
+    "description": "管理画面向けメニューカテゴリ表示状態切替"
+  },
+  "api/admin/menu/categories/move": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_category_move.js",
+    "description": "管理画面向けメニューカテゴリ並び順変更"
+  },
   "api/admin/menu/items": {
     "type": "api",
     "script": "./javascript/apis/admin_menu_items.js",
@@ -128,6 +143,46 @@
     "type": "api",
     "script": "./javascript/apis/admin_menu_item_move.js",
     "description": "管理画面向けメニュー商品並び順変更"
+  },
+  "api/admin/menu/items/options": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_options.js",
+    "description": "管理画面向け商品オプション一覧・作成"
+  },
+  "api/admin/menu/items/options/update": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_option_update.js",
+    "description": "管理画面向け商品オプション更新"
+  },
+  "api/admin/menu/items/options/toggle-active": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_option_toggle_active.js",
+    "description": "管理画面向け商品オプション表示状態切替"
+  },
+  "api/admin/menu/items/options/move": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_option_move.js",
+    "description": "管理画面向け商品オプション並び順変更"
+  },
+  "api/admin/menu/items/options/choices": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_option_choice_create.js",
+    "description": "管理画面向け商品オプション選択肢作成"
+  },
+  "api/admin/menu/items/options/choices/update": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_option_choice_update.js",
+    "description": "管理画面向け商品オプション選択肢更新"
+  },
+  "api/admin/menu/items/options/choices/toggle-active": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_option_choice_toggle_active.js",
+    "description": "管理画面向け商品オプション選択肢表示状態切替"
+  },
+  "api/admin/menu/items/options/choices/move": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_option_choice_move.js",
+    "description": "管理画面向け商品オプション選択肢並び順変更"
   },
   "api/admin/tables": {
     "type": "api",

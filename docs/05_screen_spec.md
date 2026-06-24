@@ -66,7 +66,7 @@
 
 - 目的: 会計依頼済みの席を精算する。
 - 主な利用者: レジ担当、店長 / 管理者。
-- 主な表示項目: 席カード、レシート風明細、小計、税、合計、支払い方法。
+- 主な表示項目: 席カード、レシート風明細、選択オプション、小計、税、合計、支払い方法。
 - 主な操作: 席選択、支払い方法 `cash` / `card` / `qr` 選択、精算確定。
 - 必要な role: `cashier` / `manager`
 - 関連 API: `GET /api/checkout/summary`, `POST /api/checkout/settle`
@@ -86,13 +86,13 @@
 
 ## `/admin/menu`
 
-- 目的: メニュー商品を管理する。
+- 目的: メニューカテゴリ、商品、商品オプションを管理する。
 - 主な利用者: 店長 / 管理者。
-- 主な表示項目: カテゴリ一覧、商品一覧、商品フォーム、表示状態、売切状態、並び順。
-- 主な操作: 商品追加、編集、表示 / 非表示、売切 / 売切解除、並び順変更、カテゴリ絞り込み、商品名検索。
+- 主な表示項目: カテゴリ一覧、カテゴリ商品数、商品一覧、商品フォーム、表示状態、売切状態、並び順、オプショングループ、選択肢、追加料金。
+- 主な操作: カテゴリ追加・編集・表示 / 非表示・並び順変更、商品追加、編集、表示 / 非表示、売切 / 売切解除、並び順変更、カテゴリ絞り込み、商品名検索、オプショングループ追加・編集・表示 / 非表示・並び順変更、選択肢追加・編集・表示 / 非表示・並び順変更。
 - 必要な role: `manager`
-- 関連 API: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`
-- 注意点: 商品画像アップロードと高度な商品オプション編集 UI は未対応。
+- 関連 API: `GET/POST /api/admin/menu/categories`, `POST /api/admin/menu/categories/update`, `POST /api/admin/menu/categories/toggle-active`, `POST /api/admin/menu/categories/move`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/move`, `GET/POST /api/admin/menu/items/options`, `POST /api/admin/menu/items/options/update`, `POST /api/admin/menu/items/options/toggle-active`, `POST /api/admin/menu/items/options/move`, `POST /api/admin/menu/items/options/choices`, `POST /api/admin/menu/items/options/choices/update`, `POST /api/admin/menu/items/options/choices/toggle-active`, `POST /api/admin/menu/items/options/choices/move`
+- 注意点: 商品が属するカテゴリを非表示にすると、顧客注文画面ではカテゴリごと非表示になる。商品画像アップロード、在庫、原価 / 粗利は後続対応。
 
 ## `/admin/tables`
 
@@ -108,7 +108,7 @@
 
 - 目的: 注文一覧と注文詳細を確認し、条件を満たす注文・明細を取消する。
 - 主な利用者: 店長 / 管理者。
-- 主な表示項目: 注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、支払い情報、関連ホールタスク。
+- 主な表示項目: 注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、選択オプション、支払い情報、関連ホールタスク。
 - 主な操作: フィルタ、詳細表示、明細取消、注文全体取消。
 - 必要な role: `manager`
 - 関連 API: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`

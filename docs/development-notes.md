@@ -292,3 +292,15 @@
 - docs 更新: README、`docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/08_operations.md`, `docs/assumptions.md`, `docs/development-notes.md` に Phase 10.5 の確認結果と CI / full smoke の役割分離を反映した。
 - 開発計画の現在地: Phase 10 は完了済みへ移動し、Phase 11 を現在フェーズにした。Phase 11 の実装は今回行っていない。
 - 未対応事項: GitHub Actions 自動デプロイ、実 DB を使う CI、実 NyanQL / Nyan8 runtime を GitHub Actions 上で起動する CI、Playwright / E2E ブラウザテスト、Docker / Kubernetes / Terraform、systemd / PM2 化、本番 migration 管理。
+
+## 2026-06-18 Phase 11 商品・在庫・オプション強化 第1段階
+
+- 実装範囲: カテゴリ管理 UI 強化、商品オプション編集 UI、顧客注文画面のオプション選択、オプション追加料金の注文・会計・分析・CSV 反映、関連 API / SQL / docs 更新。
+- DB: `menu_item_options` に `min_select`, `max_select`, `active`, `created_at`, `updated_at` を追加し、`menu_option_choices` に `created_at`, `updated_at` を追加した。reset 用 `schema.sql` の CREATE TABLE 定義へ反映した。
+- 顧客メニュー: `active=false` のカテゴリ・商品・オプション・選択肢を返さない。選択数は Nyan8 の注文 API でも検証する。
+- 管理 API: カテゴリ、オプショングループ、選択肢の作成・更新・表示切替・並び順変更を追加した。manager のみ操作可能。
+- 監査ログ: `admin_menu_category_*`, `admin_menu_item_option_*`, `admin_menu_option_choice_*` の成功・失敗を記録する。password / session token 系は含めない既存方針を維持する。
+- 検証結果: Codex bundled Node.js `v24.14.0` と npm `10.9.8` で `cd frontend && npm ci`, `npm audit --audit-level=high`, `npm run build` は成功した。`npm audit` は sandbox DNS 制限で一度失敗し、承認付きネットワーク実行で `found 0 vulnerabilities` を確認した。
+- smoke 結果: `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-prod-readiness.sh` は成功した。`smoke-admin-menu.sh` 内で `smoke-menu.sh` と `smoke-e2e.sh` も成功した。
+- CI / static check 結果: `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `git diff --check`, Nyan8 / NyanQL API 参照先整合チェックは成功した。`smoke-prod-readiness.sh` は `NPM_BIN` で npm 10 を指定できるようにした。
+- 後続対象: 商品画像アップロード、在庫数、売切自動化、原価 / 粗利、仕入管理、複数店舗別メニュー、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、返金処理、実決済連携。

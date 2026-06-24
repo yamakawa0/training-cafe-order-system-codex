@@ -36,15 +36,23 @@ export interface AdminUser extends AuthUser {
 
 export interface MenuOptionChoice {
   id: string;
+  optionId?: string;
   name: string;
   priceDelta: number;
+  displayOrder?: number;
+  active?: boolean;
 }
 
 export interface MenuItemOption {
   id: string;
+  itemId?: string;
   name: string;
   required: boolean;
   multiSelect: boolean;
+  minSelect: number;
+  maxSelect: number | null;
+  displayOrder?: number;
+  active?: boolean;
   choices: MenuOptionChoice[];
 }
 
@@ -139,6 +147,32 @@ export interface AdminMenuCategory {
   name: string;
   displayOrder: number;
   active: boolean;
+  itemCount: number;
+  updatedAt: string | null;
+}
+
+export interface AdminMenuOptionChoice {
+  id: string;
+  optionId: string;
+  name: string;
+  priceDelta: number;
+  displayOrder: number;
+  active: boolean;
+  updatedAt: string | null;
+}
+
+export interface AdminMenuItemOption {
+  id: string;
+  itemId: string;
+  name: string;
+  required: boolean;
+  multiSelect: boolean;
+  minSelect: number;
+  maxSelect: number | null;
+  displayOrder: number;
+  active: boolean;
+  updatedAt: string | null;
+  choices: AdminMenuOptionChoice[];
 }
 
 export interface AdminMenuItem {
@@ -249,6 +283,7 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     quantity: number;
     unitPrice: number;
     optionTotal: number;
+    optionsText: string;
     lineSubtotal: number;
     lineTax: number;
     status: OrderItemStatus;
@@ -353,6 +388,7 @@ export interface CheckoutItem {
   quantity: number;
   status: OrderItemStatus;
   optionTotal: number;
+  optionsText: string;
   lineSubtotal: number;
   lineTax: number;
 }

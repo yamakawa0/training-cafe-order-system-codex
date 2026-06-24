@@ -77,6 +77,9 @@
 - cookie の実 header 運用は reverse proxy / Nyan8 実行環境で検証が必要である。
 - WebSocket Push は現行未実装で、画面更新は再取得 / ポーリングで扱う。
 - CSV エクスポート API は Nyan8 ランタイム制約により CSV 本文を直接返さず、`success/status/result` の JSON 内に `contentType`, `filename`, `csv` を返す。フロントエンドが `csv` を Blob 化してダウンロードする。
+- Phase 11 第1段階ではカテゴリ、オプション、選択肢は物理削除せず `active=false` で非表示にする。
+- `required=true` のオプションは最低 1 つ選択必須とし、`multi_select=false` は最大 1 つ、`multi_select=true` は `max_select` が設定されている場合その数まで選択できる。
+- オプション追加料金は注文時点の `order_item_options.price_delta` を正とし、後からメニュー定義の価格が変更されても既存注文の会計・分析は注文時点の値を使う。
 
 ## CI / 自動テスト
 

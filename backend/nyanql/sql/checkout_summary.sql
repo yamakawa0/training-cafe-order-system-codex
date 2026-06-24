@@ -9,6 +9,10 @@ SELECT
     oi.quantity,
     oi.status AS item_status,
     COALESCE(SUM(oio.price_delta), 0) AS option_total,
+    COALESCE(
+        STRING_AGG(oio.option_name || ': ' || oio.choice_name, ', ' ORDER BY oio.option_name),
+        ''
+    ) AS options_text,
     (oi.unit_price + COALESCE(SUM(oio.price_delta), 0)) * oi.quantity AS line_subtotal,
     ROUND(((oi.unit_price + COALESCE(SUM(oio.price_delta), 0)) * oi.quantity) * 0.10)::INTEGER AS line_tax
 FROM table_sessions ts

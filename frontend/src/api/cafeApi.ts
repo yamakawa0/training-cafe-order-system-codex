@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -105,6 +105,24 @@ export const cafeApi = {
   adminMenuCategories: () => get<{ categories: AdminMenuCategory[] }>('/api/admin/menu/categories', {
     terminal_code: terminals.analytics
   }),
+  adminCreateMenuCategory: (input: { name: string; display_order: number; active: boolean }) => post<{ category: AdminMenuCategory }>('/api/admin/menu/categories', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
+  adminUpdateMenuCategory: (input: { category_id: string; name: string; display_order: number; active: boolean }) => post<{ category: AdminMenuCategory }>('/api/admin/menu/categories/update', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
+  adminToggleMenuCategoryActive: (categoryId: string, active: boolean) => post<{ category: AdminMenuCategory }>('/api/admin/menu/categories/toggle-active', {
+    terminal_code: terminals.analytics,
+    category_id: categoryId,
+    active
+  }),
+  adminMoveMenuCategory: (categoryId: string, direction: 'up' | 'down') => post<{ category: AdminMenuCategory }>('/api/admin/menu/categories/move', {
+    terminal_code: terminals.analytics,
+    category_id: categoryId,
+    direction
+  }),
   adminMenuItems: (filters: { categoryId?: string; keyword?: string; active?: string; soldOut?: string } = {}) => get<{ items: AdminMenuItem[] }>('/api/admin/menu/items', {
     terminal_code: terminals.analytics,
     category_id: filters.categoryId,
@@ -133,6 +151,50 @@ export const cafeApi = {
   adminMoveMenuItem: (itemId: string, direction: 'up' | 'down') => post<{ item: AdminMenuItem }>('/api/admin/menu/items/move', {
     terminal_code: terminals.analytics,
     item_id: itemId,
+    direction
+  }),
+  adminMenuItemOptions: (itemId: string) => get<{ options: AdminMenuItemOption[] }>('/api/admin/menu/items/options', {
+    terminal_code: terminals.analytics,
+    item_id: itemId
+  }),
+  adminCreateMenuItemOption: (input: { item_id: string; name: string; required: boolean; multi_select: boolean; min_select: number; max_select: number | null; active: boolean; display_order: number }) =>
+    post<{ option: AdminMenuItemOption }>('/api/admin/menu/items/options', {
+      terminal_code: terminals.analytics,
+      ...input
+    }),
+  adminUpdateMenuItemOption: (input: { option_id: string; item_id: string; name: string; required: boolean; multi_select: boolean; min_select: number; max_select: number | null; active: boolean; display_order: number }) =>
+    post<{ option: AdminMenuItemOption }>('/api/admin/menu/items/options/update', {
+      terminal_code: terminals.analytics,
+      ...input
+    }),
+  adminToggleMenuItemOptionActive: (optionId: string, active: boolean) => post<{ option: AdminMenuItemOption }>('/api/admin/menu/items/options/toggle-active', {
+    terminal_code: terminals.analytics,
+    option_id: optionId,
+    active
+  }),
+  adminMoveMenuItemOption: (optionId: string, direction: 'up' | 'down') => post<{ option: AdminMenuItemOption }>('/api/admin/menu/items/options/move', {
+    terminal_code: terminals.analytics,
+    option_id: optionId,
+    direction
+  }),
+  adminCreateMenuOptionChoice: (input: { option_id: string; name: string; price_delta: number; active: boolean; display_order: number }) =>
+    post<{ choice: AdminMenuOptionChoice }>('/api/admin/menu/items/options/choices', {
+      terminal_code: terminals.analytics,
+      ...input
+    }),
+  adminUpdateMenuOptionChoice: (input: { choice_id: string; option_id: string; name: string; price_delta: number; active: boolean; display_order: number }) =>
+    post<{ choice: AdminMenuOptionChoice }>('/api/admin/menu/items/options/choices/update', {
+      terminal_code: terminals.analytics,
+      ...input
+    }),
+  adminToggleMenuOptionChoiceActive: (choiceId: string, active: boolean) => post<{ choice: AdminMenuOptionChoice }>('/api/admin/menu/items/options/choices/toggle-active', {
+    terminal_code: terminals.analytics,
+    choice_id: choiceId,
+    active
+  }),
+  adminMoveMenuOptionChoice: (choiceId: string, direction: 'up' | 'down') => post<{ choice: AdminMenuOptionChoice }>('/api/admin/menu/items/options/choices/move', {
+    terminal_code: terminals.analytics,
+    choice_id: choiceId,
     direction
   }),
   adminTables: (filters: { status?: string; keyword?: string } = {}) => get<{ tables: AdminTableSummary[] }>('/api/admin/tables', {

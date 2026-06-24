@@ -51,6 +51,7 @@ SELECT
             'quantity', oi.quantity,
             'unitPrice', oi.unit_price,
             'optionTotal', COALESCE(opt.option_total, 0),
+            'optionsText', COALESCE(opt.options_text, ''),
             'lineSubtotal', (oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity,
             'lineTax', ROUND(((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) * 0.10)::INTEGER,
             'status', oi.status,
@@ -60,7 +61,10 @@ SELECT
         ) ORDER BY oi.created_at)
         FROM order_items oi
         LEFT JOIN (
-            SELECT order_item_id, SUM(price_delta)::INTEGER AS option_total
+            SELECT
+                order_item_id,
+                SUM(price_delta)::INTEGER AS option_total,
+                STRING_AGG(option_name || ': ' || choice_name, ', ' ORDER BY option_name) AS options_text
             FROM order_item_options
             GROUP BY order_item_id
         ) opt ON opt.order_item_id = oi.id

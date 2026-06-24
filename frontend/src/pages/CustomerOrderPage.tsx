@@ -29,6 +29,13 @@ function optionTotal(menuItem: MenuItem, choiceIds: string[]) {
     .reduce((sum, choice) => sum + choice.priceDelta, 0);
 }
 
+function selectedOptionText(menuItem: MenuItem, choiceIds: string[]) {
+  return menuItem.options.flatMap((option) => {
+    const names = option.choices.filter((choice) => choiceIds.includes(choice.id)).map((choice) => choice.name);
+    return names.length ? [`${option.name}: ${names.join('、')}`] : [];
+  }).join(' / ');
+}
+
 export function CustomerOrderPage({ tableCode }: Props) {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string>('');
@@ -91,6 +98,18 @@ export function CustomerOrderPage({ tableCode }: Props) {
 
   function addItem(menuItem: MenuItem, choiceIds = defaultChoices(menuItem), customerNote = '') {
     if (menuItem.soldOut || orderLocked) return;
+    const validationError = menuItem.options.map((option) => {
+      const selectedCount = option.choices.filter((choice) => choiceIds.includes(choice.id)).length;
+      const minSelect = option.required ? Math.max(1, option.minSelect || 0) : option.minSelect || 0;
+      const maxSelect = option.multiSelect ? option.maxSelect : 1;
+      if (selectedCount < minSelect) return `${option.name}を選択してください。`;
+      if (maxSelect !== null && selectedCount > maxSelect) return `${option.name}は${maxSelect}個まで選択できます。`;
+      return '';
+    }).find(Boolean);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setCart((current) => [...current, { localId: crypto.randomUUID(), menuItem, quantity: 1, choiceIds, customerNote }]);
     setDetailItem(null);
     setMessage(`${menuItem.name} をカートに追加しました`);
@@ -106,6 +125,9 @@ export function CustomerOrderPage({ tableCode }: Props) {
     const optionChoiceIds = item.options.find((option) => option.id === optionId)?.choices.map((choice) => choice.id) || [];
     setDetailChoices((current) => {
       if (multiSelect) {
+        const option = item.options.find((candidate) => candidate.id === optionId);
+        const selectedCount = current.filter((id) => optionChoiceIds.includes(id)).length;
+        if (!current.includes(choiceId) && option?.maxSelect !== null && option?.maxSelect !== undefined && selectedCount >= option.maxSelect) return current;
         return current.includes(choiceId) ? current.filter((id) => id !== choiceId) : [...current, choiceId];
       }
       return [...current.filter((id) => !optionChoiceIds.includes(id)), choiceId];
@@ -213,6 +235,7 @@ export function CustomerOrderPage({ tableCode }: Props) {
                 <div>
                   <strong>{item.menuItem.name}</strong>
                   <span>{yen((item.menuItem.price + optionTotal(item.menuItem, item.choiceIds)) * item.quantity)}</span>
+                  {selectedOptionText(item.menuItem, item.choiceIds) && <small>{selectedOptionText(item.menuItem, item.choiceIds)}</small>}
                   {item.customerNote && <small>{item.customerNote}</small>}
                 </div>
                 <div className="stepper">
@@ -250,7 +273,7 @@ export function CustomerOrderPage({ tableCode }: Props) {
             <p>{detailItem.description}</p>
             {detailItem.options.map((option) => (
               <div className="optionGroup" key={option.id}>
-                <h3>{option.name} {option.required && <Badge tone="warning">必須</Badge>}</h3>
+                <h3>{option.name} {option.required && <Badge tone="warning">必須</Badge>} {option.maxSelect !== null && <Badge tone="info">最大 {option.maxSelect}</Badge>}</h3>
                 <div className="choiceGrid">
                   {option.choices.map((choice) => (
                     <button

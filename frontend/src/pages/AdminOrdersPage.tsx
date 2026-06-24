@@ -241,6 +241,7 @@ export function AdminOrdersPage() {
                     <div>
                       <strong>{item.itemName} x {item.quantity}</strong>
                       <span>{yen(item.lineSubtotal + item.lineTax)} / 単価 {yen(item.unitPrice)} / オプション {yen(item.optionTotal)}</span>
+                      {item.optionsText && <small>{item.optionsText}</small>}
                       {(item.customerNote || item.allergyNote) && <small>{item.customerNote || ''}{item.allergyNote ? ` / アレルギー: ${item.allergyNote}` : ''}</small>}
                     </div>
                     <Badge tone={statusTone(item.status)}>{statusLabel(item.status)}</Badge>

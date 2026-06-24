@@ -185,6 +185,8 @@ function buildMenu(rawRows) {
         name: row.option_name,
         required: Boolean(row.required),
         multiSelect: Boolean(row.multi_select),
+        minSelect: Number(row.min_select || 0),
+        maxSelect: row.max_select === null || row.max_select === undefined ? null : Number(row.max_select),
         choices: {}
       };
     }
@@ -204,8 +206,10 @@ function validateChoices(item, selectedChoiceIds) {
   Object.keys(item.options).forEach(function(optionId) {
     var option = item.options[optionId];
     var selected = selectedChoiceIds.filter(function(choiceId) { return Boolean(option.choices[choiceId]); });
-    if (option.required && selected.length === 0) throw error(400, item.name + ": required option " + option.name + " is missing");
-    if (!option.multiSelect && selected.length > 1) throw error(400, item.name + ": option " + option.name + " allows one choice");
+    var minSelect = option.required ? Math.max(1, Number(option.minSelect || 0)) : Number(option.minSelect || 0);
+    var maxSelect = option.multiSelect ? option.maxSelect : 1;
+    if (selected.length < minSelect) throw error(400, item.name + ": required option " + option.name + " is missing");
+    if (maxSelect !== null && maxSelect !== undefined && selected.length > Number(maxSelect)) throw error(400, item.name + ": option " + option.name + " exceeds max selections");
     selected.forEach(function(choiceId) {
       var choice = option.choices[choiceId];
       choices.push({
@@ -252,11 +256,22 @@ function customerMenu() {
     if (row.option_id) {
       var option = item.options.filter(function(candidate) { return candidate.id === row.option_id; })[0];
       if (!option) {
-        option = { id: row.option_id, name: row.option_name, required: Boolean(row.required), multiSelect: Boolean(row.multi_select), choices: [] };
+        option = {
+          id: row.option_id,
+          itemId: row.item_id,
+          name: row.option_name,
+          required: Boolean(row.required),
+          multiSelect: Boolean(row.multi_select),
+          minSelect: Number(row.min_select || 0),
+          maxSelect: row.max_select === null || row.max_select === undefined ? null : Number(row.max_select),
+          displayOrder: Number(row.option_order || 0),
+          active: true,
+          choices: []
+        };
         item.options.push(option);
       }
       if (row.choice_id && option.choices.filter(function(choice) { return choice.id === row.choice_id; }).length === 0) {
-        option.choices.push({ id: row.choice_id, name: row.choice_name, priceDelta: Number(row.price_delta) });
+        option.choices.push({ id: row.choice_id, optionId: row.option_id, name: row.choice_name, priceDelta: Number(row.price_delta), displayOrder: Number(row.choice_order || 0), active: true });
       }
     }
   });
@@ -455,7 +470,7 @@ function hallUpdateTaskStatus() {
 
 function summarizeCheckout(rawRows) {
   var items = rawRows.map(function(row) {
-    return { orderItemId: row.order_item_id, itemName: row.item_name, unitPrice: Number(row.unit_price), quantity: Number(row.quantity), status: row.item_status, optionTotal: Number(row.option_total || 0), lineSubtotal: Number(row.line_subtotal || 0), lineTax: Number(row.line_tax || 0) };
+    return { orderItemId: row.order_item_id, itemName: row.item_name, unitPrice: Number(row.unit_price), quantity: Number(row.quantity), status: row.item_status, optionTotal: Number(row.option_total || 0), optionsText: row.options_text || "", lineSubtotal: Number(row.line_subtotal || 0), lineTax: Number(row.line_tax || 0) };
   });
   var subtotal = items.reduce(function(sum, item) { return sum + item.lineSubtotal; }, 0);
   var taxAmount = items.reduce(function(sum, item) { return sum + item.lineTax; }, 0);
@@ -587,8 +602,47 @@ function adminCategory(row) {
     id: row.id,
     name: row.name,
     displayOrder: Number(row.display_order),
-    active: Boolean(row.active)
+    active: Boolean(row.active),
+    itemCount: Number(row.item_count || 0),
+    updatedAt: row.updated_at || null
   };
+}
+
+function adminMenuOption(row) {
+  return {
+    id: row.option_id,
+    itemId: row.item_id,
+    name: row.option_name,
+    required: Boolean(row.required),
+    multiSelect: Boolean(row.multi_select),
+    minSelect: Number(row.min_select || 0),
+    maxSelect: row.max_select === null || row.max_select === undefined ? null : Number(row.max_select),
+    displayOrder: Number(row.option_order || 0),
+    active: Boolean(row.option_active),
+    updatedAt: row.option_updated_at || null,
+    choices: []
+  };
+}
+
+function adminMenuChoice(row) {
+  return {
+    id: row.choice_id,
+    optionId: row.option_id,
+    name: row.choice_name,
+    priceDelta: Number(row.price_delta || 0),
+    displayOrder: Number(row.choice_order || 0),
+    active: Boolean(row.choice_active),
+    updatedAt: row.choice_updated_at || null
+  };
+}
+
+function buildAdminMenuOptions(rawRows) {
+  var optionsById = {};
+  rawRows.forEach(function(row) {
+    if (!optionsById[row.option_id]) optionsById[row.option_id] = adminMenuOption(row);
+    if (row.choice_id) optionsById[row.option_id].choices.push(adminMenuChoice(row));
+  });
+  return Object.keys(optionsById).map(function(id) { return optionsById[id]; });
 }
 
 function adminMenuItem(row) {
@@ -644,6 +698,91 @@ function adminListMenuCategories() {
   var input = params();
   assertAdminTerminal(input);
   return ok({ categories: rows(nyanqlGet("admin/menu/categories")).map(adminCategory) });
+}
+
+function findAdminMenuCategory(categoryId) {
+  return rows(nyanqlGet("admin/menu/categories")).filter(function(row) { return row.id === categoryId; })[0] || null;
+}
+
+function validateAdminMenuCategoryInput(input, requireId) {
+  if (requireId) requireField(input.category_id, "category_id");
+  requireField(input.name, "name");
+  var name = String(input.name).trim();
+  if (!name) throw error(400, "カテゴリ名は必須です");
+  return {
+    category_id: input.category_id,
+    name: name,
+    display_order: integerValue(input.display_order, "表示順"),
+    active: booleanValue(input.active, true)
+  };
+}
+
+function adminCreateMenuCategory() {
+  var input = params();
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateAdminMenuCategoryInput(input, false);
+    values.id = newId("cat");
+    var category = first(nyanqlPost("admin/menu/categories/create", values));
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_category_created", targetType: "menu_category", targetId: category.id, targetLabel: category.name, status: "success", afterData: category, requestData: input });
+    return ok({ category: adminCategory(category) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_category_created", "menu_category", "", input.name || "", event);
+    throw event;
+  }
+}
+
+function adminUpdateMenuCategory() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateAdminMenuCategoryInput(input, true);
+    before = findAdminMenuCategory(input.category_id);
+    var category = first(nyanqlPost("admin/menu/categories/update", values));
+    if (!category) throw error(404, "カテゴリが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_category_updated", targetType: "menu_category", targetId: category.id, targetLabel: category.name, status: "success", beforeData: before, afterData: category, requestData: input });
+    return ok({ category: adminCategory(category) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_category_updated", "menu_category", input.category_id || "", before ? before.name : "", event, before);
+    throw event;
+  }
+}
+
+function adminToggleMenuCategoryActive() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.category_id, "category_id");
+    before = findAdminMenuCategory(input.category_id);
+    var category = first(nyanqlPost("admin/menu/categories/toggle-active", { category_id: input.category_id, active: input.active === undefined ? null : booleanValue(input.active, false) }));
+    if (!category) throw error(404, "カテゴリが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_category_active_changed", targetType: "menu_category", targetId: category.id, targetLabel: category.name, status: "success", beforeData: before, afterData: category, requestData: input });
+    return ok({ category: adminCategory(category) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_category_active_changed", "menu_category", input.category_id || "", before ? before.name : "", event, before);
+    throw event;
+  }
+}
+
+function adminMoveMenuCategory() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.category_id, "category_id");
+    requireField(input.direction, "direction");
+    if (["up", "down"].indexOf(input.direction) < 0) throw error(400, "direction must be up or down");
+    before = findAdminMenuCategory(input.category_id);
+    var category = first(nyanqlPost("admin/menu/categories/move", { category_id: input.category_id, direction: input.direction }));
+    if (!category) throw error(404, "カテゴリが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_category_moved", targetType: "menu_category", targetId: category.id, targetLabel: category.name, status: "success", beforeData: before, afterData: category, requestData: input });
+    return ok({ category: adminCategory(category) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_category_moved", "menu_category", input.category_id || "", before ? before.name : "", event, before);
+    throw event;
+  }
 }
 
 function adminListMenuItems() {
@@ -746,6 +885,229 @@ function adminMoveMenuItem() {
     return ok({ item: adminMenuItem(item) });
   } catch (event) {
     auditFailure(input, "admin_menu_item_moved", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
+    throw event;
+  }
+}
+
+function findAdminMenuOption(optionId, itemId) {
+  var found = null;
+  rows(nyanqlGet("admin/menu/items/options", { item_id: itemId || "" })).some(function(row) {
+    if (row.option_id === optionId) {
+      found = row;
+      return true;
+    }
+    return false;
+  });
+  if (found || itemId) return found;
+  rows(nyanqlGet("admin/menu/items")).some(function(menuItem) {
+    rows(nyanqlGet("admin/menu/items/options", { item_id: menuItem.item_id || menuItem.id })).some(function(row) {
+      if (row.option_id === optionId) {
+        found = row;
+        return true;
+      }
+      return false;
+    });
+    return Boolean(found);
+  });
+  return found;
+}
+
+function findAdminMenuChoice(choiceId) {
+  var found = null;
+  rows(nyanqlGet("admin/menu/items")).some(function(menuItem) {
+    rows(nyanqlGet("admin/menu/items/options", { item_id: menuItem.item_id || menuItem.id })).some(function(row) {
+      if (row.choice_id === choiceId) {
+        found = row;
+        return true;
+      }
+      return false;
+    });
+    return Boolean(found);
+  });
+  return found;
+}
+
+function validateMenuOptionInput(input, requireId) {
+  if (requireId) requireField(input.option_id, "option_id");
+  requireField(input.item_id, "item_id");
+  requireField(input.name, "name");
+  var name = String(input.name).trim();
+  if (!name) throw error(400, "オプション名は必須です");
+  var required = booleanValue(input.required, false);
+  var multiSelect = booleanValue(input.multi_select, false);
+  var minSelect = input.min_select === undefined || input.min_select === "" ? (required ? 1 : 0) : integerValue(input.min_select, "最小選択数", 0);
+  var maxSelect = input.max_select === undefined || input.max_select === "" || input.max_select === null ? null : integerValue(input.max_select, "最大選択数", 0);
+  if (required && minSelect < 1) minSelect = 1;
+  if (!multiSelect) maxSelect = 1;
+  if (maxSelect !== null && maxSelect < minSelect) throw error(400, "最大選択数は最小選択数以上にしてください");
+  return {
+    option_id: input.option_id,
+    item_id: String(input.item_id),
+    name: name,
+    required: required,
+    multi_select: multiSelect,
+    min_select: minSelect,
+    max_select: maxSelect,
+    active: booleanValue(input.active, true),
+    display_order: integerValue(input.display_order, "表示順")
+  };
+}
+
+function adminListMenuItemOptions() {
+  var input = params();
+  assertAdminTerminal(input);
+  requireField(input.item_id, "item_id");
+  return ok({ options: buildAdminMenuOptions(rows(nyanqlGet("admin/menu/items/options", { item_id: input.item_id }))) });
+}
+
+function adminCreateMenuItemOption() {
+  var input = params();
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateMenuOptionInput(input, false);
+    values.id = newId("opt");
+    var option = first(nyanqlPost("admin/menu/items/options/create", values));
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_option_created", targetType: "menu_item_option", targetId: option.option_id, targetLabel: option.option_name, status: "success", afterData: option, requestData: input });
+    return ok({ option: adminMenuOption(option) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_option_created", "menu_item_option", "", input.name || "", event);
+    throw event;
+  }
+}
+
+function adminUpdateMenuItemOption() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateMenuOptionInput(input, true);
+    before = findAdminMenuOption(input.option_id, input.item_id);
+    var option = first(nyanqlPost("admin/menu/items/options/update", values));
+    if (!option) throw error(404, "オプションが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_option_updated", targetType: "menu_item_option", targetId: option.option_id, targetLabel: option.option_name, status: "success", beforeData: before, afterData: option, requestData: input });
+    return ok({ option: adminMenuOption(option) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_option_updated", "menu_item_option", input.option_id || "", before ? before.option_name : "", event, before);
+    throw event;
+  }
+}
+
+function adminToggleMenuItemOptionActive() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.option_id, "option_id");
+    before = findAdminMenuOption(input.option_id, input.item_id || "");
+    var option = first(nyanqlPost("admin/menu/items/options/toggle-active", { option_id: input.option_id, active: input.active === undefined ? null : booleanValue(input.active, false) }));
+    if (!option) throw error(404, "オプションが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_option_active_changed", targetType: "menu_item_option", targetId: option.option_id, targetLabel: option.option_name, status: "success", beforeData: before, afterData: option, requestData: input });
+    return ok({ option: adminMenuOption(option) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_option_active_changed", "menu_item_option", input.option_id || "", before ? before.option_name : "", event, before);
+    throw event;
+  }
+}
+
+function adminMoveMenuItemOption() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.option_id, "option_id");
+    requireField(input.direction, "direction");
+    if (["up", "down"].indexOf(input.direction) < 0) throw error(400, "direction must be up or down");
+    before = findAdminMenuOption(input.option_id, input.item_id || "");
+    var option = first(nyanqlPost("admin/menu/items/options/move", { option_id: input.option_id, direction: input.direction }));
+    if (!option) throw error(404, "オプションが見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_item_option_moved", targetType: "menu_item_option", targetId: option.option_id, targetLabel: option.option_name, status: "success", beforeData: before, afterData: option, requestData: input });
+    return ok({ option: adminMenuOption(option) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_option_moved", "menu_item_option", input.option_id || "", before ? before.option_name : "", event, before);
+    throw event;
+  }
+}
+
+function validateMenuChoiceInput(input, requireId) {
+  if (requireId) requireField(input.choice_id, "choice_id");
+  requireField(input.option_id, "option_id");
+  requireField(input.name, "name");
+  var name = String(input.name).trim();
+  if (!name) throw error(400, "選択肢名は必須です");
+  return {
+    choice_id: input.choice_id,
+    option_id: String(input.option_id),
+    name: name,
+    price_delta: integerValue(input.price_delta, "追加料金", 0),
+    active: booleanValue(input.active, true),
+    display_order: integerValue(input.display_order, "表示順")
+  };
+}
+
+function adminCreateMenuOptionChoice() {
+  var input = params();
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateMenuChoiceInput(input, false);
+    values.id = newId("choice");
+    var choice = first(nyanqlPost("admin/menu/items/options/choices/create", values));
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_option_choice_created", targetType: "menu_option_choice", targetId: choice.choice_id, targetLabel: choice.choice_name, status: "success", afterData: choice, requestData: input });
+    return ok({ choice: adminMenuChoice(choice) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_option_choice_created", "menu_option_choice", "", input.name || "", event);
+    throw event;
+  }
+}
+
+function adminUpdateMenuOptionChoice() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateMenuChoiceInput(input, true);
+    before = findAdminMenuChoice(input.choice_id);
+    var choice = first(nyanqlPost("admin/menu/items/options/choices/update", values));
+    if (!choice) throw error(404, "選択肢が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_option_choice_updated", targetType: "menu_option_choice", targetId: choice.choice_id, targetLabel: choice.choice_name, status: "success", beforeData: before, afterData: choice, requestData: input });
+    return ok({ choice: adminMenuChoice(choice) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_option_choice_updated", "menu_option_choice", input.choice_id || "", before ? before.choice_name : "", event, before);
+    throw event;
+  }
+}
+
+function adminToggleMenuOptionChoiceActive() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.choice_id, "choice_id");
+    before = findAdminMenuChoice(input.choice_id);
+    var choice = first(nyanqlPost("admin/menu/items/options/choices/toggle-active", { choice_id: input.choice_id, active: input.active === undefined ? null : booleanValue(input.active, false) }));
+    if (!choice) throw error(404, "選択肢が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_option_choice_active_changed", targetType: "menu_option_choice", targetId: choice.choice_id, targetLabel: choice.choice_name, status: "success", beforeData: before, afterData: choice, requestData: input });
+    return ok({ choice: adminMenuChoice(choice) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_option_choice_active_changed", "menu_option_choice", input.choice_id || "", before ? before.choice_name : "", event, before);
+    throw event;
+  }
+}
+
+function adminMoveMenuOptionChoice() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    requireField(input.choice_id, "choice_id");
+    requireField(input.direction, "direction");
+    if (["up", "down"].indexOf(input.direction) < 0) throw error(400, "direction must be up or down");
+    before = findAdminMenuChoice(input.choice_id);
+    var choice = first(nyanqlPost("admin/menu/items/options/choices/move", { choice_id: input.choice_id, direction: input.direction }));
+    if (!choice) throw error(404, "選択肢が見つかりません");
+    writeAuditLog({ actorTerminalCode: actor.terminal_code, actorTerminalType: actor.terminal_type, action: "admin_menu_option_choice_moved", targetType: "menu_option_choice", targetId: choice.choice_id, targetLabel: choice.choice_name, status: "success", beforeData: before, afterData: choice, requestData: input });
+    return ok({ choice: adminMenuChoice(choice) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_option_choice_moved", "menu_option_choice", input.choice_id || "", before ? before.choice_name : "", event, before);
     throw event;
   }
 }

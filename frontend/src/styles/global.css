@@ -977,6 +977,70 @@ h3 {
   font-size: 0.82rem;
 }
 
+.adminSubForm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.adminSubForm label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #74614f;
+  font-size: 0.86rem;
+}
+
+.adminCategoryItem {
+  border-top: 1px solid #eadcc5;
+  padding: 8px 0;
+}
+
+.rowActions.compact {
+  margin-top: 6px;
+}
+
+.optionEditor {
+  border-top: 1px solid #eadcc5;
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+.optionList {
+  display: grid;
+  gap: 12px;
+}
+
+.optionEditorGroup {
+  border: 1px solid #eadcc5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fffaf2;
+}
+
+.optionEditorHeader,
+.choiceLine {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.optionEditorHeader span,
+.choiceLine span {
+  color: #74614f;
+  font-size: 0.86rem;
+}
+
+.choiceList {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .adminEditor {
   display: grid;
   gap: 10px;

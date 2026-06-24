@@ -97,7 +97,14 @@ CREATE TABLE menu_item_options (
     name VARCHAR(100) NOT NULL,
     required BOOLEAN NOT NULL DEFAULT FALSE,
     multi_select BOOLEAN NOT NULL DEFAULT FALSE,
-    display_order INTEGER NOT NULL DEFAULT 0
+    min_select INTEGER NOT NULL DEFAULT 0,
+    max_select INTEGER,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (min_select >= 0),
+    CHECK (max_select IS NULL OR max_select >= min_select)
 );
 
 CREATE TABLE menu_option_choices (
@@ -106,7 +113,9 @@ CREATE TABLE menu_option_choices (
     name VARCHAR(100) NOT NULL,
     price_delta INTEGER NOT NULL DEFAULT 0,
     active BOOLEAN NOT NULL DEFAULT TRUE,
-    display_order INTEGER NOT NULL DEFAULT 0
+    display_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE table_sessions (

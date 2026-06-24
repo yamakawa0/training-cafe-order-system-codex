@@ -36,10 +36,10 @@ INSERT INTO menu_items (
 ('item-cheesecake', 'cat-dessert', 'チーズケーキ', '濃厚でなめらかなベイクドチーズケーキです。', 650, 10, 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=900&q=80', 'dessert', '乳・卵・小麦', FALSE, TRUE, 10),
 ('item-pudding', 'cat-dessert', 'プリン', 'ほろ苦いカラメルの自家製プリンです。', 500, 10, 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80', 'dessert', '乳・卵', FALSE, TRUE, 20);
 
-INSERT INTO menu_item_options (id, item_id, name, required, multi_select, display_order) VALUES
-('opt-blend-size', 'item-blend', 'サイズ', TRUE, FALSE, 10),
-('opt-latte-milk', 'item-latte', 'ミルク', TRUE, FALSE, 10),
-('opt-croque-side', 'item-croque', 'サイド', FALSE, TRUE, 10);
+INSERT INTO menu_item_options (id, item_id, name, required, multi_select, min_select, max_select, active, display_order) VALUES
+('opt-blend-size', 'item-blend', 'サイズ', TRUE, FALSE, 1, 1, TRUE, 10),
+('opt-latte-milk', 'item-latte', 'ミルク', TRUE, FALSE, 1, 1, TRUE, 10),
+('opt-croque-side', 'item-croque', 'サイド', FALSE, TRUE, 0, 2, TRUE, 10);
 
 INSERT INTO menu_option_choices (id, option_id, name, price_delta, display_order) VALUES
 ('choice-blend-regular', 'opt-blend-size', 'Regular', 0, 10),

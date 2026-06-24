@@ -16,6 +16,8 @@ SELECT
     mio.name AS option_name,
     mio.required,
     mio.multi_select,
+    mio.min_select,
+    mio.max_select,
     mio.display_order AS option_order,
     moc.id AS choice_id,
     moc.name AS choice_name,
@@ -23,7 +25,7 @@ SELECT
     moc.display_order AS choice_order
 FROM menu_categories mc
 JOIN menu_items mi ON mi.category_id = mc.id
-LEFT JOIN menu_item_options mio ON mio.item_id = mi.id
+LEFT JOIN menu_item_options mio ON mio.item_id = mi.id AND mio.active = TRUE
 LEFT JOIN menu_option_choices moc ON moc.option_id = mio.id AND moc.active = TRUE
 WHERE mc.active = TRUE
   AND mi.active = TRUE
