@@ -98,6 +98,15 @@
 - レシートはブラウザ表示・再発行までとする。
 - 外部プリンタ連携、電子レシート送信、日次締めは未対応とする。
 
+## Phase 12 第2段階 支払い失敗 flow / 決済取消
+
+- MVP の支払い失敗は `simulate_result` による内部 flow とし、実決済 API の失敗 callback / webhook は未対応とする。
+- 失敗した支払いは `payments` を作成せず、`payment_attempts.status='failed'` として記録する。
+- paid 成功時は `payments.status='paid'` と `payment_attempts.status='paid'` の両方を記録する。
+- paid 後の取消は不可で、返金を使う。
+- `failed` / `cancelled` attempt は売上対象外とする。
+- `payment_attempts` は決済試行履歴として扱い、audit log とは別に業務履歴を残す。
+
 ## CI / 自動テスト
 
 - CI は GitHub Actions を想定する。

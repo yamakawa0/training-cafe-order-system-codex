@@ -1,8 +1,9 @@
 WITH target_payment AS (
     SELECT p.*
     FROM payments p
-    WHERE (NULLIF(/*payment_id*/'', '') IS NOT NULL AND p.id = NULLIF(/*payment_id*/'', ''))
-       OR (NULLIF(/*payment_no*/'', '') IS NOT NULL AND p.payment_no = NULLIF(/*payment_no*/'', ''))
+    WHERE ((NULLIF(/*payment_id*/'', '') IS NOT NULL AND p.id = NULLIF(/*payment_id*/'', ''))
+       OR (NULLIF(/*payment_no*/'', '') IS NOT NULL AND p.payment_no = NULLIF(/*payment_no*/'', '')))
+      AND p.status IN ('paid', 'refunded')
     ORDER BY p.paid_at DESC
     LIMIT 1
 ),

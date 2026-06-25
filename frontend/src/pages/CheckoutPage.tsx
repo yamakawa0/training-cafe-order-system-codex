@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cafeApi } from '../api/cafeApi';
 import { AppHeader, Badge, Banner, EmptyState, SectionTitle, StatusPill } from '../components/ui';
 import { yen } from '../domain/money';
-import type { CheckoutSummary, PaymentMethod, PaymentReceipt } from '../domain/types';
+import type { CheckoutSummary, PaymentAttempt, PaymentMethod, PaymentReceipt } from '../domain/types';
 
 const tables = ['T01', 'T02', 'T03', 'T04'];
 const paymentLabels: Record<PaymentMethod, string> = {
@@ -23,6 +23,9 @@ export function CheckoutPage() {
   const [receiptQuery, setReceiptQuery] = useState('');
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [refundReason, setRefundReason] = useState('');
+  const [failureReason, setFailureReason] = useState('カード承認エラー');
+  const [cancelReason, setCancelReason] = useState('顧客が支払い方法を変更');
+  const [attempts, setAttempts] = useState<PaymentAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
@@ -31,6 +34,11 @@ export function CheckoutPage() {
   const [message, setMessage] = useState('');
 
   const summary = summaries[tableCode] || null;
+
+  const loadAttempts = (targetTable = tableCode) =>
+    cafeApi.paymentAttempts({ tableCode: targetTable })
+      .then((data) => setAttempts(data.attempts))
+      .catch(() => setAttempts([]));
 
   const load = () => {
     setLoading(true);
@@ -41,6 +49,7 @@ export function CheckoutPage() {
         setSummaries(next);
         const requested = entries.find(([, candidate]) => candidate.sessionStatus === 'payment_requested')?.[0];
         if (requested && (!next[tableCode] || next[tableCode].sessionStatus !== 'payment_requested')) setTableCode(requested);
+        void loadAttempts(requested || tableCode);
       })
       .catch((event: Error) => setError(event.message))
       .finally(() => setLoading(false));
@@ -51,6 +60,10 @@ export function CheckoutPage() {
   }, []);
 
   useEffect(() => {
+    void loadAttempts(tableCode);
+  }, [tableCode]);
+
+  useEffect(() => {
     if (!message) return;
     const timer = window.setTimeout(() => setMessage(''), 3500);
     return () => window.clearTimeout(timer);
@@ -58,21 +71,42 @@ export function CheckoutPage() {
 
   const requestedCount = useMemo(() => Object.values(summaries).filter((candidate) => candidate.sessionStatus === 'payment_requested').length, [summaries]);
 
-  async function settle() {
+  async function settle(simulateResult: 'paid' | 'failed' = 'paid') {
     if (settling || !summary?.items.length || summary.sessionStatus !== 'payment_requested') return;
     setSettling(true);
     setError('');
     setReceiptNo('');
     try {
-      const result = await cafeApi.settle(tableCode, method);
-      setReceiptNo(result.receiptNo);
-      const receiptResult = await cafeApi.receipt({ paymentNo: result.receiptNo });
-      setReceipt(receiptResult.receipt);
-      setReceiptQuery(result.receiptNo);
-      setMessage(`${tableCode} の精算が完了しました`);
+      const result = await cafeApi.settle(tableCode, method, { simulateResult, failureReason });
+      if (result.paymentAttempt?.status === 'failed') {
+        setMessage(`${tableCode} の支払いを失敗として記録しました`);
+      } else if (result.receiptNo) {
+        setReceiptNo(result.receiptNo);
+        const receiptResult = await cafeApi.receipt({ paymentNo: result.receiptNo });
+        setReceipt(receiptResult.receipt);
+        setReceiptQuery(result.receiptNo);
+        setMessage(`${tableCode} の精算が完了しました`);
+      }
       await load();
+      await loadAttempts(tableCode);
     } catch (event) {
       setError(event instanceof Error ? event.message : '精算に失敗しました');
+    } finally {
+      setSettling(false);
+    }
+  }
+
+  async function cancelAttempt(attemptId: string) {
+    if (!window.confirm('この決済試行を取消します。')) return;
+    setSettling(true);
+    setError('');
+    try {
+      await cafeApi.cancelPayment({ attemptId, reason: cancelReason });
+      setMessage('決済試行を取消しました');
+      await load();
+      await loadAttempts(tableCode);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : '決済試行を取消できませんでした');
     } finally {
       setSettling(false);
     }
@@ -170,12 +204,38 @@ export function CheckoutPage() {
               </button>
             ))}
           </div>
-          <button className="primary largeButton" disabled={!summary?.items.length || summary?.sessionStatus !== 'payment_requested' || settling} onClick={() => void settle()}>
+          <button className="primary largeButton" disabled={!summary?.items.length || summary?.sessionStatus !== 'payment_requested' || settling} onClick={() => void settle('paid')}>
             {settling ? '精算中' : '支払い完了'}
+          </button>
+          <label className="fieldLabel">失敗理由<input value={failureReason} onChange={(event) => setFailureReason(event.target.value)} /></label>
+          <button className="dangerButton" disabled={!summary?.items.length || summary?.sessionStatus !== 'payment_requested' || settling} onClick={() => void settle('failed')}>
+            失敗として処理
           </button>
           {receiptNo && <Banner tone="success">領収書番号: {receiptNo}</Banner>}
           {summary?.sessionStatus === 'payment_requested' && <p className="helperText">金額はサーバー集計値を使用します。端末入力の金額は会計に使用しません。</p>}
         </aside>
+      </section>
+      <section className="panel receiptLookupPanel">
+        <SectionTitle title="決済試行履歴" subtitle={`${tableCode} / 失敗後は再度「支払い完了」で再試行`} />
+        {summary?.latestAttempt && (
+          <Banner tone={summary.latestAttempt.status === 'failed' ? 'danger' : summary.latestAttempt.status === 'cancelled' ? 'warning' : 'info'}>
+            直近: {summary.latestAttempt.attemptNo} / {summary.latestAttempt.status} / {summary.latestAttempt.failureReason || summary.latestAttempt.cancelReason || '-'}
+          </Banner>
+        )}
+        <div className="cancelNoteBox">
+          <label className="fieldLabel">取消理由<input value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></label>
+        </div>
+        <div className="adminLines">
+          {attempts.length === 0 && <EmptyState>決済試行履歴はありません。</EmptyState>}
+          {attempts.map((attempt) => (
+            <div className="adminLine" key={attempt.attemptId}>
+              <strong>{attempt.attemptNo}</strong>
+              <span>{paymentLabels[attempt.method]} / <Badge tone={attempt.status === 'paid' ? 'success' : attempt.status === 'failed' || attempt.status === 'cancelled' ? 'danger' : 'warning'}>{attempt.status}</Badge> / {yen(attempt.amount)}</span>
+              <small>{formatDate(attempt.attemptedAt)} / {attempt.failureReason || attempt.cancelReason || '-'}</small>
+              <button disabled={settling || !['pending', 'failed'].includes(attempt.status)} onClick={() => void cancelAttempt(attempt.attemptId)}>取消</button>
+            </div>
+          ))}
+        </div>
       </section>
       <section className="panel receiptLookupPanel">
         <SectionTitle title="レシート再発行・返金" subtitle="payment_no または payment_id で検索" />

@@ -123,9 +123,17 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 
 - 目的: 精算記録を管理する。
 - 主なカラム: `id`, `session_id`, `payment_no`, `method`, `status`, `subtotal`, `tax_amount`, `total_amount`, `paid_at`
-- 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `refunded`
-- 関連テーブル: `table_sessions`, `payment_refunds`
-- 注意点: 現行はダミー決済。`status='paid'` のみ売上・分析対象、`status='refunded'` は売上対象外。返金しても注文・明細は削除しない。実決済サービス連携は未対応。
+- 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `refunded`, `cancelled`
+- 関連テーブル: `table_sessions`, `payment_refunds`, `payment_attempts`
+- 注意点: 現行はダミー決済。`payments` は成立した決済または返金対象の支払い記録として扱い、MVP の支払い失敗は原則 `payments` ではなく `payment_attempts` に記録する。`status='paid'` のみ売上・分析対象、`status='refunded'`, `failed`, `cancelled` は売上対象外。paid 後の取消は行わず返金 API を使う。返金しても注文・明細は削除しない。実決済サービス連携は未対応。
+
+### payment_attempts
+
+- 目的: 決済試行履歴を管理する。成功、失敗、取消を含め、支払い失敗後の再試行を追跡する。
+- 主なカラム: `id`, `session_id`, `payment_id`, `attempt_no`, `method`, `status`, `amount`, `failure_reason`, `cancel_reason`, `terminal_code`, `actor_user_id`, `actor_user_role`, `attempted_at`, `cancelled_at`
+- 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `cancelled`
+- 関連テーブル: `table_sessions`, `payments`
+- 注意点: `simulate_result='failed'` による MVP 支払い失敗は `payment_attempts.status='failed'` として保存し、`table_sessions.status='payment_requested'` を維持する。`pending` / `failed` attempt は取消でき、取消後も再試行可能。`failed` / `cancelled` attempt は売上対象外だが、売上 CSV には状態確認用の行として出す。
 
 ### payment_refunds
 
@@ -153,3 +161,5 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - フロントエンドから送信された金額を正として会計処理しない。
 - MVP の返金は全額返金のみ対応する。
 - 実決済サービス連携、クレジットカード実返金、外部レシートプリンタ連携は未対応。
+- MVP の支払い失敗は `simulate_result` による内部 flow とし、実決済 API の callback / webhook は未対応。
+- paid 後の取消は不可で、返金を使う。

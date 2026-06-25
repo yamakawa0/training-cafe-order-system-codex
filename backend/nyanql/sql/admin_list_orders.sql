@@ -15,6 +15,15 @@ latest_payment AS (
         p.paid_at
     FROM payments p
     ORDER BY p.session_id, p.paid_at DESC
+),
+latest_attempt AS (
+    SELECT DISTINCT ON (pa.session_id)
+        pa.session_id,
+        pa.status AS attempt_status,
+        pa.method AS attempt_method,
+        pa.attempted_at
+    FROM payment_attempts pa
+    ORDER BY pa.session_id, pa.attempted_at DESC
 )
 SELECT
     o.id AS order_id,
@@ -29,8 +38,8 @@ SELECT
     o.subtotal,
     o.tax_amount,
     o.total_amount,
-    lp.payment_status,
-    lp.payment_method,
+    COALESCE(lp.payment_status, la.attempt_status) AS payment_status,
+    COALESCE(lp.payment_method, la.attempt_method) AS payment_method,
     o.submitted_at,
     lp.paid_at
 FROM orders o
@@ -38,10 +47,11 @@ JOIN table_sessions ts ON ts.id = o.session_id
 JOIN cafe_tables ct ON ct.id = ts.table_id
 LEFT JOIN item_counts ic ON ic.order_id = o.id
 LEFT JOIN latest_payment lp ON lp.session_id = ts.id
+LEFT JOIN latest_attempt la ON la.session_id = ts.id
 WHERE o.submitted_at::date BETWEEN COALESCE(NULLIF(/*from_date*/'', '')::date, CURRENT_DATE - INTERVAL '30 days')::date
       AND COALESCE(NULLIF(/*to_date*/'', '')::date, CURRENT_DATE)::date
   AND (NULLIF(/*table_code*/'', '') IS NULL OR ct.table_code ILIKE '%' || NULLIF(/*table_code*/'', '') || '%')
   AND (NULLIF(/*order_no*/'', '') IS NULL OR o.order_no ILIKE '%' || NULLIF(/*order_no*/'', '') || '%')
   AND (NULLIF(/*order_status*/'', '') IS NULL OR o.status = NULLIF(/*order_status*/'', ''))
-  AND (NULLIF(/*payment_status*/'', '') IS NULL OR COALESCE(lp.payment_status, 'unpaid') = NULLIF(/*payment_status*/'', ''))
+  AND (NULLIF(/*payment_status*/'', '') IS NULL OR COALESCE(lp.payment_status, la.attempt_status, 'unpaid') = NULLIF(/*payment_status*/'', ''))
 ORDER BY o.submitted_at DESC, o.order_no DESC;

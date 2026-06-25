@@ -223,6 +223,22 @@
     "sql": ["./sql/update_payment_refunded.sql"],
     "description": "支払いを返金済みに更新する"
   },
+  "payment-attempts": {
+    "sql": ["./sql/list_payment_attempts.sql"],
+    "description": "決済試行履歴を取得する"
+  },
+  "payment-attempts/create": {
+    "sql": ["./sql/insert_payment_attempt.sql"],
+    "description": "決済試行履歴を登録する"
+  },
+  "payment-attempts/cancel": {
+    "sql": ["./sql/cancel_payment_attempt.sql"],
+    "description": "決済試行を取消済みにする"
+  },
+  "payments/cancel": {
+    "sql": ["./sql/cancel_payment.sql"],
+    "description": "pending または failed の支払いを取消済みにする"
+  },
   "sessions/close": {
     "sql": ["./sql/close_session.sql"],
     "description": "精算済みにして注文を締める"

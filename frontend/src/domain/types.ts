@@ -3,7 +3,8 @@ export type UserRole = 'manager' | 'cashier' | 'kitchen' | 'hall' | 'viewer';
 export type OrderItemStatus = 'ordered' | 'accepted' | 'cooking' | 'ready' | 'served' | 'cancelled';
 export type HallTaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card' | 'qr';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+export type PaymentAttemptStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -166,6 +167,27 @@ export interface PaymentReceipt {
     lineTax: number;
     lineTotal: number;
   }>;
+}
+
+export interface PaymentAttempt {
+  attemptId: string;
+  sessionId: string;
+  paymentId: string | null;
+  paymentNo: string | null;
+  attemptNo: string;
+  method: PaymentMethod;
+  status: PaymentAttemptStatus;
+  amount: number;
+  failureReason: string;
+  cancelReason: string;
+  terminalCode?: string | null;
+  actorUserId?: string | null;
+  actorUserDisplayName?: string | null;
+  actorUserRole?: string | null;
+  attemptedAt: string | null;
+  cancelledAt: string | null;
+  tableCode?: string | null;
+  tableName?: string | null;
 }
 
 export interface AnalyticsSummary {
@@ -396,6 +418,7 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     paidAt: string | null;
     refunds?: PaymentRefund[];
   }>;
+  paymentAttempts: PaymentAttempt[];
   hallTasks: Array<{
     taskId: string;
     taskType: string;
@@ -493,6 +516,7 @@ export interface CheckoutSummary {
   tableCode: string | null;
   tableName: string | null;
   sessionStatus: string | null;
+  latestAttempt?: PaymentAttempt | null;
   items: CheckoutItem[];
   subtotal: number;
   taxAmount: number;

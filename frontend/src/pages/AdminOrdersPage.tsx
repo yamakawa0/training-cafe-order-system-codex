@@ -186,6 +186,8 @@ export function AdminOrdersPage() {
               <option value="unpaid">未精算</option>
               <option value="paid">精算済み</option>
               <option value="refunded">返金済み</option>
+              <option value="failed">失敗</option>
+              <option value="cancelled">取消済み</option>
             </select>
             <a className="button" href="/analytics">CSV 出力</a>
             <a className="button" href="/admin/menu">メニュー管理</a>
@@ -267,6 +269,17 @@ export function AdminOrdersPage() {
                     {(payment.refunds || []).map((refund) => (
                       <small key={refund.refundId}>返金 {refund.refundNo}: {yen(refund.amount)} / {formatDate(refund.refundedAt)} / {refund.reason || '理由なし'}</small>
                     ))}
+                  </div>
+                ))}
+              </div>
+              <SectionTitle title="決済試行履歴" />
+              <div className="adminLines">
+                {detail.paymentAttempts.length === 0 && <EmptyState>決済試行履歴はありません。</EmptyState>}
+                {detail.paymentAttempts.map((attempt) => (
+                  <div className="adminLine" key={attempt.attemptId}>
+                    <strong>{attempt.attemptNo}</strong>
+                    <span>{attempt.method} / <Badge tone={statusTone(attempt.status)}>{statusLabel(attempt.status)}</Badge> / {yen(attempt.amount)}</span>
+                    <small>{formatDate(attempt.attemptedAt)} / {attempt.failureReason || attempt.cancelReason || '理由なし'}</small>
                   </div>
                 ))}
               </div>

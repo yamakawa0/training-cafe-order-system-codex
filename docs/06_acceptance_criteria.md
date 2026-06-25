@@ -157,6 +157,23 @@
 - 既存 smoke が成功する。
 - CI checks が成功する。
 
+## Phase 12 第2段階 支払い失敗 flow / 決済取消
+
+- 支払い失敗を `payment_attempts` に記録できる。
+- 失敗した支払いは売上対象外である。
+- 支払い失敗後に同じ table session で再試行できる。
+- 再試行成功後は売上対象になる。
+- `pending` / `failed` attempt を取消できる。
+- paid payment の取消は拒否される。
+- paid 後の取消は refund を使う仕様になっている。
+- failed / cancelled の receipt は発行されない。
+- 決済試行履歴を `/checkout` と `/admin/orders` で確認できる。
+- 支払い失敗、再試行成功、取消、取消拒否、履歴閲覧が audit log に記録される。
+- 権限外 role は決済取消 API を使えない。
+- `smoke-payment-failure-cancel.sh` が成功する。
+- 既存 smoke が成功する。
+- CI checks が成功する。
+
 ## smoke script 対応表
 
 | Script | 主な受け入れ条件 |
@@ -174,5 +191,6 @@
 | `scripts/smoke-cancel-flow.sh` | キャンセル可能状態、ready 以降拒否、取消明細除外 |
 | `scripts/smoke-staff-call.sh` | 注文なしセッションでの staff_call、ホール対応、完了済み再完了拒否 |
 | `scripts/smoke-refund-receipt.sh` | receipt 取得・再発行、全額返金、二重返金拒否、返金履歴、分析売上除外、CSV 返金列、返金 audit、権限拒否 |
+| `scripts/smoke-payment-failure-cancel.sh` | 支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否 |
 | `scripts/smoke-checkout-csv.sh` | 精算後の売上 CSV、原価・粗利 CSV 列、フロントエンド CSV ダウンロード形式 |
 | `scripts/smoke-invalid-operations.sh` | 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否 |

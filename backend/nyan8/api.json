@@ -94,6 +94,16 @@
     "script": "./javascript/apis/checkout_refund.js",
     "description": "全額返金"
   },
+  "api/checkout/cancel-payment": {
+    "type": "api",
+    "script": "./javascript/apis/checkout_cancel_payment.js",
+    "description": "決済試行取消"
+  },
+  "api/checkout/payment-attempts": {
+    "type": "api",
+    "script": "./javascript/apis/checkout_payment_attempts.js",
+    "description": "決済試行履歴"
+  },
   "api/analytics/summary": {
     "type": "api",
     "script": "./javascript/apis/analytics_summary.js",

@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentMethod, PaymentReceipt, PaymentRefund, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentAttempt, PaymentMethod, PaymentReceipt, PaymentRefund, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -82,10 +82,25 @@ export const cafeApi = {
     terminal_code: terminals.checkout,
     table_code: tableCode
   }),
-  settle: (tableCode: string, method: PaymentMethod) => post<{ receiptNo: string }>('/api/checkout/settle', {
+  settle: (tableCode: string, method: PaymentMethod, options: { simulateResult?: 'paid' | 'failed'; failureReason?: string } = {}) => post<{ receiptNo?: string; paymentAttempt?: PaymentAttempt; summary?: CheckoutSummary }>('/api/checkout/settle', {
     terminal_code: terminals.checkout,
     table_code: tableCode,
-    method
+    method,
+    simulate_result: options.simulateResult,
+    failure_reason: options.failureReason
+  }),
+  paymentAttempts: (filters: { tableCode?: string; sessionId?: string; paymentId?: string; attemptId?: string } = {}) => get<{ attempts: PaymentAttempt[] }>('/api/checkout/payment-attempts', {
+    terminal_code: terminals.checkout,
+    table_code: filters.tableCode,
+    session_id: filters.sessionId,
+    payment_id: filters.paymentId,
+    attempt_id: filters.attemptId
+  }),
+  cancelPayment: (input: { paymentId?: string; attemptId?: string; reason?: string }) => post<{ attempt?: PaymentAttempt; payment?: unknown }>('/api/checkout/cancel-payment', {
+    terminal_code: terminals.checkout,
+    payment_id: input.paymentId,
+    attempt_id: input.attemptId,
+    reason: input.reason
   }),
   receipt: (input: { paymentId?: string; paymentNo?: string; reissue?: boolean }) => get<{ receipt: PaymentReceipt }>('/api/checkout/receipt', {
     terminal_code: terminals.checkout,

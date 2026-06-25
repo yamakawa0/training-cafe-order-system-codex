@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS inventory_movements CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS payment_attempts CASCADE;
 DROP TABLE IF EXISTS payment_refunds CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS hall_tasks CASCADE;
@@ -248,7 +249,30 @@ CREATE TABLE payments (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (method IN ('cash', 'card', 'qr')),
-    CHECK (status IN ('pending', 'paid', 'failed', 'refunded'))
+    CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'cancelled'))
+);
+
+CREATE TABLE payment_attempts (
+    id VARCHAR(50) PRIMARY KEY,
+    session_id VARCHAR(50) NOT NULL REFERENCES table_sessions(id),
+    payment_id VARCHAR(50) REFERENCES payments(id),
+    attempt_no VARCHAR(50) NOT NULL UNIQUE,
+    method VARCHAR(30) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    amount INTEGER NOT NULL,
+    failure_reason TEXT NOT NULL DEFAULT '',
+    cancel_reason TEXT NOT NULL DEFAULT '',
+    terminal_code VARCHAR(100),
+    actor_user_id VARCHAR(50),
+    actor_user_display_name VARCHAR(100),
+    actor_user_role VARCHAR(50),
+    attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    cancelled_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (method IN ('cash', 'card', 'qr')),
+    CHECK (status IN ('pending', 'paid', 'failed', 'cancelled')),
+    CHECK (amount >= 0)
 );
 
 CREATE TABLE payment_refunds (
@@ -300,6 +324,9 @@ CREATE INDEX idx_order_items_status_created ON order_items(status, created_at);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_hall_tasks_status_created ON hall_tasks(status, created_at);
 CREATE INDEX idx_payments_paid_at ON payments(paid_at);
+CREATE INDEX idx_payment_attempts_session_time ON payment_attempts(session_id, attempted_at DESC);
+CREATE INDEX idx_payment_attempts_payment_id ON payment_attempts(payment_id);
+CREATE INDEX idx_payment_attempts_status_time ON payment_attempts(status, attempted_at DESC);
 CREATE INDEX idx_payment_refunds_payment_id ON payment_refunds(payment_id);
 CREATE INDEX idx_payment_refunds_refunded_at ON payment_refunds(refunded_at DESC);
 CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);

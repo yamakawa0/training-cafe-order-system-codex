@@ -10,6 +10,16 @@
 - 返金済み payment は分析売上から除外され、売上 CSV には `payment_status`, `refund_amount`, `refunded_at`, `refund_reason` が出力されます。
 - `scripts/smoke-refund-receipt.sh` は receipt 取得・再発行、全額返金、二重返金拒否、返金履歴、分析売上除外、CSV 返金列、返金 audit、権限拒否を確認します。
 
+## Phase 12 第2段階: 支払い失敗 flow / 決済取消
+
+- `/checkout` で MVP 用の支払い失敗を扱えます。`simulate_result='failed'` の内部 flow により `payment_attempts` に failed attempt を記録し、`payments` は作成しません。
+- 支払い失敗後も席セッションは `payment_requested` のまま維持され、同じ席で再試行できます。再試行成功時は `payments.status='paid'` と paid attempt を記録します。
+- pending / failed attempt は取消できます。取消後も再試行可能です。
+- paid 後の取消は不可です。精算成立後は `/api/checkout/refund` による全額返金を使います。
+- failed / cancelled attempt は分析売上対象外です。売上 CSV には `attempt_status`, `failure_reason`, `cancelled_reason` が出力されます。
+- 実決済サービス連携、実オーソリ、外部決済 webhook、QR 決済実連携、部分返金、分割決済、日次締め、外部レシートプリンタ、電子レシート送信は未対応です。
+- `scripts/smoke-payment-failure-cancel.sh` は支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否を確認します。
+
 ## 技術構成
 
 - Frontend: TypeScript / React / Vite
@@ -213,6 +223,7 @@ git diff --check
 ./scripts/smoke-cancel-flow.sh
 ./scripts/smoke-staff-call.sh
 ./scripts/smoke-refund-receipt.sh
+./scripts/smoke-payment-failure-cancel.sh
 ./scripts/smoke-checkout-csv.sh
 ./scripts/smoke-invalid-operations.sh
 ```
@@ -345,7 +356,7 @@ psql "$DATABASE_URL" < backup.sql
 - 顧客注文画面: カテゴリ別メニュー、商品カード、オプション選択モーダル、カート、注文履歴、スタッフ呼び出し、会計依頼を表示します。会計依頼後または精算済みの席では注文操作がロックされます。
 - キッチン画面: `ordered`, `accepted`, `cooking`, `ready` を列に分けたカンバンで注文明細を表示します。経過時間、オプション、メモ、アレルギー、状態更新ボタンをカード単位で確認できます。
 - ホール画面: 配膳、片付け、スタッフ呼び出し、会計サポートをタスク種別ごとに表示します。簡易フロアマップで席ごとの状態を確認できます。
-- レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法を表示します。会計依頼済みの席だけ精算できます。
+- レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法、支払い失敗、決済試行履歴、レシート再発行、返金操作を表示します。会計依頼済みの席だけ精算できます。
 - 分析画面: 売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV を保存できます。
 - メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、標準原価、粗利 / 粗利率、商品画像、在庫設定、在庫差分調整、在庫履歴、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
 - 席・端末管理画面: 店長 PC から席一覧、席状態、顧客端末紐付け、現在セッション、注文・会計状態、端末一覧を確認できます。注文なしまたは精算済みセッションの強制クローズ、席の `available` / `disabled` 変更、端末の有効 / 無効切り替えを行えます。
@@ -380,7 +391,7 @@ psql "$DATABASE_URL" < backup.sql
 - 顧客: `GET /api/customer/menu`, `POST /api/customer/session/open`, `GET /api/customer/session/current`, `POST /api/customer/order/submit`, `GET /api/customer/order/history`, `POST /api/customer/payment/request`, `POST /api/customer/staff-call`
 - キッチン: `GET /api/kitchen/tickets`, `POST /api/kitchen/item/status`
 - ホール: `GET /api/hall/tasks`, `POST /api/hall/task/status`
-- レジ: `GET /api/checkout/summary`, `POST /api/checkout/settle`
+- レジ: `GET /api/checkout/summary`, `POST /api/checkout/settle`, `GET /api/checkout/payment-attempts`, `POST /api/checkout/cancel-payment`, `GET /api/checkout/receipt`, `POST /api/checkout/refund`
 - 分析: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
 - 認証: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
 - 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/update-stock`, `POST /api/admin/menu/items/adjust-stock`, `GET /api/admin/menu/items/inventory-movements`, `POST /api/admin/menu/items/move`

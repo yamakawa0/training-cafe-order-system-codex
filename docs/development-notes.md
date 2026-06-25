@@ -387,4 +387,21 @@
 - audit log: `checkout_payment_refunded`, `checkout_refund_rejected`, `checkout_receipt_viewed`, `checkout_receipt_reissued` を追加した。
 - smoke: `scripts/smoke-refund-receipt.sh` を追加し、receipt、全額返金、二重返金拒否、返金履歴、分析売上除外、CSV 返金列、audit、権限拒否を検証する。
 - 未対応事項: 部分返金、支払い失敗 flow、決済取消、実決済連携、外部レシートプリンタ、電子レシート、日次締め。
-- 検証結果: 実行結果は作業完了時の報告に記録する。
+
+## 2026-06-25 Phase 12 決済・返金・レシート 第2段階
+
+- 実装範囲: 支払い失敗 flow、支払い再試行 flow、決済取消 flow、決済試行履歴 `payment_attempts`、支払い失敗 / 再試行成功 / 取消 audit log、`/checkout` と `/admin/orders` の表示更新を実装した。
+- DB / SQL: `payment_attempts` テーブルと session / payment / status index を追加した。`payments.status` に `cancelled` を追加した。`insert_payment_attempt.sql`, `list_payment_attempts.sql`, `cancel_payment_attempt.sql`, `cancel_payment.sql` を追加し、`checkout_summary.sql`, `admin_list_orders.sql`, `admin_get_order_detail.sql`, `get_payment_receipt.sql`, `analytics_sales_csv.sql` を更新した。
+- NyanQL API: `payment-attempts`, `payment-attempts/create`, `payment-attempts/cancel`, `payments/cancel` を追加した。
+- Nyan8 API: `GET /api/checkout/payment-attempts`, `POST /api/checkout/cancel-payment` を追加し、`POST /api/checkout/settle` に `simulate_result='failed'` を追加した。
+- frontend API client / 型: `PaymentAttempt`, `PaymentAttemptStatus`, `cafeApi.paymentAttempts()`, `cafeApi.cancelPayment()` を追加し、`cafeApi.settle()` は失敗シミュレーション入力を受け取れるようにした。
+- 更新した画面: `/checkout` に失敗として処理、失敗理由、再試行、決済試行履歴、attempt 取消を追加した。`/admin/orders` は payment attempts と failed / cancelled 状態、失敗理由を表示する。
+- 支払い失敗仕様: MVP では実決済連携ではなく `simulate_result='failed'` により `payment_attempts.status='failed'` を保存し、`payments` は作成しない。席セッションは `payment_requested` のまま維持する。
+- 再試行仕様: failed / cancelled attempt があっても、同じ `payment_requested` セッションで再度 settle できる。成功時は `payments.status='paid'` と paid attempt を作成し、既存どおりセッションを閉じる。paid 後の追加 settle は拒否する。
+- 決済取消仕様: pending / failed attempt は cancel 可能。paid / refunded payment の取消は拒否し、paid 後は refund を使う。
+- 分析・CSV: 分析サマリと商品ランキングは `payments.status='paid'` のみ売上対象とする。failed / cancelled attempt は売上対象外。売上 CSV は `attempt_status`, `failure_reason`, `cancelled_reason` を末尾に追加し、failed / cancelled attempt は売上 0 の状態確認行として出す。
+- audit log: `checkout_payment_failed`, `checkout_payment_retry_succeeded`, `checkout_payment_cancelled`, `checkout_payment_cancel_rejected`, `checkout_payment_attempts_viewed` を追加した。
+- smoke: `scripts/smoke-payment-failure-cancel.sh` を追加し、支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否を検証する。
+- 未対応事項: 実決済サービス連携、クレジットカード実オーソリ、実売上確定、QR 決済実連携、外部決済 API webhook、部分返金、分割決済、日次締め、会計締め、外部レシートプリンタ、電子レシート送信。
+- 検証結果: `node --check backend/nyan8/javascript/lib/runtime.js`, Nyan8 / NyanQL API 定義整合チェック, `bash -n scripts/smoke-payment-failure-cancel.sh`, `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `git diff --check`, frontend `npm ci`, `npm audit --audit-level=high`, `npm run build`, `./scripts/smoke-prod-readiness.sh` は成功した。`npm audit` と production readiness smoke は sandbox DNS 制限のため承認付きネットワーク実行で確認した。
+- smoke 結果: `./scripts/smoke-payment-failure-cancel.sh`, `./scripts/smoke-refund-receipt.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-inventory.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh` は成功した。

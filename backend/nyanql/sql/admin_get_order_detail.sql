@@ -22,6 +22,16 @@ payment_summary AS (
     FROM payments p
     JOIN target_order o ON o.session_id = p.session_id
     ORDER BY p.session_id, p.paid_at DESC
+),
+attempt_summary AS (
+    SELECT DISTINCT ON (pa.session_id)
+        pa.session_id,
+        pa.status AS attempt_status,
+        pa.method AS attempt_method,
+        pa.attempted_at
+    FROM payment_attempts pa
+    JOIN target_order o ON o.session_id = pa.session_id
+    ORDER BY pa.session_id, pa.attempted_at DESC
 )
 SELECT
     o.id AS order_id,
@@ -36,8 +46,8 @@ SELECT
     o.subtotal,
     o.tax_amount,
     o.total_amount,
-    ps.payment_status,
-    ps.payment_method,
+    COALESCE(ps.payment_status, ats.attempt_status) AS payment_status,
+    COALESCE(ps.payment_method, ats.attempt_method) AS payment_method,
     o.submitted_at,
     ps.paid_at,
     ts.status AS session_status,
@@ -109,6 +119,27 @@ SELECT
     ), '[]'::jsonb) AS payments,
     COALESCE((
         SELECT jsonb_agg(jsonb_build_object(
+            'attemptId', pa.id,
+            'attemptNo', pa.attempt_no,
+            'paymentId', pa.payment_id,
+            'paymentNo', p.payment_no,
+            'method', pa.method,
+            'status', pa.status,
+            'amount', pa.amount,
+            'failureReason', pa.failure_reason,
+            'cancelReason', pa.cancel_reason,
+            'terminalCode', pa.terminal_code,
+            'actorUserDisplayName', pa.actor_user_display_name,
+            'actorUserRole', pa.actor_user_role,
+            'attemptedAt', pa.attempted_at,
+            'cancelledAt', pa.cancelled_at
+        ) ORDER BY pa.attempted_at DESC)
+        FROM payment_attempts pa
+        LEFT JOIN payments p ON p.id = pa.payment_id
+        WHERE pa.session_id = o.session_id
+    ), '[]'::jsonb) AS payment_attempts,
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
             'taskId', ht.id,
             'taskType', ht.task_type,
             'title', ht.title,
@@ -124,4 +155,5 @@ FROM target_order o
 JOIN table_sessions ts ON ts.id = o.session_id
 JOIN cafe_tables ct ON ct.id = ts.table_id
 LEFT JOIN item_counts ic ON ic.order_id = o.id
-LEFT JOIN payment_summary ps ON ps.session_id = o.session_id;
+LEFT JOIN payment_summary ps ON ps.session_id = o.session_id
+LEFT JOIN attempt_summary ats ON ats.session_id = o.session_id;

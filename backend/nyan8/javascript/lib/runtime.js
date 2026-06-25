@@ -545,7 +545,21 @@ function summarizeCheckout(rawRows) {
   });
   var subtotal = items.reduce(function(sum, item) { return sum + item.lineSubtotal; }, 0);
   var taxAmount = items.reduce(function(sum, item) { return sum + item.lineTax; }, 0);
-  return { sessionId: rawRows[0] ? rawRows[0].session_id : null, tableCode: rawRows[0] ? rawRows[0].table_code : null, tableName: rawRows[0] ? rawRows[0].table_name : null, sessionStatus: rawRows[0] ? rawRows[0].session_status : null, items: items, subtotal: subtotal, taxAmount: taxAmount, totalAmount: subtotal + taxAmount };
+  var latestAttempt = null;
+  if (rawRows[0] && rawRows[0].latest_attempt_id) {
+    latestAttempt = {
+      attemptId: rawRows[0].latest_attempt_id,
+      attemptNo: rawRows[0].latest_attempt_no,
+      method: rawRows[0].latest_attempt_method,
+      status: rawRows[0].latest_attempt_status,
+      amount: Number(rawRows[0].latest_attempt_amount || 0),
+      failureReason: rawRows[0].latest_attempt_failure_reason || "",
+      cancelReason: rawRows[0].latest_attempt_cancel_reason || "",
+      attemptedAt: rawRows[0].latest_attempted_at || null,
+      cancelledAt: rawRows[0].latest_attempt_cancelled_at || null
+    };
+  }
+  return { sessionId: rawRows[0] ? rawRows[0].session_id : null, tableCode: rawRows[0] ? rawRows[0].table_code : null, tableName: rawRows[0] ? rawRows[0].table_name : null, sessionStatus: rawRows[0] ? rawRows[0].session_status : null, latestAttempt: latestAttempt, items: items, subtotal: subtotal, taxAmount: taxAmount, totalAmount: subtotal + taxAmount };
 }
 
 function checkoutSummary() {
@@ -560,7 +574,7 @@ function checkoutSummary() {
 
 function checkoutSettle() {
   var input = params();
-  requireRole(["cashier", "manager"]);
+  var user = requireRole(["cashier", "manager"]);
   var rawRows = [];
   try {
     requireField(input.terminal_code, "terminal_code");
@@ -575,7 +589,55 @@ function checkoutSettle() {
     var subtotal = rawRows.reduce(function(sum, row) { return sum + Number(row.line_subtotal || 0); }, 0);
     var taxAmount = rawRows.reduce(function(sum, row) { return sum + Number(row.line_tax || 0); }, 0);
     var sessionId = rawRows[0].session_id;
+    var totalAmount = subtotal + taxAmount;
+    var previousAttempts = rows(nyanqlGet("payment-attempts", { session_id: sessionId }));
+    if (input.simulate_result === "failed") {
+      var failedAttempt = first(nyanqlPost("payment-attempts/create", {
+        id: newId("attempt"),
+        session_id: sessionId,
+        payment_id: "",
+        attempt_no: businessNo("ATT"),
+        method: input.method,
+        status: "failed",
+        amount: totalAmount,
+        failure_reason: input.failure_reason || "支払い失敗",
+        terminal_code: terminal.terminal_code,
+        actor_user_id: user.id,
+        actor_user_display_name: user.displayName,
+        actor_user_role: user.role
+      }));
+      writeAuditLog({
+        actorTerminalCode: terminal.terminal_code,
+        actorTerminalType: terminal.terminal_type,
+        actorUserId: user.id,
+        actorUserDisplayName: user.displayName,
+        actorUserRole: user.role,
+        action: "checkout_payment_failed",
+        targetType: "payment_attempt",
+        targetId: failedAttempt.id,
+        targetLabel: failedAttempt.attempt_no,
+        status: "success",
+        beforeData: { sessionId: sessionId, tableCode: input.table_code, sessionStatus: rawRows[0].session_status },
+        afterData: { attemptId: failedAttempt.id, attemptNo: failedAttempt.attempt_no, method: input.method, amount: totalAmount, failureReason: failedAttempt.failure_reason, status: failedAttempt.status },
+        requestData: { table_code: input.table_code, method: input.method, simulate_result: input.simulate_result, failure_reason: input.failure_reason || "" }
+      });
+      return ok({ paymentAttempt: paymentAttemptDto(failedAttempt), summary: summarizeCheckout(rows(nyanqlGet("checkout/summary", { table_code: input.table_code }))) });
+    }
     var payment = first(nyanqlPost("payments", { id: newId("pay"), session_id: sessionId, payment_no: businessNo("PAY"), method: input.method, subtotal: subtotal, tax_amount: taxAmount, total_amount: subtotal + taxAmount }));
+    var paidAttempt = first(nyanqlPost("payment-attempts/create", {
+      id: newId("attempt"),
+      session_id: sessionId,
+      payment_id: payment.id,
+      attempt_no: businessNo("ATT"),
+      method: input.method,
+      status: "paid",
+      amount: totalAmount,
+      failure_reason: "",
+      terminal_code: terminal.terminal_code,
+      actor_user_id: user.id,
+      actor_user_display_name: user.displayName,
+      actor_user_role: user.role
+    }));
     var closed = first(nyanqlPost("sessions/close", { session_id: sessionId }));
     if (!closed) throw error(409, "session is already settled");
     nyanqlPost("hall/tasks", { id: newId("task"), task_type: "clean_table", session_id: sessionId, table_id: closed.table_id, order_item_id: null, priority: 30, title: input.table_code + " 片付け", note: "精算完了後の片付け" });
@@ -588,12 +650,146 @@ function checkoutSettle() {
       targetLabel: payment.payment_no,
       status: "success",
       beforeData: { sessionId: sessionId, tableCode: input.table_code, sessionStatus: rawRows[0].session_status },
-      afterData: { paymentNo: payment.payment_no, method: input.method, totalAmount: subtotal + taxAmount, sessionStatus: closed.status },
-      requestData: { table_code: input.table_code, method: input.method }
+      afterData: { paymentNo: payment.payment_no, attemptNo: paidAttempt.attempt_no, method: input.method, totalAmount: totalAmount, sessionStatus: closed.status },
+      requestData: { table_code: input.table_code, method: input.method, simulate_result: input.simulate_result || "paid" }
     });
+    if (previousAttempts.some(function(attempt) { return attempt.status === "failed" || attempt.status === "cancelled"; })) {
+      writeAuditLog({
+        actorTerminalCode: terminal.terminal_code,
+        actorTerminalType: terminal.terminal_type,
+        actorUserId: user.id,
+        actorUserDisplayName: user.displayName,
+        actorUserRole: user.role,
+        action: "checkout_payment_retry_succeeded",
+        targetType: "payment",
+        targetId: payment.id,
+        targetLabel: payment.payment_no,
+        status: "success",
+        beforeData: { attempts: previousAttempts },
+        afterData: { paymentNo: payment.payment_no, attemptNo: paidAttempt.attempt_no, method: input.method, totalAmount: totalAmount },
+        requestData: { table_code: input.table_code, method: input.method }
+      });
+    }
     return ok({ receiptNo: payment.payment_no, payment: payment });
   } catch (event) {
     auditFailure(input, "checkout_settle_rejected", "session", rawRows[0] ? rawRows[0].session_id : "", input.table_code || "", event, rawRows[0] || null);
+    throw event;
+  }
+}
+
+function paymentAttemptDto(row) {
+  return {
+    attemptId: row.id,
+    sessionId: row.session_id,
+    paymentId: row.payment_id || null,
+    paymentNo: row.payment_no || null,
+    attemptNo: row.attempt_no,
+    method: row.method,
+    status: row.status,
+    amount: Number(row.amount || 0),
+    failureReason: row.failure_reason || "",
+    cancelReason: row.cancel_reason || "",
+    terminalCode: row.terminal_code || null,
+    actorUserId: row.actor_user_id || null,
+    actorUserDisplayName: row.actor_user_display_name || null,
+    actorUserRole: row.actor_user_role || null,
+    attemptedAt: row.attempted_at || null,
+    cancelledAt: row.cancelled_at || null,
+    tableCode: row.table_code || null,
+    tableName: row.table_name || null
+  };
+}
+
+function checkoutPaymentAttempts() {
+  var input = params();
+  var user = requireRole(["cashier", "manager"]);
+  requireField(input.terminal_code, "terminal_code");
+  var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+  assertTerminal(terminal, "checkout");
+  var attempts = rows(nyanqlGet("payment-attempts", {
+    session_id: input.session_id || "",
+    payment_id: input.payment_id || "",
+    attempt_id: input.attempt_id || "",
+    table_code: input.table_code || ""
+  })).map(paymentAttemptDto);
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: "checkout_payment_attempts_viewed",
+    targetType: input.attempt_id ? "payment_attempt" : "session",
+    targetId: input.attempt_id || input.session_id || input.table_code || "",
+    targetLabel: input.table_code || "",
+    status: "success",
+    afterData: { count: attempts.length },
+    requestData: input
+  });
+  return ok({ attempts: attempts });
+}
+
+function checkoutCancelPayment() {
+  var input = params();
+  var terminal = null;
+  var beforeAttempts = [];
+  try {
+    var user = requireRole(["cashier", "manager"]);
+    requireField(input.terminal_code, "terminal_code");
+    if (!input.attempt_id && !input.payment_id) throw error(400, "attempt_id or payment_id is required");
+    terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+    assertTerminal(terminal, "checkout");
+    if (input.attempt_id) {
+      beforeAttempts = rows(nyanqlGet("payment-attempts", { attempt_id: input.attempt_id }));
+      var attempt = first(nyanqlPost("payment-attempts/cancel", { attempt_id: input.attempt_id, cancel_reason: input.reason || "" }));
+      if (!attempt) throw error(409, "only pending or failed payment attempt can be cancelled");
+      writeAuditLog({
+        actorTerminalCode: terminal.terminal_code,
+        actorTerminalType: terminal.terminal_type,
+        actorUserId: user.id,
+        actorUserDisplayName: user.displayName,
+        actorUserRole: user.role,
+        action: "checkout_payment_cancelled",
+        targetType: "payment_attempt",
+        targetId: attempt.id,
+        targetLabel: attempt.attempt_no,
+        status: "success",
+        beforeData: beforeAttempts[0] || null,
+        afterData: attempt,
+        requestData: { attempt_id: input.attempt_id, reason: input.reason || "", terminal_code: input.terminal_code }
+      });
+      return ok({ attempt: paymentAttemptDto(attempt) });
+    }
+    var payment = first(nyanqlPost("payments/cancel", { payment_id: input.payment_id }));
+    if (!payment) throw error(409, "paid or refunded payment cannot be cancelled; use refund after paid");
+    writeAuditLog({
+      actorTerminalCode: terminal.terminal_code,
+      actorTerminalType: terminal.terminal_type,
+      actorUserId: user.id,
+      actorUserDisplayName: user.displayName,
+      actorUserRole: user.role,
+      action: "checkout_payment_cancelled",
+      targetType: "payment",
+      targetId: payment.id,
+      targetLabel: payment.payment_no,
+      status: "success",
+      afterData: payment,
+      requestData: { payment_id: input.payment_id, reason: input.reason || "", terminal_code: input.terminal_code }
+    });
+    return ok({ payment: payment });
+  } catch (event) {
+    writeAuditLog({
+      actorTerminalCode: input && input.terminal_code,
+      actorTerminalType: terminal && terminal.terminal_type,
+      action: "checkout_payment_cancel_rejected",
+      targetType: input && input.attempt_id ? "payment_attempt" : "payment",
+      targetId: input && (input.attempt_id || input.payment_id) || "",
+      targetLabel: "",
+      status: "failure",
+      beforeData: beforeAttempts[0] || null,
+      requestData: input || {},
+      errorMessage: event && event.message ? event.message : String(event)
+    });
     throw event;
   }
 }
@@ -736,8 +932,8 @@ function analyticsExportSalesCsv() {
   var fromDate = input.from_date || today();
   var toDate = input.to_date || today();
   var salesRows = rows(nyanqlGet("analytics/sales-csv", { from_date: fromDate, to_date: toDate }));
-  var lines = [["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total", "unit_cost_price", "cost_total", "gross_profit", "gross_margin_rate", "payment_status", "refund_amount", "refunded_at", "refund_reason"]].concat(salesRows.map(function(item) {
-    return [item.paid_date, item.payment_no, item.method, item.table_code, item.menu_item_id, item.item_name, item.quantity, item.sales_total, item.unit_cost_price, item.cost_total, item.gross_profit, item.gross_margin_rate, item.payment_status, item.refund_amount, item.refunded_at, item.refund_reason];
+  var lines = [["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total", "unit_cost_price", "cost_total", "gross_profit", "gross_margin_rate", "payment_status", "refund_amount", "refunded_at", "refund_reason", "attempt_status", "failure_reason", "cancelled_reason"]].concat(salesRows.map(function(item) {
+    return [item.paid_date, item.payment_no, item.method, item.table_code, item.menu_item_id, item.item_name, item.quantity, item.sales_total, item.unit_cost_price, item.cost_total, item.gross_profit, item.gross_margin_rate, item.payment_status, item.refund_amount, item.refunded_at, item.refund_reason, item.attempt_status, item.failure_reason, item.cancelled_reason];
   }));
   var csv = lines.map(function(line) {
     return line.map(function(value) {
@@ -1823,6 +2019,7 @@ function adminOrderDetail(row) {
   base.closedAt = row.closed_at || null;
   base.items = parseJsonValue(row.items, []);
   base.payments = parseJsonValue(row.payments, []);
+  base.paymentAttempts = parseJsonValue(row.payment_attempts, []);
   base.hallTasks = parseJsonValue(row.hall_tasks, []);
   return base;
 }
