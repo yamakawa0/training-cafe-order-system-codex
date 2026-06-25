@@ -129,6 +129,14 @@ psql "$DATABASE_URL" < backup.sql
 - stdout / stderr と Nginx log は OS の logrotate 等で日次またはサイズベースのローテーションを設定する。
 - audit log は DB 保持期間、archive table、外部 storage を今後設計する。
 
+返金運用:
+
+- MVP の返金は `paid` payment の全額返金のみ対応する。
+- 実決済サービスへの返金、決済取消、部分返金、日次締めは未対応。
+- `payments.status='refunded'` は売上分析対象外とし、返金履歴は `payment_refunds` に保持する。
+- 返金しても注文・明細・席セッションの履歴は削除しない。
+- レシート再発行はブラウザ表示・印刷で扱い、外部レシートプリンタ連携と電子レシート送信は未対応。
+
 障害時の確認順:
 
 1. Nginx error log
@@ -162,7 +170,7 @@ GitHub Actions CI は本番 DB、開発 DB、NyanQL / Nyan8 runtime を操作し
 
 CI 失敗時は、原因を修正して CI が成功してから `master` へ反映する。GitHub Actions の警告や runtime 更新がある場合は、workflow の `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`、`actions/checkout`、`actions/setup-node` の更新可否を確認する。
 
-local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh` で行う。
+local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh`、返金・レシート再発行の確認は `./scripts/smoke-refund-receipt.sh` で行う。
 
 本番デプロイ前は、frontend build 後に `./scripts/smoke-prod-readiness.sh` を実行する。この script も本番 DB を初期化せず、`.env.production.example` または `.env.production`、Nginx 設定例、runtime 実行ファイル、docs 反映状況を確認する。
 

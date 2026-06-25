@@ -66,11 +66,11 @@
 
 - 目的: 会計依頼済みの席を精算する。
 - 主な利用者: レジ担当、店長 / 管理者。
-- 主な表示項目: 席カード、レシート風明細、選択オプション、小計、税、合計、支払い方法。
-- 主な操作: 席選択、支払い方法 `cash` / `card` / `qr` 選択、精算確定。
+- 主な表示項目: 席カード、レシート風明細、選択オプション、小計、税、合計、支払い方法、payment 検索、再発行レシート、返金履歴、返金済み badge。
+- 主な操作: 席選択、支払い方法 `cash` / `card` / `qr` 選択、精算確定、`payment_no` / `payment_id` でのレシート検索、レシート再発行、返金理由入力、全額返金。
 - 必要な role: `cashier` / `manager`
-- 関連 API: `GET /api/checkout/summary`, `POST /api/checkout/settle`
-- 注意点: 会計依頼済みセッションだけ精算できる。取消明細は会計対象外。
+- 関連 API: `GET /api/checkout/summary`, `POST /api/checkout/settle`, `GET /api/checkout/receipt`, `POST /api/checkout/refund`
+- 注意点: 会計依頼済みセッションだけ精算できる。取消明細は会計対象外。返金は MVP では paid payment の全額返金のみ。レシートには原価・粗利を表示しない。外部プリンタ連携は行わず、ブラウザ表示・印刷で扱う。
 
 ## `/analytics`
 
@@ -108,11 +108,11 @@
 
 - 目的: 注文一覧と注文詳細を確認し、条件を満たす注文・明細を取消する。
 - 主な利用者: 店長 / 管理者。
-- 主な表示項目: 注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、選択オプション、支払い情報、関連ホールタスク。
+- 主な表示項目: 注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、選択オプション、支払い情報、payment 状態、返金履歴、関連ホールタスク。
 - 主な操作: フィルタ、詳細表示、明細取消、注文全体取消。
 - 必要な role: `manager`
 - 関連 API: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
-- 注意点: `ordered`, `accepted`, `cooking` の明細だけ取消可能。ready / served 明細を含む注文や精算済み注文は取消不可。注文詳細では管理者向けに明細売上、明細原価、明細粗利、粗利率を表示する。CSV 出力は `/analytics` の売上 CSV へ誘導する。
+- 注意点: `ordered`, `accepted`, `cooking` の明細だけ取消可能。ready / served 明細を含む注文や精算済み注文は取消不可。注文詳細では管理者向けに明細売上、明細原価、明細粗利、粗利率を表示する。返金操作は `/checkout` に寄せ、注文管理では payment 状態と返金履歴を確認する。CSV 出力は `/analytics` の売上 CSV へ誘導する。
 
 ## `/admin/audit-logs`
 

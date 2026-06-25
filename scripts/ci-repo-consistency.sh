@@ -90,6 +90,7 @@ for script in \
   "scripts/smoke-multiple-tables.sh" \
   "scripts/smoke-cancel-flow.sh" \
   "scripts/smoke-staff-call.sh" \
+  "scripts/smoke-refund-receipt.sh" \
   "scripts/smoke-checkout-csv.sh" \
   "scripts/smoke-invalid-operations.sh"
 do

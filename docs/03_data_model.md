@@ -124,8 +124,16 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - 目的: 精算記録を管理する。
 - 主なカラム: `id`, `session_id`, `payment_no`, `method`, `status`, `subtotal`, `tax_amount`, `total_amount`, `paid_at`
 - 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `refunded`
-- 関連テーブル: `table_sessions`
-- 注意点: 現行はダミー決済。返金や実決済連携は今後対応。
+- 関連テーブル: `table_sessions`, `payment_refunds`
+- 注意点: 現行はダミー決済。`status='paid'` のみ売上・分析対象、`status='refunded'` は売上対象外。返金しても注文・明細は削除しない。実決済サービス連携は未対応。
+
+### payment_refunds
+
+- 目的: 支払い単位の返金履歴を管理する。
+- 主なカラム: `id`, `payment_id`, `refund_no`, `amount`, `reason`, `status`, `refunded_at`, `actor_user_id`, `actor_user_role`, `actor_terminal_code`
+- 主な状態値: `status` は `refunded`, `failed`, `cancelled`
+- 関連テーブル: `payments`
+- 注意点: MVP では全額返金のみ対応し、部分返金は未対応。返金履歴は audit log とは別に業務履歴として保持する。返金済み payment は売上 CSV に状態・返金額・返金日時・理由を出すが、分析売上からは除外する。
 
 ### audit_logs
 
@@ -143,3 +151,5 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - `audit_logs` は物理削除しない前提。
 - 取消明細は会計・分析から除外する。
 - フロントエンドから送信された金額を正として会計処理しない。
+- MVP の返金は全額返金のみ対応する。
+- 実決済サービス連携、クレジットカード実返金、外部レシートプリンタ連携は未対応。

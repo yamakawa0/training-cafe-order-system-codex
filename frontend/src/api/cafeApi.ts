@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentMethod, PaymentReceipt, PaymentRefund, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -86,6 +86,17 @@ export const cafeApi = {
     terminal_code: terminals.checkout,
     table_code: tableCode,
     method
+  }),
+  receipt: (input: { paymentId?: string; paymentNo?: string; reissue?: boolean }) => get<{ receipt: PaymentReceipt }>('/api/checkout/receipt', {
+    terminal_code: terminals.checkout,
+    payment_id: input.paymentId,
+    payment_no: input.paymentNo,
+    reissue: input.reissue ? 'true' : undefined
+  }),
+  refundPayment: (paymentId: string, reason: string) => post<{ refund: PaymentRefund; receipt: PaymentReceipt }>('/api/checkout/refund', {
+    terminal_code: terminals.checkout,
+    payment_id: paymentId,
+    reason
   }),
   analyticsSummary: (fromDate: string, toDate: string) => get<{ summary: AnalyticsSummary }>('/api/analytics/summary', {
     terminal_code: terminals.analytics,

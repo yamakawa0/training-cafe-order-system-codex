@@ -598,6 +598,116 @@ function checkoutSettle() {
   }
 }
 
+function receiptDto(row) {
+  return {
+    paymentId: row.payment_id,
+    paymentNo: row.payment_no,
+    sessionId: row.session_id,
+    tableCode: row.table_code,
+    tableName: row.table_name,
+    paidAt: row.paid_at,
+    method: row.method,
+    status: row.status,
+    subtotal: Number(row.subtotal || 0),
+    taxAmount: Number(row.tax_amount || 0),
+    totalAmount: Number(row.total_amount || 0),
+    refunds: parseJsonValue(row.refunds, []),
+    orders: parseJsonValue(row.orders, []),
+    items: parseJsonValue(row.order_items, [])
+  };
+}
+
+function getReceiptByPayment(input) {
+  var receipt = first(nyanqlGet("payments/receipt", {
+    payment_id: input.payment_id || "",
+    payment_no: input.payment_no || ""
+  }));
+  if (!receipt) throw error(404, "payment not found");
+  return receiptDto(receipt);
+}
+
+function checkoutReceipt() {
+  var input = params();
+  requireRole(["cashier", "manager"]);
+  requireField(input.terminal_code, "terminal_code");
+  if (!input.payment_id && !input.payment_no) throw error(400, "payment_id or payment_no is required");
+  var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+  assertTerminal(terminal, "checkout");
+  var receipt = getReceiptByPayment(input);
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    action: input.reissue === "true" || input.reissue === true ? "checkout_receipt_reissued" : "checkout_receipt_viewed",
+    targetType: "payment",
+    targetId: receipt.paymentId,
+    targetLabel: receipt.paymentNo,
+    status: "success",
+    afterData: { paymentNo: receipt.paymentNo, sessionId: receipt.sessionId, tableCode: receipt.tableCode, amount: receipt.totalAmount, status: receipt.status },
+    requestData: { payment_id: input.payment_id || "", payment_no: input.payment_no || "", reissue: Boolean(input.reissue) }
+  });
+  return ok({ receipt: receipt });
+}
+
+function checkoutRefund() {
+  var input = params();
+  var receipt = null;
+  var terminal = null;
+  try {
+    var user = requireRole(["cashier", "manager"]);
+    requireField(input.terminal_code, "terminal_code");
+    requireField(input.payment_id, "payment_id");
+    terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+    assertTerminal(terminal, "checkout");
+    receipt = getReceiptByPayment({ payment_id: input.payment_id });
+    if (receipt.status !== "paid") throw error(409, "paid payment only can be refunded");
+    if ((receipt.refunds || []).some(function(refund) { return refund.status === "refunded"; })) throw error(409, "payment is already refunded");
+    var refund = first(nyanqlPost("payments/refunds", {
+      id: newId("refund"),
+      payment_id: receipt.paymentId,
+      refund_no: businessNo("REF"),
+      amount: receipt.totalAmount,
+      reason: input.reason || "",
+      actor_user_id: user.id,
+      actor_user_display_name: user.displayName,
+      actor_user_role: user.role,
+      actor_terminal_code: terminal.terminal_code
+    }));
+    var payment = first(nyanqlPost("payments/refunded", { payment_id: receipt.paymentId }));
+    if (!payment) throw error(409, "payment is already refunded");
+    var refundedReceipt = getReceiptByPayment({ payment_id: receipt.paymentId });
+    writeAuditLog({
+      actorTerminalCode: terminal.terminal_code,
+      actorTerminalType: terminal.terminal_type,
+      actorUserId: user.id,
+      actorUserDisplayName: user.displayName,
+      actorUserRole: user.role,
+      action: "checkout_payment_refunded",
+      targetType: "payment",
+      targetId: receipt.paymentId,
+      targetLabel: receipt.paymentNo,
+      status: "success",
+      beforeData: { paymentId: receipt.paymentId, paymentNo: receipt.paymentNo, sessionId: receipt.sessionId, tableCode: receipt.tableCode, amount: receipt.totalAmount, status: receipt.status },
+      afterData: { paymentId: payment.id, paymentNo: payment.payment_no, amount: refund.amount, refundNo: refund.refund_no, reason: refund.reason, status: payment.status },
+      requestData: { payment_id: input.payment_id, reason: input.reason || "", terminal_code: input.terminal_code }
+    });
+    return ok({ refund: refund, receipt: refundedReceipt });
+  } catch (event) {
+    writeAuditLog({
+      actorTerminalCode: input && input.terminal_code,
+      actorTerminalType: terminal && terminal.terminal_type,
+      action: "checkout_refund_rejected",
+      targetType: "payment",
+      targetId: input && input.payment_id || "",
+      targetLabel: receipt && receipt.paymentNo || "",
+      status: "failure",
+      beforeData: receipt,
+      requestData: input || {},
+      errorMessage: event && event.message ? event.message : String(event)
+    });
+    throw event;
+  }
+}
+
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -626,8 +736,8 @@ function analyticsExportSalesCsv() {
   var fromDate = input.from_date || today();
   var toDate = input.to_date || today();
   var salesRows = rows(nyanqlGet("analytics/sales-csv", { from_date: fromDate, to_date: toDate }));
-  var lines = [["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total", "unit_cost_price", "cost_total", "gross_profit", "gross_margin_rate"]].concat(salesRows.map(function(item) {
-    return [item.paid_date, item.payment_no, item.method, item.table_code, item.menu_item_id, item.item_name, item.quantity, item.sales_total, item.unit_cost_price, item.cost_total, item.gross_profit, item.gross_margin_rate];
+  var lines = [["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total", "unit_cost_price", "cost_total", "gross_profit", "gross_margin_rate", "payment_status", "refund_amount", "refunded_at", "refund_reason"]].concat(salesRows.map(function(item) {
+    return [item.paid_date, item.payment_no, item.method, item.table_code, item.menu_item_id, item.item_name, item.quantity, item.sales_total, item.unit_cost_price, item.cost_total, item.gross_profit, item.gross_margin_rate, item.payment_status, item.refund_amount, item.refunded_at, item.refund_reason];
   }));
   var csv = lines.map(function(line) {
     return line.map(function(value) {

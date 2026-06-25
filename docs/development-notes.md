@@ -372,3 +372,19 @@
 - 検証結果: `node --check backend/nyan8/javascript/lib/runtime.js`, Nyan8 / NyanQL API 定義整合チェック, `bash -n scripts/smoke-inventory.sh`, `bash -n scripts/smoke-admin-menu.sh`, `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `git diff --check`, frontend `npm ci`, `npm audit --audit-level=high`, `npm run build` は成功した。システム既定 Node.js / npm では要件未満のため、frontend build と production readiness smoke は Codex bundled Node.js `v24.14.0` と npm `10.9.8` 相当で確認した。
 - smoke 結果: `./scripts/smoke-inventory.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-prod-readiness.sh` は成功した。`smoke-inventory.sh` は `manual_set`, `manual_adjust`, `order_reserved`, `order_cancel_restored`, 在庫 0 自動売切、売切自動解除なし、非 manager 拒否を確認した。
 - 未対応事項: 仕入 / 入荷 / 棚卸、廃棄専用フロー、原材料別在庫、複数店舗別在庫、バーコード、発注、在庫 CSV import / export、本格的な商品画像アップロード、画像 resize / CDN、レシピ原価。
+
+## 2026-06-25 Phase 12 決済・返金・レシート 第1段階
+
+- 実装範囲: 全額返金、返金履歴 `payment_refunds`、レシート再発行、返金後の分析・CSV 反映、返金 audit log、`/checkout` と `/admin/orders` の表示更新を実装した。
+- DB / SQL: `payment_refunds` テーブルと `idx_payment_refunds_payment_id`, `idx_payment_refunds_refunded_at` を追加した。`get_payment_receipt.sql`, `insert_payment_refund.sql`, `update_payment_refunded.sql` を追加し、`analytics_sales_csv.sql` は返金状態列を末尾に追加した。
+- NyanQL API: `payments/receipt`, `payments/refunds`, `payments/refunded` を追加した。
+- Nyan8 API: `GET /api/checkout/receipt`, `POST /api/checkout/refund` を追加した。`cashier` / `manager` のみ利用可能で、checkout 端末を要求する。
+- frontend API client / 型: `PaymentStatus`, `PaymentRefund`, `PaymentReceipt`, `cafeApi.receipt()`, `cafeApi.refundPayment()` を追加した。
+- 更新した画面: `/checkout` に payment 検索、レシート表示、レシート再発行、返金理由入力、全額返金を追加した。`/admin/orders` は payment 状態と返金履歴を表示する。
+- 返金仕様: `paid` payment のみ全額返金可能。返金成功時は `payments.status='refunded'` に更新し、`payment_refunds` に履歴を保存する。`refunded`, `failed`, `pending` と二重返金は拒否する。返金しても注文・明細・セッション履歴は削除しない。
+- レシート再発行仕様: `payment_id` または `payment_no` で取得し、店舗名、payment_no、テーブル、支払日時、支払方法、明細、オプション、小計、税額、合計、返金履歴を表示する。原価・粗利は含めない。
+- 分析・CSV: 分析サマリと商品ランキングは `payments.status='paid'` のみ売上対象とし、返金済み payment は除外する。売上 CSV は `payment_status`, `refund_amount`, `refunded_at`, `refund_reason` を末尾に追加した。
+- audit log: `checkout_payment_refunded`, `checkout_refund_rejected`, `checkout_receipt_viewed`, `checkout_receipt_reissued` を追加した。
+- smoke: `scripts/smoke-refund-receipt.sh` を追加し、receipt、全額返金、二重返金拒否、返金履歴、分析売上除外、CSV 返金列、audit、権限拒否を検証する。
+- 未対応事項: 部分返金、支払い失敗 flow、決済取消、実決済連携、外部レシートプリンタ、電子レシート、日次締め。
+- 検証結果: 実行結果は作業完了時の報告に記録する。

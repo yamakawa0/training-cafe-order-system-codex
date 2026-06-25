@@ -211,6 +211,18 @@
     "sql": ["./sql/insert_payment.sql"],
     "description": "支払い記録を作成する"
   },
+  "payments/receipt": {
+    "sql": ["./sql/get_payment_receipt.sql"],
+    "description": "レシート再発行用に支払いと明細を取得する"
+  },
+  "payments/refunds": {
+    "sql": ["./sql/insert_payment_refund.sql"],
+    "description": "返金履歴を登録する"
+  },
+  "payments/refunded": {
+    "sql": ["./sql/update_payment_refunded.sql"],
+    "description": "支払いを返金済みに更新する"
+  },
   "sessions/close": {
     "sql": ["./sql/close_session.sql"],
     "description": "精算済みにして注文を締める"

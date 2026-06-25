@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS inventory_movements CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS payment_refunds CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS hall_tasks CASCADE;
 DROP TABLE IF EXISTS order_item_options CASCADE;
@@ -250,6 +251,24 @@ CREATE TABLE payments (
     CHECK (status IN ('pending', 'paid', 'failed', 'refunded'))
 );
 
+CREATE TABLE payment_refunds (
+    id VARCHAR(50) PRIMARY KEY,
+    payment_id VARCHAR(50) NOT NULL REFERENCES payments(id),
+    refund_no VARCHAR(50) NOT NULL UNIQUE,
+    amount INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    status VARCHAR(30) NOT NULL DEFAULT 'refunded',
+    refunded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actor_user_id VARCHAR(50),
+    actor_user_display_name VARCHAR(100),
+    actor_user_role VARCHAR(50),
+    actor_terminal_code VARCHAR(100),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (amount > 0),
+    CHECK (status IN ('refunded', 'failed', 'cancelled'))
+);
+
 CREATE TABLE audit_logs (
     id VARCHAR(50) PRIMARY KEY,
     occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -281,6 +300,8 @@ CREATE INDEX idx_order_items_status_created ON order_items(status, created_at);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_hall_tasks_status_created ON hall_tasks(status, created_at);
 CREATE INDEX idx_payments_paid_at ON payments(paid_at);
+CREATE INDEX idx_payment_refunds_payment_id ON payment_refunds(payment_id);
+CREATE INDEX idx_payment_refunds_refunded_at ON payment_refunds(refunded_at DESC);
 CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
 CREATE INDEX idx_audit_logs_action ON audit_logs (action);
 CREATE INDEX idx_audit_logs_target_type_id ON audit_logs (target_type, target_id);

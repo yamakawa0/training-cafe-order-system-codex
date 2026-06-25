@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cafeApi } from '../api/cafeApi';
 import { AppHeader, Badge, Banner, EmptyState, SectionTitle, StatusPill } from '../components/ui';
 import { yen } from '../domain/money';
-import type { CheckoutSummary, PaymentMethod } from '../domain/types';
+import type { CheckoutSummary, PaymentMethod, PaymentReceipt } from '../domain/types';
 
 const tables = ['T01', 'T02', 'T03', 'T04'];
 const paymentLabels: Record<PaymentMethod, string> = {
@@ -11,13 +11,22 @@ const paymentLabels: Record<PaymentMethod, string> = {
   qr: 'QR'
 };
 
+function formatDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleString('ja-JP') : '-';
+}
+
 export function CheckoutPage() {
   const [tableCode, setTableCode] = useState('T01');
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [summaries, setSummaries] = useState<Record<string, CheckoutSummary>>({});
   const [receiptNo, setReceiptNo] = useState('');
+  const [receiptQuery, setReceiptQuery] = useState('');
+  const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
+  const [refundReason, setRefundReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [refunding, setRefunding] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -57,12 +66,48 @@ export function CheckoutPage() {
     try {
       const result = await cafeApi.settle(tableCode, method);
       setReceiptNo(result.receiptNo);
+      const receiptResult = await cafeApi.receipt({ paymentNo: result.receiptNo });
+      setReceipt(receiptResult.receipt);
+      setReceiptQuery(result.receiptNo);
       setMessage(`${tableCode} の精算が完了しました`);
       await load();
     } catch (event) {
       setError(event instanceof Error ? event.message : '精算に失敗しました');
     } finally {
       setSettling(false);
+    }
+  }
+
+  async function loadReceipt(reissue = false) {
+    if (!receiptQuery.trim()) return;
+    setReceiptLoading(true);
+    setError('');
+    try {
+      const key = receiptQuery.trim();
+      const data = await cafeApi.receipt(key.startsWith('pay-') ? { paymentId: key, reissue } : { paymentNo: key, reissue });
+      setReceipt(data.receipt);
+      if (reissue) setMessage('レシートを再発行しました');
+    } catch (event) {
+      setError(event instanceof Error ? event.message : 'レシートを取得できませんでした');
+    } finally {
+      setReceiptLoading(false);
+    }
+  }
+
+  async function refund() {
+    if (!receipt || receipt.status !== 'paid') return;
+    if (!window.confirm(`${receipt.paymentNo} を全額返金します。`)) return;
+    setRefunding(true);
+    setError('');
+    try {
+      const data = await cafeApi.refundPayment(receipt.paymentId, refundReason);
+      setReceipt(data.receipt);
+      setMessage(`${receipt.paymentNo} を返金しました`);
+      await load();
+    } catch (event) {
+      setError(event instanceof Error ? event.message : '返金できませんでした');
+    } finally {
+      setRefunding(false);
     }
   }
 
@@ -131,6 +176,54 @@ export function CheckoutPage() {
           {receiptNo && <Banner tone="success">領収書番号: {receiptNo}</Banner>}
           {summary?.sessionStatus === 'payment_requested' && <p className="helperText">金額はサーバー集計値を使用します。端末入力の金額は会計に使用しません。</p>}
         </aside>
+      </section>
+      <section className="panel receiptLookupPanel">
+        <SectionTitle title="レシート再発行・返金" subtitle="payment_no または payment_id で検索" />
+        <div className="adminOrderTools">
+          <input value={receiptQuery} onChange={(event) => setReceiptQuery(event.target.value)} placeholder="PAY-... または pay-..." />
+          <button onClick={() => void loadReceipt(false)} disabled={receiptLoading || !receiptQuery.trim()}>検索</button>
+          <button onClick={() => void loadReceipt(true)} disabled={receiptLoading || !receiptQuery.trim()}>再発行</button>
+        </div>
+        {receipt && (
+          <div className="receipt reissueReceipt">
+            <SectionTitle title="Cafe Order System" subtitle={`${receipt.paymentNo} / ${receipt.tableCode} ${receipt.tableName}`} />
+            <Badge tone={receipt.status === 'refunded' ? 'danger' : 'success'}>{receipt.status === 'refunded' ? 'REFUNDED' : receipt.status.toUpperCase()}</Badge>
+            <dl className="totals receiptTotals">
+              <dt>支払日時</dt><dd>{formatDate(receipt.paidAt)}</dd>
+              <dt>支払方法</dt><dd>{paymentLabels[receipt.method] || receipt.method}</dd>
+            </dl>
+            {receipt.items.map((item) => (
+              <div className="receiptLine" key={item.orderItemId}>
+                <div>
+                  <strong>{item.itemName}</strong>
+                  <span>{yen(item.unitPrice + item.optionTotal)} x {item.quantity}</span>
+                  {item.optionsText && <small>{item.optionsText}</small>}
+                </div>
+                <strong>{yen(item.lineTotal)}</strong>
+              </div>
+            ))}
+            <dl className="totals receiptTotals">
+              <dt>小計</dt><dd>{yen(receipt.subtotal)}</dd>
+              <dt>税</dt><dd>{yen(receipt.taxAmount)}</dd>
+              <dt>合計</dt><dd>{yen(receipt.totalAmount)}</dd>
+            </dl>
+            {receipt.refunds.length > 0 && (
+              <div className="adminLines">
+                {receipt.refunds.map((refundItem) => (
+                  <div className="adminLine" key={refundItem.refundId}>
+                    <strong>{refundItem.refundNo}</strong>
+                    <span>{yen(refundItem.amount)} / {formatDate(refundItem.refundedAt)}</span>
+                    <small>{refundItem.reason || '理由なし'}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="cancelNoteBox">
+              <label className="fieldLabel">返金理由<textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} placeholder="任意" /></label>
+              <button className="dangerButton" disabled={refunding || receipt.status !== 'paid'} onClick={() => void refund()}>全額返金</button>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );

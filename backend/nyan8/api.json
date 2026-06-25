@@ -84,6 +84,16 @@
     "script": "./javascript/apis/checkout_settle.js",
     "description": "精算確定"
   },
+  "api/checkout/receipt": {
+    "type": "api",
+    "script": "./javascript/apis/checkout_receipt.js",
+    "description": "レシート再発行"
+  },
+  "api/checkout/refund": {
+    "type": "api",
+    "script": "./javascript/apis/checkout_refund.js",
+    "description": "全額返金"
+  },
   "api/analytics/summary": {
     "type": "api",
     "script": "./javascript/apis/analytics_summary.js",

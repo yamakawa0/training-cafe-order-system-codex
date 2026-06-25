@@ -139,6 +139,24 @@
 - 原価変更が audit log の before / after に残る。
 - `smoke-admin-menu.sh`, `smoke-e2e.sh`, `smoke-admin-orders.sh`, `smoke-checkout-csv.sh` が原価・粗利条件まで検証して成功する。
 
+## Phase 12 第1段階 返金処理・レシート再発行
+
+- cashier / manager は精算済み `paid` payment を全額返金できる。
+- `paid` 以外の payment は返金できない。
+- 二重返金は拒否される。
+- 返金履歴が `payment_refunds` に保存される。
+- 返金済み payment は分析売上から除外される。
+- 売上 CSV に `payment_status`, `refund_amount`, `refunded_at`, `refund_reason` が反映される。
+- レシート再発行 API で明細・税額・合計を確認できる。
+- レシートに原価・粗利が含まれない。
+- 返金操作、返金拒否、レシート表示・再発行が audit log に記録される。
+- 権限外 role は refund API を使えない。
+- `/checkout` で payment 検索、レシート表示、レシート再発行、全額返金ができる。
+- `/admin/orders` で payment 状態と返金履歴を確認できる。
+- `smoke-refund-receipt.sh` が成功する。
+- 既存 smoke が成功する。
+- CI checks が成功する。
+
 ## smoke script 対応表
 
 | Script | 主な受け入れ条件 |
@@ -155,5 +173,6 @@
 | `scripts/smoke-multiple-tables.sh` | T01 / T02 同時進行、席・タスク・精算の分離 |
 | `scripts/smoke-cancel-flow.sh` | キャンセル可能状態、ready 以降拒否、取消明細除外 |
 | `scripts/smoke-staff-call.sh` | 注文なしセッションでの staff_call、ホール対応、完了済み再完了拒否 |
+| `scripts/smoke-refund-receipt.sh` | receipt 取得・再発行、全額返金、二重返金拒否、返金履歴、分析売上除外、CSV 返金列、返金 audit、権限拒否 |
 | `scripts/smoke-checkout-csv.sh` | 精算後の売上 CSV、原価・粗利 CSV 列、フロントエンド CSV ダウンロード形式 |
 | `scripts/smoke-invalid-operations.sh` | 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否 |

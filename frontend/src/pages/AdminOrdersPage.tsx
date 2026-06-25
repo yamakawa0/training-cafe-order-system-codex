@@ -13,6 +13,7 @@ const statusLabels: Record<string, string> = {
   cancelled: '取消済み',
   unpaid: '未精算',
   paid: '精算済み',
+  refunded: '返金済み',
   pending: '処理中',
   failed: '失敗',
   seated: '着席',
@@ -31,7 +32,7 @@ function statusLabel(status: string | null) {
 
 function statusTone(status: string | null): 'neutral' | 'success' | 'warning' | 'danger' | 'info' {
   if (status === 'paid' || status === 'served') return 'success';
-  if (status === 'cancelled' || status === 'failed') return 'danger';
+  if (status === 'cancelled' || status === 'failed' || status === 'refunded') return 'danger';
   if (status === 'ready' || status === 'payment_requested' || status === 'pending') return 'warning';
   if (status === 'in_progress') return 'info';
   return 'neutral';
@@ -184,6 +185,7 @@ export function AdminOrdersPage() {
               <option value="">全精算状態</option>
               <option value="unpaid">未精算</option>
               <option value="paid">精算済み</option>
+              <option value="refunded">返金済み</option>
             </select>
             <a className="button" href="/analytics">CSV 出力</a>
             <a className="button" href="/admin/menu">メニュー管理</a>
@@ -260,8 +262,11 @@ export function AdminOrdersPage() {
                 {detail.payments.map((payment) => (
                   <div className="adminLine" key={payment.paymentId}>
                     <strong>{payment.paymentNo}</strong>
-                    <span>{payment.method} / {statusLabel(payment.status)}</span>
+                    <span>{payment.method} / <Badge tone={statusTone(payment.status)}>{statusLabel(payment.status)}</Badge></span>
                     <small>{yen(payment.totalAmount)} / {formatDate(payment.paidAt)}</small>
+                    {(payment.refunds || []).map((refund) => (
+                      <small key={refund.refundId}>返金 {refund.refundNo}: {yen(refund.amount)} / {formatDate(refund.refundedAt)} / {refund.reason || '理由なし'}</small>
+                    ))}
                   </div>
                 ))}
               </div>

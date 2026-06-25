@@ -88,6 +88,21 @@ SELECT
             'taxAmount', p.tax_amount,
             'totalAmount', p.total_amount,
             'paidAt', p.paid_at
+            ,'refunds', COALESCE((
+                SELECT jsonb_agg(jsonb_build_object(
+                    'refundId', pr.id,
+                    'refundNo', pr.refund_no,
+                    'amount', pr.amount,
+                    'reason', pr.reason,
+                    'status', pr.status,
+                    'refundedAt', pr.refunded_at,
+                    'actorUserDisplayName', pr.actor_user_display_name,
+                    'actorUserRole', pr.actor_user_role,
+                    'actorTerminalCode', pr.actor_terminal_code
+                ) ORDER BY pr.refunded_at DESC)
+                FROM payment_refunds pr
+                WHERE pr.payment_id = p.id
+            ), '[]'::jsonb)
         ) ORDER BY p.paid_at DESC)
         FROM payments p
         WHERE p.session_id = o.session_id

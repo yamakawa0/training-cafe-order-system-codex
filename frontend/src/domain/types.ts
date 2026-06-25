@@ -3,6 +3,7 @@ export type UserRole = 'manager' | 'cashier' | 'kitchen' | 'hall' | 'viewer';
 export type OrderItemStatus = 'ordered' | 'accepted' | 'cooking' | 'ready' | 'served' | 'cancelled';
 export type HallTaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card' | 'qr';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -123,6 +124,48 @@ export interface Payment {
   taxAmount: number;
   totalAmount: number;
   paidAt: string;
+}
+
+export interface PaymentRefund {
+  refundId: string;
+  refundNo: string;
+  amount: number;
+  reason: string;
+  status: string;
+  refundedAt: string;
+  actorUserId?: string | null;
+  actorUserDisplayName?: string | null;
+  actorUserRole?: string | null;
+  actorTerminalCode?: string | null;
+}
+
+export interface PaymentReceipt {
+  paymentId: string;
+  paymentNo: string;
+  sessionId: string;
+  tableCode: string;
+  tableName: string;
+  paidAt: string;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  refunds: PaymentRefund[];
+  orders: Array<{ orderId: string; orderNo: string; status: string; subtotal: number; taxAmount: number; totalAmount: number; submittedAt: string }>;
+  items: Array<{
+    orderItemId: string;
+    orderId: string;
+    itemName: string;
+    unitPrice: number;
+    quantity: number;
+    status: OrderItemStatus;
+    optionTotal: number;
+    optionsText: string;
+    lineSubtotal: number;
+    lineTax: number;
+    lineTotal: number;
+  }>;
 }
 
 export interface AnalyticsSummary {
@@ -351,6 +394,7 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     taxAmount: number;
     totalAmount: number;
     paidAt: string | null;
+    refunds?: PaymentRefund[];
   }>;
   hallTasks: Array<{
     taskId: string;

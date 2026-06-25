@@ -63,8 +63,10 @@
 |---|---|---|
 | GET | `/api/checkout/summary` | 精算明細取得 |
 | POST | `/api/checkout/settle` | 精算確定 |
+| GET | `/api/checkout/receipt` | レシート取得・再発行 |
+| POST | `/api/checkout/refund` | 全額返金 |
 
-会計依頼済みセッションだけ精算対象とする。金額は DB の未取消明細から計算する。
+会計依頼済みセッションだけ精算対象とする。金額は DB の未取消明細から計算する。`/api/checkout/receipt` と `/api/checkout/refund` は `cashier` / `manager` のみ利用でき、checkout 端末の `terminal_code` を要求する。返金は `paid` payment の全額返金のみ対応し、`refunded`, `failed`, `pending` payment と二重返金は 409 で拒否する。receipt は `payment_id` または `payment_no` で取得し、商品明細、オプション、小計、税額、合計、返金履歴を返すが、原価・粗利は含めない。
 
 ## 分析 API
 
@@ -74,7 +76,7 @@
 | GET | `/api/analytics/item-ranking` | 商品別ランキング |
 | GET | `/api/analytics/export-sales-csv` | 売上 CSV 出力 |
 
-CSV は Nyan8 ランタイム制約に合わせ、JSON の `result.csv` として返し、フロントエンドが Blob 化して保存する。
+CSV は Nyan8 ランタイム制約に合わせ、JSON の `result.csv` として返し、フロントエンドが Blob 化して保存する。売上分析は `payments.status='paid'` のみ集計し、`refunded` payment は除外する。売上 CSV は返金確認用に末尾列 `payment_status`, `refund_amount`, `refunded_at`, `refund_reason` を持つ。
 
 ## メニュー管理 API
 

@@ -2,6 +2,14 @@
 
 架空のカフェ店舗向けに、席端末でのセルフ注文、キッチンの調理状態管理、ホール指示、セルフ精算、売上分析を扱う MVP 実装です。
 
+## Phase 12 第1段階: 返金処理・レシート再発行
+
+- `/checkout` で精算済み payment を検索し、レシート表示・再発行・全額返金ができます。
+- MVP では `paid` payment の全額返金のみ対応し、部分返金、実決済サービス連携、クレジットカード実返金、外部レシートプリンタ連携は未対応です。
+- 返金成功時は `payments.status='refunded'` に更新し、`payment_refunds` に返金履歴を保存します。返金しても注文・明細は削除しません。
+- 返金済み payment は分析売上から除外され、売上 CSV には `payment_status`, `refund_amount`, `refunded_at`, `refund_reason` が出力されます。
+- `scripts/smoke-refund-receipt.sh` は receipt 取得・再発行、全額返金、二重返金拒否、返金履歴、分析売上除外、CSV 返金列、返金 audit、権限拒否を確認します。
+
 ## 技術構成
 
 - Frontend: TypeScript / React / Vite
@@ -204,6 +212,7 @@ git diff --check
 ./scripts/smoke-multiple-tables.sh
 ./scripts/smoke-cancel-flow.sh
 ./scripts/smoke-staff-call.sh
+./scripts/smoke-refund-receipt.sh
 ./scripts/smoke-checkout-csv.sh
 ./scripts/smoke-invalid-operations.sh
 ```
