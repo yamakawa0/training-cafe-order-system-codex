@@ -3,7 +3,7 @@ export type UserRole = 'manager' | 'cashier' | 'kitchen' | 'hall' | 'viewer';
 export type OrderItemStatus = 'ordered' | 'accepted' | 'cooking' | 'ready' | 'served' | 'cancelled';
 export type HallTaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card' | 'qr';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'partial_refunded' | 'cancelled';
 export type PaymentAttemptStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
 
 export interface ApiResponse<T> {
@@ -152,6 +152,10 @@ export interface PaymentReceipt {
   subtotal: number;
   taxAmount: number;
   totalAmount: number;
+  refundTotal: number;
+  refundRemaining: number;
+  refundStatus: 'none' | 'partial_refunded' | 'refunded';
+  refundCount: number;
   refunds: PaymentRefund[];
   orders: Array<{ orderId: string; orderNo: string; status: string; subtotal: number; taxAmount: number; totalAmount: number; submittedAt: string }>;
   items: Array<{
@@ -193,6 +197,9 @@ export interface PaymentAttempt {
 export interface AnalyticsSummary {
   [key: string]: number | undefined;
   sales_total?: number;
+  gross_sales_total?: number;
+  refund_total?: number;
+  net_sales_total?: number;
   cost_total?: number;
   gross_profit?: number;
   gross_margin_rate?: number;
@@ -415,6 +422,9 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     subtotal: number;
     taxAmount: number;
     totalAmount: number;
+    refundTotal?: number;
+    refundRemaining?: number;
+    refundStatus?: string;
     paidAt: string | null;
     refunds?: PaymentRefund[];
   }>;

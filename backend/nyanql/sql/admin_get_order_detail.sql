@@ -97,7 +97,34 @@ SELECT
             'subtotal', p.subtotal,
             'taxAmount', p.tax_amount,
             'totalAmount', p.total_amount,
-            'paidAt', p.paid_at
+            'paidAt', p.paid_at,
+            'refundTotal', COALESCE((
+                SELECT SUM(pr.amount)::INTEGER
+                FROM payment_refunds pr
+                WHERE pr.payment_id = p.id
+                  AND pr.status = 'refunded'
+            ), 0),
+            'refundRemaining', GREATEST(p.total_amount - COALESCE((
+                SELECT SUM(pr.amount)::INTEGER
+                FROM payment_refunds pr
+                WHERE pr.payment_id = p.id
+                  AND pr.status = 'refunded'
+            ), 0), 0),
+            'refundStatus', CASE
+                WHEN COALESCE((
+                    SELECT SUM(pr.amount)::INTEGER
+                    FROM payment_refunds pr
+                    WHERE pr.payment_id = p.id
+                      AND pr.status = 'refunded'
+                ), 0) = 0 THEN 'none'
+                WHEN COALESCE((
+                    SELECT SUM(pr.amount)::INTEGER
+                    FROM payment_refunds pr
+                    WHERE pr.payment_id = p.id
+                      AND pr.status = 'refunded'
+                ), 0) >= p.total_amount THEN 'refunded'
+                ELSE 'partial_refunded'
+            END
             ,'refunds', COALESCE((
                 SELECT jsonb_agg(jsonb_build_object(
                     'refundId', pr.id,

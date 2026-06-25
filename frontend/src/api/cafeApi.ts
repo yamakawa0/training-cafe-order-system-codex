@@ -108,9 +108,11 @@ export const cafeApi = {
     payment_no: input.paymentNo,
     reissue: input.reissue ? 'true' : undefined
   }),
-  refundPayment: (paymentId: string, reason: string) => post<{ refund: PaymentRefund; receipt: PaymentReceipt }>('/api/checkout/refund', {
+  refundPayment: (paymentId: string, reason: string, options: { amount?: number; refundType?: 'full' | 'partial' } = {}) => post<{ refund: PaymentRefund; receipt: PaymentReceipt }>('/api/checkout/refund', {
     terminal_code: terminals.checkout,
     payment_id: paymentId,
+    amount: options.amount,
+    refund_type: options.refundType,
     reason
   }),
   analyticsSummary: (fromDate: string, toDate: string) => get<{ summary: AnalyticsSummary }>('/api/analytics/summary', {

@@ -64,15 +64,15 @@
 | GET | `/api/checkout/summary` | 精算明細取得 |
 | POST | `/api/checkout/settle` | 精算確定 |
 | GET | `/api/checkout/receipt` | レシート取得・再発行 |
-| POST | `/api/checkout/refund` | 全額返金 |
+| POST | `/api/checkout/refund` | 全額 / 部分返金 |
 | POST | `/api/checkout/cancel-payment` | 決済試行 / pending・failed payment 取消 |
 | GET | `/api/checkout/payment-attempts` | 決済試行履歴取得 |
 
 会計依頼済みセッションだけ精算対象とする。金額は DB の未取消明細から計算する。`POST /api/checkout/settle` は MVP 用に `simulate_result='failed'` を受け付け、この場合は `payment_attempts.status='failed'` を記録し、`payments` は作成せず、席セッションは `payment_requested` のまま維持する。失敗後は同じ席セッションで再度 settle でき、成功時は `payments.status='paid'` と `payment_attempts.status='paid'` を作成して既存どおりセッションを閉じる。paid 後の追加 settle は拒否する。
 
-`/api/checkout/cancel-payment` は `attempt_id` または `payment_id` を受け取る。MVP では `pending` / `failed` attempt の取消を主対象とし、取消後も席セッションは `payment_requested` のまま再試行可能にする。paid / refunded payment の取消は拒否し、paid 後は refund API を使う。
+`/api/checkout/cancel-payment` は `attempt_id` または `payment_id` を受け取る。MVP では `pending` / `failed` attempt の取消を主対象とし、取消後も席セッションは `payment_requested` のまま再試行可能にする。paid / partial_refunded / refunded payment の取消は拒否し、paid 後は refund API を使う。
 
-`/api/checkout/receipt` と `/api/checkout/refund` は `cashier` / `manager` のみ利用でき、checkout 端末の `terminal_code` を要求する。返金は `paid` payment の全額返金のみ対応し、`refunded`, `failed`, `pending`, `cancelled` payment と二重返金は 409 で拒否する。receipt は `payment_id` または `payment_no` で取得し、`paid` / `refunded` のみ成功する。商品明細、オプション、小計、税額、合計、返金履歴を返すが、原価・粗利は含めない。
+`/api/checkout/receipt` と `/api/checkout/refund` は `cashier` / `manager` のみ利用でき、checkout 端末の `terminal_code` を要求する。返金は `paid` / `partial_refunded` payment のみ可能で、`amount` 指定ありの場合は部分返金、`amount` 未指定または `refund_type='full'` の場合は返金可能残額の全額返金として扱う。返金可能残額を超える返金、`refunded`, `failed`, `pending`, `cancelled` payment への返金は 409 で拒否する。receipt は `payment_id` または `payment_no` で取得し、`paid` / `partial_refunded` / `refunded` のみ成功する。商品明細、オプション、小計、税額、合計、`refund_total`, `refund_remaining`, `refund_status`, 返金履歴を返すが、原価・粗利は含めない。
 
 ## 分析 API
 
@@ -82,7 +82,7 @@
 | GET | `/api/analytics/item-ranking` | 商品別ランキング |
 | GET | `/api/analytics/export-sales-csv` | 売上 CSV 出力 |
 
-CSV は Nyan8 ランタイム制約に合わせ、JSON の `result.csv` として返し、フロントエンドが Blob 化して保存する。売上分析は `payments.status='paid'` のみ集計し、`refunded` payment、failed / cancelled attempt は除外する。売上 CSV は返金・失敗・取消確認用に末尾列 `payment_status`, `refund_amount`, `refunded_at`, `refund_reason`, `attempt_status`, `failure_reason`, `cancelled_reason` を持つ。
+CSV は Nyan8 ランタイム制約に合わせ、JSON の `result.csv` として返し、フロントエンドが Blob 化して保存する。売上分析は `paid` / `partial_refunded` / `refunded` payment を支払記録として扱い、`gross_sales_total`, `refund_total`, `net_sales_total` を返す。`paid` は net sales が支払額、`partial_refunded` は支払額から返金累計を控除、`refunded` は net sales 0、failed / cancelled attempt は売上 0 とする。MVP では明細別返金を持たないため、商品別ランキングの返金反映は支払単位の net 比率による概算で、完全な明細別原価按分は未対応。売上 CSV は返金・失敗・取消確認用に末尾列 `payment_status`, `refund_amount`, `refunded_at`, `refund_reason`, `gross_amount`, `refund_total`, `refund_remaining`, `net_amount`, `refund_count`, `last_refunded_at`, `attempt_status`, `failure_reason`, `cancelled_reason` を持つ。
 
 ## メニュー管理 API
 

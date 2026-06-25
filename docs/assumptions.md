@@ -124,11 +124,22 @@
 - 仕入、入荷、棚卸、廃棄、原材料別原価、レシピ原価、複数店舗別原価、日別原価履歴、原価改定予約、自動原価計算は Phase 11 後続の将来課題とする。
 - `package-lock.json` は CI の再現性のため commit する。
 
+## Phase 12 第3段階 部分返金
+
+- MVP の部分返金は payment 単位の金額指定で扱い、明細別返金は未対応。
+- `amount` 指定ありは部分返金、`amount` 未指定または `refund_type='full'` は返金可能残額の全額返金として扱う。
+- 返金可能残額は `payments.total_amount - SUM(payment_refunds.amount WHERE status='refunded')` とする。
+- 返金累計が支払額未満なら `payments.status='partial_refunded'`、支払額と等しければ `refunded` にする。
+- 分析は `net_sales = total_amount - refund_total` を使い、`refunded` は net sales 0 とする。
+- MVP では部分返金の原価按分と完全な明細別粗利再計算は未対応。商品別ランキングの返金反映は payment 単位の net 比率による概算とする。
+- 実決済サービスへの実返金、返金取消、返金手数料、外部決済 webhook は未対応。
+
 ## 今後の未対応事項
 
 - 実決済サービス連携
-- 返金処理
-- 在庫管理
+- 実決済サービスへの実返金
+- 返金取消
+- 返金手数料
 - 複数店舗管理
 - 予約管理
 - 顧客会員機能

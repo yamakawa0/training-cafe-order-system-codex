@@ -123,9 +123,9 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 
 - 目的: 精算記録を管理する。
 - 主なカラム: `id`, `session_id`, `payment_no`, `method`, `status`, `subtotal`, `tax_amount`, `total_amount`, `paid_at`
-- 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `refunded`, `cancelled`
+- 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `partial_refunded`, `refunded`, `cancelled`
 - 関連テーブル: `table_sessions`, `payment_refunds`, `payment_attempts`
-- 注意点: 現行はダミー決済。`payments` は成立した決済または返金対象の支払い記録として扱い、MVP の支払い失敗は原則 `payments` ではなく `payment_attempts` に記録する。`status='paid'` のみ売上・分析対象、`status='refunded'`, `failed`, `cancelled` は売上対象外。paid 後の取消は行わず返金 API を使う。返金しても注文・明細は削除しない。実決済サービス連携は未対応。
+- 注意点: 現行はダミー決済。`payments` は成立した決済または返金対象の支払い記録として扱い、MVP の支払い失敗は原則 `payments` ではなく `payment_attempts` に記録する。返金累計が 0 円なら `paid`、支払額未満なら `partial_refunded`、支払額と等しければ `refunded` にする。分析は `net_sales = total_amount - refund_total` を使い、`refunded` は net sales 0、`failed` / `cancelled` は売上対象外とする。paid 後の取消は行わず返金 API を使う。返金しても注文・明細は削除しない。実決済サービス連携は未対応。
 
 ### payment_attempts
 
@@ -141,7 +141,7 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - 主なカラム: `id`, `payment_id`, `refund_no`, `amount`, `reason`, `status`, `refunded_at`, `actor_user_id`, `actor_user_role`, `actor_terminal_code`
 - 主な状態値: `status` は `refunded`, `failed`, `cancelled`
 - 関連テーブル: `payments`
-- 注意点: MVP では全額返金のみ対応し、部分返金は未対応。返金履歴は audit log とは別に業務履歴として保持する。返金済み payment は売上 CSV に状態・返金額・返金日時・理由を出すが、分析売上からは除外する。
+- 注意点: 同一 `payment_id` に複数の返金履歴を保存できる。MVP の部分返金は payment 単位の金額指定で、明細別返金、返金取消、返金手数料、原価按分は未対応。返金履歴は audit log とは別に業務履歴として保持する。売上 CSV には支払状態、返金累計、返金可能残額、純売上、返金回数、最終返金日時、理由を出す。
 
 ### audit_logs
 

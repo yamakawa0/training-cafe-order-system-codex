@@ -131,10 +131,11 @@ psql "$DATABASE_URL" < backup.sql
 
 返金運用:
 
-- MVP の返金は `paid` payment の全額返金のみ対応する。
+- MVP の返金は `paid` / `partial_refunded` payment に対する payment 単位の金額指定に対応する。
 - paid 後の取消は行わず、返金 API を使う。
-- 実決済サービスへの返金、部分返金、日次締めは未対応。
-- `payments.status='refunded'` は売上分析対象外とし、返金履歴は `payment_refunds` に保持する。
+- 返金可能残額を超える返金は拒否する。返金累計が支払額未満なら `partial_refunded`、支払額と等しければ `refunded` にする。
+- 実決済サービスへの返金、明細別返金、返金取消、日次締めは未対応。
+- 分析は `net_sales = total_amount - refund_total` を使い、`refunded` は net sales 0 とする。返金履歴は `payment_refunds` に保持する。
 - 返金しても注文・明細・席セッションの履歴は削除しない。
 - レシート再発行はブラウザ表示・印刷で扱い、外部レシートプリンタ連携と電子レシート送信は未対応。
 

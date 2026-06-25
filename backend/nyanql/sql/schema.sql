@@ -249,7 +249,7 @@ CREATE TABLE payments (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (method IN ('cash', 'card', 'qr')),
-    CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'cancelled'))
+    CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'partial_refunded', 'cancelled'))
 );
 
 CREATE TABLE payment_attempts (
@@ -329,6 +329,7 @@ CREATE INDEX idx_payment_attempts_payment_id ON payment_attempts(payment_id);
 CREATE INDEX idx_payment_attempts_status_time ON payment_attempts(status, attempted_at DESC);
 CREATE INDEX idx_payment_refunds_payment_id ON payment_refunds(payment_id);
 CREATE INDEX idx_payment_refunds_refunded_at ON payment_refunds(refunded_at DESC);
+CREATE INDEX idx_payment_refunds_payment_time ON payment_refunds(payment_id, refunded_at DESC);
 CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
 CREATE INDEX idx_audit_logs_action ON audit_logs (action);
 CREATE INDEX idx_audit_logs_target_type_id ON audit_logs (target_type, target_id);

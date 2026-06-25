@@ -91,7 +91,9 @@ export function AnalyticsPage() {
       {message && <Banner tone="success">{message}</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
       <section className="metrics">
-        <SummaryCard label="本日売上" value={yen(summary.sales_total || 0)} />
+        <SummaryCard label="総支払額" value={yen(summary.gross_sales_total || summary.sales_total || 0)} />
+        <SummaryCard label="返金額" value={yen(summary.refund_total || 0)} />
+        <SummaryCard label="純売上" value={yen(summary.net_sales_total || summary.sales_total || 0)} />
         <SummaryCard label="原価合計" value={yen(summary.cost_total || 0)} />
         <SummaryCard label="粗利合計" value={yen(summary.gross_profit || 0)} />
         <SummaryCard label="粗利率" value={percent(summary.gross_margin_rate)} />

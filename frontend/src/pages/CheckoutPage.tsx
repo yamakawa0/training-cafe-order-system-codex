@@ -23,6 +23,7 @@ export function CheckoutPage() {
   const [receiptQuery, setReceiptQuery] = useState('');
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [refundReason, setRefundReason] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
   const [failureReason, setFailureReason] = useState('カード承認エラー');
   const [cancelReason, setCancelReason] = useState('顧客が支払い方法を変更');
   const [attempts, setAttempts] = useState<PaymentAttempt[]>([]);
@@ -128,14 +129,28 @@ export function CheckoutPage() {
     }
   }
 
-  async function refund() {
-    if (!receipt || receipt.status !== 'paid') return;
-    if (!window.confirm(`${receipt.paymentNo} を全額返金します。`)) return;
+  async function refund(refundType: 'full' | 'partial') {
+    if (!receipt || !['paid', 'partial_refunded'].includes(receipt.status)) return;
+    let amount: number | undefined;
+    if (refundType === 'partial') {
+      amount = Number(refundAmount);
+      if (!Number.isInteger(amount) || amount <= 0) {
+        setError('返金額は 1 円以上の整数で入力してください');
+        return;
+      }
+      if (amount > receipt.refundRemaining) {
+        setError('返金額が返金可能残額を超えています');
+        return;
+      }
+    }
+    const label = refundType === 'full' ? `残額 ${yen(receipt.refundRemaining)} を全額返金` : `${yen(amount || 0)} を部分返金`;
+    if (!window.confirm(`${receipt.paymentNo} の ${label} します。`)) return;
     setRefunding(true);
     setError('');
     try {
-      const data = await cafeApi.refundPayment(receipt.paymentId, refundReason);
+      const data = await cafeApi.refundPayment(receipt.paymentId, refundReason, { amount, refundType });
       setReceipt(data.receipt);
+      setRefundAmount('');
       setMessage(`${receipt.paymentNo} を返金しました`);
       await load();
     } catch (event) {
@@ -144,6 +159,8 @@ export function CheckoutPage() {
       setRefunding(false);
     }
   }
+
+  const canRefundReceipt = receipt ? ['paid', 'partial_refunded'].includes(receipt.status) && receipt.refundRemaining > 0 : false;
 
   return (
     <main className="shell checkout">
@@ -247,10 +264,14 @@ export function CheckoutPage() {
         {receipt && (
           <div className="receipt reissueReceipt">
             <SectionTitle title="Cafe Order System" subtitle={`${receipt.paymentNo} / ${receipt.tableCode} ${receipt.tableName}`} />
-            <Badge tone={receipt.status === 'refunded' ? 'danger' : 'success'}>{receipt.status === 'refunded' ? 'REFUNDED' : receipt.status.toUpperCase()}</Badge>
+            <Badge tone={receipt.status === 'refunded' ? 'danger' : receipt.status === 'partial_refunded' ? 'warning' : 'success'}>
+              {receipt.status === 'partial_refunded' ? 'PARTIAL REFUNDED' : receipt.status === 'refunded' ? 'REFUNDED' : receipt.status.toUpperCase()}
+            </Badge>
             <dl className="totals receiptTotals">
               <dt>支払日時</dt><dd>{formatDate(receipt.paidAt)}</dd>
               <dt>支払方法</dt><dd>{paymentLabels[receipt.method] || receipt.method}</dd>
+              <dt>返金済み合計</dt><dd>{yen(receipt.refundTotal)}</dd>
+              <dt>返金可能残額</dt><dd>{yen(receipt.refundRemaining)}</dd>
             </dl>
             {receipt.items.map((item) => (
               <div className="receiptLine" key={item.orderItemId}>
@@ -265,7 +286,8 @@ export function CheckoutPage() {
             <dl className="totals receiptTotals">
               <dt>小計</dt><dd>{yen(receipt.subtotal)}</dd>
               <dt>税</dt><dd>{yen(receipt.taxAmount)}</dd>
-              <dt>合計</dt><dd>{yen(receipt.totalAmount)}</dd>
+              <dt>支払合計</dt><dd>{yen(receipt.totalAmount)}</dd>
+              <dt>返金後残額</dt><dd>{yen(receipt.totalAmount - receipt.refundTotal)}</dd>
             </dl>
             {receipt.refunds.length > 0 && (
               <div className="adminLines">
@@ -279,8 +301,10 @@ export function CheckoutPage() {
               </div>
             )}
             <div className="cancelNoteBox">
+              <label className="fieldLabel">返金額<input inputMode="numeric" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder={`${receipt.refundRemaining}`} /></label>
               <label className="fieldLabel">返金理由<textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} placeholder="任意" /></label>
-              <button className="dangerButton" disabled={refunding || receipt.status !== 'paid'} onClick={() => void refund()}>全額返金</button>
+              <button className="dangerButton" disabled={refunding || !canRefundReceipt || !refundAmount.trim()} onClick={() => void refund('partial')}>部分返金</button>
+              <button className="dangerButton" disabled={refunding || !canRefundReceipt} onClick={() => void refund('full')}>残額全額返金</button>
             </div>
           </div>
         )}

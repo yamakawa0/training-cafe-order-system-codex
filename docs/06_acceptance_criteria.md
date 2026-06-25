@@ -174,6 +174,24 @@
 - 既存 smoke が成功する。
 - CI checks が成功する。
 
+## Phase 12 第3段階 部分返金
+
+- cashier / manager は `paid` / `partial_refunded` payment を部分返金できる。
+- 返金可能残額を超える返金は拒否される。
+- 一部返金後、`payments.status` は `partial_refunded` になる。
+- 残額全額返金後、`payments.status` は `refunded` になる。
+- `payment_refunds` に同一 payment の複数返金履歴が保存される。
+- receipt に `refund_total`, `refund_remaining`, `refund_status`, 返金履歴が出る。
+- 分析は `gross_sales_total`, `refund_total`, `net_sales_total` を返し、純売上を表示する。
+- 売上 CSV に `gross_amount`, `refund_total`, `refund_remaining`, `net_amount`, `refund_count`, `last_refunded_at` が出る。
+- 返金 audit log は partial / full を区別して記録される。
+- 権限外 role は部分返金 API を使えない。
+- `/checkout` で返金額入力、部分返金、残額全額返金、返金可能残額確認ができる。
+- `/admin/orders` で返金済み合計、返金可能残額、複数返金履歴を確認できる。
+- `smoke-refund-receipt.sh` が部分返金条件まで検証して成功する。
+- 既存 smoke が成功する。
+- CI checks が成功する。
+
 ## smoke script 対応表
 
 | Script | 主な受け入れ条件 |
@@ -190,7 +208,7 @@
 | `scripts/smoke-multiple-tables.sh` | T01 / T02 同時進行、席・タスク・精算の分離 |
 | `scripts/smoke-cancel-flow.sh` | キャンセル可能状態、ready 以降拒否、取消明細除外 |
 | `scripts/smoke-staff-call.sh` | 注文なしセッションでの staff_call、ホール対応、完了済み再完了拒否 |
-| `scripts/smoke-refund-receipt.sh` | receipt 取得・再発行、全額返金、二重返金拒否、返金履歴、分析売上除外、CSV 返金列、返金 audit、権限拒否 |
+| `scripts/smoke-refund-receipt.sh` | receipt 取得・再発行、部分返金、返金可能残額、残額全額返金、複数返金履歴、分析 net sales、CSV 返金列、返金 audit、権限拒否 |
 | `scripts/smoke-payment-failure-cancel.sh` | 支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否 |
 | `scripts/smoke-checkout-csv.sh` | 精算後の売上 CSV、原価・粗利 CSV 列、フロントエンド CSV ダウンロード形式 |
 | `scripts/smoke-invalid-operations.sh` | 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否 |

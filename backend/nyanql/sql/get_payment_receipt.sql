@@ -3,7 +3,7 @@ WITH target_payment AS (
     FROM payments p
     WHERE ((NULLIF(/*payment_id*/'', '') IS NOT NULL AND p.id = NULLIF(/*payment_id*/'', ''))
        OR (NULLIF(/*payment_no*/'', '') IS NOT NULL AND p.payment_no = NULLIF(/*payment_no*/'', '')))
-      AND p.status IN ('paid', 'refunded')
+      AND p.status IN ('paid', 'partial_refunded', 'refunded')
     ORDER BY p.paid_at DESC
     LIMIT 1
 ),
@@ -32,6 +32,14 @@ SELECT
     p.subtotal,
     p.tax_amount,
     p.total_amount,
+    COALESCE(ref_summary.refund_total, 0)::INTEGER AS refund_total,
+    GREATEST(p.total_amount - COALESCE(ref_summary.refund_total, 0), 0)::INTEGER AS refund_remaining,
+    CASE
+        WHEN COALESCE(ref_summary.refund_total, 0) = 0 THEN 'none'
+        WHEN COALESCE(ref_summary.refund_total, 0) >= p.total_amount THEN 'refunded'
+        ELSE 'partial_refunded'
+    END AS refund_status,
+    COALESCE(ref_summary.refund_count, 0)::INTEGER AS refund_count,
     COALESCE((
         SELECT jsonb_agg(jsonb_build_object(
             'refundId', pr.id,
@@ -84,4 +92,12 @@ SELECT
     ), '[]'::jsonb) AS order_items
 FROM target_payment p
 JOIN table_sessions ts ON ts.id = p.session_id
-JOIN cafe_tables ct ON ct.id = ts.table_id;
+JOIN cafe_tables ct ON ct.id = ts.table_id
+LEFT JOIN LATERAL (
+    SELECT
+        SUM(pr.amount)::INTEGER AS refund_total,
+        COUNT(*)::INTEGER AS refund_count
+    FROM payment_refunds pr
+    WHERE pr.payment_id = p.id
+      AND pr.status = 'refunded'
+) ref_summary ON TRUE;

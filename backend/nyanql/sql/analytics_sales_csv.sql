@@ -19,6 +19,12 @@ WITH paid_rows AS (
         COALESCE(ref.refund_amount, 0)::INTEGER AS refund_amount,
         ref.refunded_at,
         COALESCE(ref.refund_reason, '') AS refund_reason,
+        p.total_amount::INTEGER AS gross_amount,
+        COALESCE(ref.refund_amount, 0)::INTEGER AS refund_total,
+        GREATEST(p.total_amount - COALESCE(ref.refund_amount, 0), 0)::INTEGER AS refund_remaining,
+        GREATEST(p.total_amount - COALESCE(ref.refund_amount, 0), 0)::INTEGER AS net_amount,
+        COALESCE(ref.refund_count, 0)::INTEGER AS refund_count,
+        ref.refunded_at AS last_refunded_at,
         COALESCE(pa.status, '') AS attempt_status,
         COALESCE(pa.failure_reason, '') AS failure_reason,
         COALESCE(pa.cancel_reason, '') AS cancelled_reason,
@@ -38,6 +44,7 @@ WITH paid_rows AS (
             payment_id,
             SUM(amount)::INTEGER AS refund_amount,
             MAX(refunded_at) AS refunded_at,
+            COUNT(*)::INTEGER AS refund_count,
             STRING_AGG(reason, ' / ' ORDER BY refunded_at DESC) AS refund_reason
         FROM payment_refunds
         WHERE status = 'refunded'
@@ -50,7 +57,7 @@ WITH paid_rows AS (
         ORDER BY pa.attempted_at DESC
         LIMIT 1
     ) pa ON TRUE
-    WHERE p.status IN ('paid', 'refunded')
+    WHERE p.status IN ('paid', 'partial_refunded', 'refunded')
       AND (p.paid_at::date BETWEEN /*from_date*/'2026-06-05'::date AND /*to_date*/'2026-06-05'::date
            OR ref.refunded_at::date BETWEEN /*from_date*/'2026-06-05'::date AND /*to_date*/'2026-06-05'::date)
       AND oi.status <> 'cancelled'
@@ -73,6 +80,12 @@ attempt_rows AS (
         0::INTEGER AS refund_amount,
         NULL::TIMESTAMP AS refunded_at,
         '' AS refund_reason,
+        0::INTEGER AS gross_amount,
+        0::INTEGER AS refund_total,
+        0::INTEGER AS refund_remaining,
+        0::INTEGER AS net_amount,
+        0::INTEGER AS refund_count,
+        NULL::TIMESTAMP AS last_refunded_at,
         pa.status AS attempt_status,
         pa.failure_reason,
         pa.cancel_reason AS cancelled_reason,
@@ -88,6 +101,7 @@ SELECT
     paid_date, payment_no, method, table_code, menu_item_id, item_name, quantity,
     sales_total, unit_cost_price, cost_total, gross_profit, gross_margin_rate,
     payment_status, refund_amount, refunded_at, refund_reason,
+    gross_amount, refund_total, refund_remaining, net_amount, refund_count, last_refunded_at,
     attempt_status, failure_reason, cancelled_reason, sort_time
 FROM paid_rows
 UNION ALL
@@ -95,6 +109,7 @@ SELECT
     paid_date, payment_no, method, table_code, menu_item_id, item_name, quantity,
     sales_total, unit_cost_price, cost_total, gross_profit, gross_margin_rate,
     payment_status, refund_amount, refunded_at, refund_reason,
+    gross_amount, refund_total, refund_remaining, net_amount, refund_count, last_refunded_at,
     attempt_status, failure_reason, cancelled_reason, sort_time
 FROM attempt_rows
 ORDER BY paid_date ASC, payment_no ASC, sort_time ASC;

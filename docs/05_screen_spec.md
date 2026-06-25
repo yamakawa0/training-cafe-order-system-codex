@@ -66,11 +66,11 @@
 
 - 目的: 会計依頼済みの席を精算する。
 - 主な利用者: レジ担当、店長 / 管理者。
-- 主な表示項目: 席カード、レシート風明細、選択オプション、小計、税、合計、支払い方法、支払い失敗、失敗理由、決済試行履歴、payment 検索、再発行レシート、返金履歴、返金済み badge。
-- 主な操作: 席選択、支払い方法 `cash` / `card` / `qr` 選択、精算確定、MVP 用の失敗として処理、支払い再試行、pending / failed attempt 取消、`payment_no` / `payment_id` でのレシート検索、レシート再発行、返金理由入力、全額返金。
+- 主な表示項目: 席カード、レシート風明細、選択オプション、小計、税、合計、支払い方法、支払い失敗、失敗理由、決済試行履歴、payment 検索、再発行レシート、返金済み合計、返金可能残額、返金履歴、一部返金済み / 全額返金済み badge。
+- 主な操作: 席選択、支払い方法 `cash` / `card` / `qr` 選択、精算確定、MVP 用の失敗として処理、支払い再試行、pending / failed attempt 取消、`payment_no` / `payment_id` でのレシート検索、レシート再発行、返金額入力、返金理由入力、部分返金、残額全額返金。
 - 必要な role: `cashier` / `manager`
 - 関連 API: `GET /api/checkout/summary`, `POST /api/checkout/settle`, `GET /api/checkout/payment-attempts`, `POST /api/checkout/cancel-payment`, `GET /api/checkout/receipt`, `POST /api/checkout/refund`
-- 注意点: 会計依頼済みセッションだけ精算できる。取消明細は会計対象外。支払い失敗は実決済連携ではなく `simulate_result` による MVP 操作。paid 後の取消は行わず返金を使う。返金は MVP では paid payment の全額返金のみ。レシートには原価・粗利を表示しない。外部プリンタ連携は行わず、ブラウザ表示・印刷で扱う。
+- 注意点: 会計依頼済みセッションだけ精算できる。取消明細は会計対象外。支払い失敗は実決済連携ではなく `simulate_result` による MVP 操作。paid 後の取消は行わず返金を使う。返金は payment 単位の金額指定で、返金可能残額を超える金額は拒否する。レシートには原価・粗利を表示しない。外部プリンタ連携は行わず、ブラウザ表示・印刷で扱う。
 
 ## `/analytics`
 
@@ -78,11 +78,11 @@
 
 - 目的: 売上、会計件数、客単価、商品別ランキング、支払い方法別集計を確認する。
 - 主な利用者: 店長 / 管理者、閲覧専用ユーザー。
-- 主な表示項目: KPI、商品ランキング、支払い方法別集計、最終更新時刻。
+- 主な表示項目: 総支払額、返金額、純売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、最終更新時刻。
 - 主な操作: 期間指定、売上 / 原価 / 粗利 / 粗利率の確認、商品別粗利確認、CSV ダウンロード、管理画面への遷移。
 - 必要な role: `manager` / `viewer`
 - 関連 API: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
-- 注意点: CSV は JSON 内の `csv` をフロントエンドが Blob 化して保存する。原価・粗利は管理 / 分析向け情報で、顧客画面には表示しない。
+- 注意点: CSV は JSON 内の `csv` をフロントエンドが Blob 化して保存する。原価・粗利は管理 / 分析向け情報で、顧客画面には表示しない。部分返金後の売上は純売上を表示する。明細別返金と原価按分は未対応のため、商品別ランキングの返金反映は payment 単位の概算である。
 
 ## `/admin/menu`
 
@@ -108,11 +108,11 @@
 
 - 目的: 注文一覧と注文詳細を確認し、条件を満たす注文・明細を取消する。
 - 主な利用者: 店長 / 管理者。
-- 主な表示項目: 注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、選択オプション、支払い情報、payment 状態、返金履歴、payment attempts、failed / cancelled 状態、失敗理由、関連ホールタスク。
+- 主な表示項目: 注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細、選択オプション、支払い情報、payment 状態、返金済み合計、返金可能残額、返金履歴、payment attempts、failed / cancelled 状態、失敗理由、関連ホールタスク。
 - 主な操作: フィルタ、詳細表示、明細取消、注文全体取消。
 - 必要な role: `manager`
 - 関連 API: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
-- 注意点: `ordered`, `accepted`, `cooking` の明細だけ取消可能。ready / served 明細を含む注文や精算済み注文は取消不可。注文詳細では管理者向けに明細売上、明細原価、明細粗利、粗利率を表示する。返金操作は `/checkout` に寄せ、注文管理では payment 状態と返金履歴を確認する。CSV 出力は `/analytics` の売上 CSV へ誘導する。
+- 注意点: `ordered`, `accepted`, `cooking` の明細だけ取消可能。ready / served 明細を含む注文や精算済み注文は取消不可。注文詳細では管理者向けに明細売上、明細原価、明細粗利、粗利率を表示する。返金操作は `/checkout` に寄せ、注文管理では payment 状態、返金済み合計、返金可能残額、返金履歴を確認する。CSV 出力は `/analytics` の売上 CSV へ誘導する。
 
 ## `/admin/audit-logs`
 

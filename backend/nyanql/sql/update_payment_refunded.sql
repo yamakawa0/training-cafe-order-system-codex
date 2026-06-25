@@ -1,6 +1,6 @@
 UPDATE payments
-SET status = 'refunded',
+SET status = /*status*/'refunded',
     updated_at = CURRENT_TIMESTAMP
 WHERE id = /*payment_id*/'pay-dev'
-  AND status = 'paid'
+  AND status IN ('paid', 'partial_refunded')
 RETURNING id, payment_no, session_id, method, status, subtotal, tax_amount, total_amount, paid_at;
