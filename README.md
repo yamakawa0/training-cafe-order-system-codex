@@ -196,6 +196,7 @@ git diff --check
 ./scripts/smoke-audit-logs.sh
 ./scripts/smoke-admin-orders.sh
 ./scripts/smoke-admin-menu.sh
+./scripts/smoke-inventory.sh
 ./scripts/smoke-admin-tables.sh
 ./scripts/smoke-menu.sh
 ./scripts/smoke-e2e.sh
@@ -337,7 +338,7 @@ psql "$DATABASE_URL" < backup.sql
 - ホール画面: 配膳、片付け、スタッフ呼び出し、会計サポートをタスク種別ごとに表示します。簡易フロアマップで席ごとの状態を確認できます。
 - レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法を表示します。会計依頼済みの席だけ精算できます。
 - 分析画面: 売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV を保存できます。
-- メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、標準原価、粗利 / 粗利率、商品画像、在庫、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
+- メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、標準原価、粗利 / 粗利率、商品画像、在庫設定、在庫差分調整、在庫履歴、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
 - 席・端末管理画面: 店長 PC から席一覧、席状態、顧客端末紐付け、現在セッション、注文・会計状態、端末一覧を確認できます。注文なしまたは精算済みセッションの強制クローズ、席の `available` / `disabled` 変更、端末の有効 / 無効切り替えを行えます。
 - 注文管理画面: 店長 PC から注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細の売上 / 原価 / 粗利、支払い情報、関連ホールタスクを確認できます。`ordered`, `accepted`, `cooking` の明細取消と、ready / served を含まない未精算注文の全体取消を行えます。CSV 出力は `/analytics` の売上 CSV へ誘導します。
 
@@ -373,7 +374,7 @@ psql "$DATABASE_URL" < backup.sql
 - レジ: `GET /api/checkout/summary`, `POST /api/checkout/settle`
 - 分析: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
 - 認証: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
-- 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/update-stock`, `POST /api/admin/menu/items/move`
+- 管理: `GET /api/admin/menu/categories`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/update-stock`, `POST /api/admin/menu/items/adjust-stock`, `GET /api/admin/menu/items/inventory-movements`, `POST /api/admin/menu/items/move`
 - 席・端末管理: `GET /api/admin/tables`, `GET /api/admin/tables/detail`, `POST /api/admin/tables/update-status`, `POST /api/admin/tables/force-close-session`, `GET /api/admin/terminals`, `POST /api/admin/terminals/update-active`
 - 注文管理: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
 - 操作ログ: `GET /api/admin/audit-logs`, `GET /api/admin/audit-logs/detail`, `GET /api/admin/audit-logs/export-csv`
@@ -398,6 +399,14 @@ Nyan8 経由の業務フローは次で確認します。
 ```
 
 この script は DB 初期化、管理者端末でのカテゴリ・商品一覧取得、商品追加、商品編集、商品画像 URL の登録・更新・空戻し・不正 URL 拒否、画像 URL 変更 audit log、在庫設定、売切化、非表示化、顧客メニュー API への反映、非 manager 拒否、既存 `smoke-menu.sh` / `smoke-e2e.sh` の成功を確認します。
+
+在庫履歴・在庫差分調整は次で確認します。
+
+```bash
+./scripts/smoke-inventory.sh
+```
+
+`update-stock` は在庫管理対象、現在在庫、低在庫閾値を直接設定する API です。`adjust-stock` は補充、減算、棚卸調整などの差分操作として使い、在庫が 0 未満になる調整は拒否します。`inventory_movements` は在庫増減の業務履歴、`audit_logs` は誰がどの API 操作をしたかの監査ログです。`smoke-inventory.sh` は `manual_set`, `manual_adjust`, `order_reserved`, `order_cancel_restored`、在庫 0 自動売切、売切自動解除なし、非 manager 拒否を確認します。
 
 席・端末管理機能は次で確認します。
 
@@ -515,7 +524,8 @@ CSRF 方針は MVP として SameSite=Lax + JSON API 前提です。state changi
 - Phase 11 第2段階では `/admin/menu` で商品単位の在庫管理対象、在庫数、低在庫閾値を更新できます。在庫不足時は注文 API が 409 で拒否し、注文成功時に在庫を減らします。在庫 0 になった商品は自動で `sold_out=true` になります。キャンセル時は在庫を戻しますが、`sold_out=false` への自動解除は MVP では行わず、管理者が売切解除します。`scripts/smoke-admin-menu.sh` は在庫不足拒否、在庫引当、自動売切、取消時在庫戻し、在庫 audit log、非 manager 拒否を確認します。
 - Phase 11 第3段階では `/admin/menu` で商品画像 URL を管理できます。商品一覧にはサムネイルまたは「画像なし」を表示し、商品編集フォームではプレビューを表示します。顧客注文画面の商品カードにも画像 URL が反映され、未設定または読み込み失敗時は固定サイズの fallback を表示します。MVP では画像ファイル本体を DB に保存せず、`http(s)` URL または `/` から始まるパスだけを扱います。
 - Phase 11 第4段階では `/admin/menu` で商品ごとの標準原価を管理できます。注文確定時に注文時点の原価を `order_items.unit_cost_price` へ保存し、分析サマリ、商品ランキング、売上 CSV、注文管理詳細に原価・粗利・粗利率を表示します。顧客 API / 顧客画面には原価・粗利を返しません。
-- 本格的な商品画像アップロード、画像リサイズ / 圧縮、画像 CDN / 外部 storage、仕入 / 入荷 / 棚卸、原材料別原価、レシピ原価、日別原価履歴、原価改定予約、在庫履歴、複数店舗別在庫、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、返金処理、実決済連携は Phase 11 後続以降の対象です。
+- Phase 11 第5段階では `/admin/menu` で在庫差分調整と商品別在庫履歴を確認できます。在庫履歴は `inventory_movements` に保存し、注文確定時の引当と取消時の在庫戻しも記録します。
+- 本格的な商品画像アップロード、画像リサイズ / 圧縮、画像 CDN / 外部 storage、仕入 / 入荷 / 棚卸、廃棄、原材料別原価、レシピ原価、日別原価履歴、原価改定予約、複数店舗別在庫、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、返金処理、実決済連携は Phase 11 後続以降の対象です。
 - 精算はダミー決済です。金額はフロントエンド送信値ではなく、DB の注文明細から Nyan8 側で再計算します。
 - API ランタイムが起動していない場合、フロントエンドには API エラーメッセージが表示されます。
 - Nyan8 から NyanQL への呼び出し先は `backend/nyan8/javascript/lib/runtime.js` の `NYANQL_BASE_URL` で定義しています。開発既定値は `http://nyanql:change-me@localhost:8890` です。

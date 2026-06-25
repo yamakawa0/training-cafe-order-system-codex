@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS inventory_movements CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
@@ -99,6 +100,34 @@ CREATE TABLE menu_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_menu_items_stock ON menu_items (track_stock, stock_quantity);
+
+CREATE TABLE inventory_movements (
+    id VARCHAR(50) PRIMARY KEY,
+    menu_item_id VARCHAR(50) NOT NULL REFERENCES menu_items(id),
+    movement_type VARCHAR(50) NOT NULL,
+    quantity_delta INTEGER NOT NULL,
+    quantity_before INTEGER NOT NULL,
+    quantity_after INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    source_type VARCHAR(50),
+    source_id VARCHAR(100),
+    order_id VARCHAR(50),
+    order_item_id VARCHAR(50),
+    actor_user_id VARCHAR(50),
+    actor_user_display_name VARCHAR(100),
+    actor_user_role VARCHAR(50),
+    actor_terminal_code VARCHAR(100),
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (movement_type IN ('manual_set', 'manual_adjust', 'order_reserved', 'order_cancel_restored', 'auto_sold_out')),
+    CHECK (quantity_before >= 0),
+    CHECK (quantity_after >= 0),
+    CHECK (quantity_delta <> 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_item_time ON inventory_movements (menu_item_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_type_time ON inventory_movements (movement_type, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_order_item ON inventory_movements (order_item_id);
 
 CREATE TABLE menu_item_options (
     id VARCHAR(50) PRIMARY KEY,

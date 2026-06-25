@@ -1086,6 +1086,48 @@ h3 {
   background: #fffaf2;
 }
 
+.inventoryAdjustForm {
+  grid-template-columns: minmax(84px, 0.6fr) minmax(120px, 1fr) auto;
+}
+
+.inventoryHistory {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #eadcc5;
+  padding-top: 10px;
+}
+
+.inventoryMovementLine {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #eadcc5;
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+}
+
+.inventoryMovementLine > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inventoryMovementLine span,
+.inventoryMovementLine small,
+.mutedText {
+  color: #74614f;
+  font-size: 0.86rem;
+}
+
+.stockPlus {
+  color: #177245;
+}
+
+.stockMinus {
+  color: #a34821;
+}
+
 .optionList {
   display: grid;
   gap: 12px;
@@ -1487,6 +1529,7 @@ h3 {
   .adminMenuTools,
   .adminTableTools,
   .adminOrderTools,
+  .inventoryAdjustForm,
   .auditJsonCompare,
   .detailMetricGrid,
   .adminLine,

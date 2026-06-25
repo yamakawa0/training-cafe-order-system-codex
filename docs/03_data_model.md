@@ -51,10 +51,18 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - 目的: 販売商品を管理する。
 - 主なカラム: `id`, `category_id`, `name`, `description`, `price`, `cost_price`, `tax_rate`, `image_url`, `kitchen_station`, `allergy_note`, `sold_out`, `track_stock`, `stock_quantity`, `low_stock_threshold`, `active`, `display_order`
 - 主な状態値: `active`, `sold_out`
-- 関連テーブル: `menu_categories`, `menu_item_options`, `order_items`
-- 注意点: 金額はフロントエンド送信値を正とせず、DB の商品価格・税率から計算する。`active=false` は顧客メニュー非表示、`sold_out=true` は注文不可。`track_stock=false` の商品は在庫数を見ない。`track_stock=true` の商品は注文確定時に `stock_quantity` を引き当て、不足時は注文全体を拒否する。注文成功で `stock_quantity=0` になった場合は `sold_out=true` にする。キャンセル時は在庫を戻すが、`sold_out=false` への自動解除は行わない。将来課題として `inventory_movements`、入荷 / 棚卸 / 廃棄、在庫履歴、複数店舗別在庫を扱う。
+- 関連テーブル: `menu_categories`, `menu_item_options`, `order_items`, `inventory_movements`
+- 注意点: 金額はフロントエンド送信値を正とせず、DB の商品価格・税率から計算する。`active=false` は顧客メニュー非表示、`sold_out=true` は注文不可。`track_stock=false` の商品は在庫数を見ない。`track_stock=true` の商品は注文確定時に `stock_quantity` を引き当て、不足時は注文全体を拒否する。`menu_items.stock_quantity` は現在在庫、`inventory_movements` は在庫変動履歴、`audit_logs` は操作監査を表す。注文成功または在庫調整で `stock_quantity=0` になった場合は `sold_out=true` にする。キャンセル時は在庫を戻すが、`sold_out=false` への自動解除は行わない。
 - `image_url`: 商品画像 URL。空値可。顧客注文画面の商品カードに表示し、管理画面から編集できる。MVP では画像ファイル本体を DB に保存しない。本格 upload / resize / CDN は将来課題。
 - `cost_price`: 商品 1 個あたりの現在の標準原価。販売価格 `price` と同じ税区分基準で扱う。顧客 API / 顧客画面には表示しない。`cost_price > price` も登録可能で、赤字商品として管理画面に警告する。
+
+### inventory_movements
+
+- 目的: 商品単位の在庫変動履歴を保持する。
+- 主なカラム: `id`, `menu_item_id`, `movement_type`, `quantity_delta`, `quantity_before`, `quantity_after`, `reason`, `source_type`, `source_id`, `order_id`, `order_item_id`, `actor_user_id`, `actor_user_display_name`, `actor_user_role`, `actor_terminal_code`, `occurred_at`
+- 主な状態値: `movement_type` は `manual_set`, `manual_adjust`, `order_reserved`, `order_cancel_restored`, `auto_sold_out`
+- 関連テーブル: `menu_items`, `orders`, `order_items`
+- 注意点: MVP では在庫増減を伴う履歴だけを記録する。`manual_set` は `update-stock` による現在在庫の直接設定、`manual_adjust` は `adjust-stock` による差分調整、`order_reserved` は注文確定時の引当、`order_cancel_restored` は取消時の在庫戻しを表す。自動売切は audit log に `admin_menu_item_auto_sold_out` として残し、在庫が戻っても売切は自動解除しない。
 
 ### menu_item_options
 

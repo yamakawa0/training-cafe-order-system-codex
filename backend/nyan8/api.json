@@ -144,6 +144,16 @@
     "script": "./javascript/apis/admin_menu_item_update_stock.js",
     "description": "管理画面向けメニュー商品在庫設定更新"
   },
+  "api/admin/menu/items/adjust-stock": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_adjust_stock.js",
+    "description": "管理画面向けメニュー商品在庫差分調整"
+  },
+  "api/admin/menu/items/inventory-movements": {
+    "type": "api",
+    "script": "./javascript/apis/admin_menu_item_inventory_movements.js",
+    "description": "管理画面向けメニュー商品在庫変動履歴"
+  },
   "api/admin/menu/items/move": {
     "type": "api",
     "script": "./javascript/apis/admin_menu_item_move.js",

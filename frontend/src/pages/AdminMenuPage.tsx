@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cafeApi } from '../api/cafeApi';
 import { AppHeader, Badge, Banner, EmptyState, SectionTitle } from '../components/ui';
 import { yen } from '../domain/money';
-import type { AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption } from '../domain/types';
+import type { AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, InventoryMovement } from '../domain/types';
 
 type FormState = {
   id?: string;
@@ -168,6 +168,21 @@ function percent(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
+function movementLabel(type: string) {
+  const labels: Record<string, string> = {
+    manual_set: '直接設定',
+    manual_adjust: '差分調整',
+    order_reserved: '注文引当',
+    order_cancel_restored: '取消戻し',
+    auto_sold_out: '自動売切'
+  };
+  return labels[type] || type;
+}
+
+function signedQuantity(value: number) {
+  return value > 0 ? `+${value}` : String(value);
+}
+
 function MenuImagePreview({ src, alt, compact = false }: { src: string; alt: string; compact?: boolean }) {
   const [failed, setFailed] = useState(false);
   const imageUrl = src.trim();
@@ -195,6 +210,11 @@ export function AdminMenuPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [categoryForm, setCategoryForm] = useState<CategoryFormState>(emptyCategoryForm);
   const [options, setOptions] = useState<AdminMenuItemOption[]>([]);
+  const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
+  const [movementType, setMovementType] = useState('');
+  const [movementLoading, setMovementLoading] = useState(false);
+  const [adjustDelta, setAdjustDelta] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
   const [optionForm, setOptionForm] = useState<OptionFormState>(emptyOptionForm);
   const [choiceDrafts, setChoiceDrafts] = useState<Record<string, ChoiceDraft>>({});
   const [loading, setLoading] = useState(true);
@@ -242,6 +262,16 @@ export function AdminMenuPage() {
     });
   };
 
+  const loadInventoryMovements = async (itemId: string, type = movementType) => {
+    setMovementLoading(true);
+    try {
+      const data = await cafeApi.adminMenuItemInventoryMovements(itemId, { movementType: type || undefined, limit: 20 });
+      setInventoryMovements(data.movements);
+    } finally {
+      setMovementLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
   }, [selectedCategoryId]);
@@ -260,13 +290,19 @@ export function AdminMenuPage() {
   function startNew() {
     setForm({ ...emptyForm, categoryId: selectedCategoryId || categories[0]?.id || '', displayOrder: String((items[items.length - 1]?.displayOrder || 0) + 10) });
     setOptions([]);
+    setInventoryMovements([]);
+    setAdjustDelta('');
+    setAdjustReason('');
     setOptionForm(emptyOptionForm);
   }
 
   function startEditItem(item: AdminMenuItem) {
     setForm(toForm(item));
     setOptionForm(emptyOptionForm);
+    setAdjustDelta('');
+    setAdjustReason('');
     void loadOptions(item.id).catch((event: Error) => setError(event.message));
+    void loadInventoryMovements(item.id).catch((event: Error) => setError(event.message));
   }
 
   async function save() {
@@ -284,6 +320,7 @@ export function AdminMenuPage() {
         : await cafeApi.adminCreateMenuItem(input);
       setForm(toForm(result.item));
       await loadOptions(result.item.id);
+      await loadInventoryMovements(result.item.id);
       setMessage(form.id ? '商品を更新しました。' : '商品を追加しました。');
       await cafeApi.adminMenuItems({ categoryId: selectedCategoryId || undefined, keyword: keyword || undefined }).then((data) => setItems(data.items));
     } catch (event) {
@@ -327,10 +364,50 @@ export function AdminMenuPage() {
       setMessage('在庫設定を更新しました。');
       const data = await cafeApi.adminMenuItems({ categoryId: selectedCategoryId || undefined, keyword: keyword || undefined });
       setItems(data.items);
+      await loadInventoryMovements(result.item.id);
     } catch (event) {
       setError(event instanceof Error ? event.message : '在庫更新に失敗しました。');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function adjustStock() {
+    if (!form.id) return;
+    const delta = Number(adjustDelta);
+    if (!Number.isInteger(delta) || delta === 0) {
+      setError('調整数は 0 以外の整数で入力してください。');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const result = await cafeApi.adminAdjustMenuItemStock({
+        item_id: form.id,
+        delta,
+        reason: adjustReason
+      });
+      setForm(toForm(result.item));
+      setAdjustDelta('');
+      setAdjustReason('');
+      setMessage('在庫を調整しました。');
+      const data = await cafeApi.adminMenuItems({ categoryId: selectedCategoryId || undefined, keyword: keyword || undefined });
+      setItems(data.items);
+      await loadInventoryMovements(result.item.id);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : '在庫調整に失敗しました。');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeMovementType(type: string) {
+    setMovementType(type);
+    if (!form.id) return;
+    try {
+      await loadInventoryMovements(form.id, type);
+    } catch (event) {
+      setError(event instanceof Error ? event.message : '在庫履歴の取得に失敗しました。');
     }
   }
 
@@ -570,6 +647,42 @@ export function AdminMenuPage() {
             </div>
             {form.trackStock && Number(form.stockQuantity) === 0 && <Banner tone="warning">在庫 0 の商品は注文成功時に自動で売切になります。売切解除は管理者操作で行います。</Banner>}
             {form.id && <button disabled={saving} onClick={() => void saveStock()}>在庫のみ更新</button>}
+            {form.id && (
+              <>
+                <div className="adminSubForm inventoryAdjustForm">
+                  <input type="number" step="1" disabled={!form.trackStock} value={adjustDelta} onChange={(event) => setAdjustDelta(event.target.value)} placeholder="調整数" aria-label="在庫調整数" />
+                  <input disabled={!form.trackStock} value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} placeholder="理由" aria-label="在庫調整理由" />
+                  <button disabled={saving || !form.trackStock} onClick={() => void adjustStock()}>差分調整</button>
+                </div>
+                <div className="inventoryHistory">
+                  <div className="optionEditorHeader">
+                    <strong>在庫履歴</strong>
+                    <select value={movementType} onChange={(event) => void changeMovementType(event.target.value)} aria-label="在庫履歴種別">
+                      <option value="">すべて</option>
+                      <option value="manual_set">直接設定</option>
+                      <option value="manual_adjust">差分調整</option>
+                      <option value="order_reserved">注文引当</option>
+                      <option value="order_cancel_restored">取消戻し</option>
+                    </select>
+                  </div>
+                  {movementLoading && <p className="mutedText">読み込み中</p>}
+                  {!movementLoading && inventoryMovements.length === 0 && <p className="mutedText">履歴はありません。</p>}
+                  {!movementLoading && inventoryMovements.map((movement) => (
+                    <div className="inventoryMovementLine" key={movement.id}>
+                      <div>
+                        <strong className={movement.quantityDelta > 0 ? 'stockPlus' : 'stockMinus'}>{signedQuantity(movement.quantityDelta)}</strong>
+                        <span>{movement.quantityBefore} → {movement.quantityAfter}</span>
+                      </div>
+                      <div>
+                        <Badge tone={movement.quantityDelta > 0 ? 'success' : 'warning'}>{movementLabel(movement.movementType)}</Badge>
+                        <small>{formatDate(movement.occurredAt)}</small>
+                      </div>
+                      <small>{movement.reason || '-'}{movement.orderNo ? ` / ${movement.orderNo}` : ''}{movement.actorUserDisplayName ? ` / ${movement.actorUserDisplayName}` : ''}</small>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
           <button className="primary largeButton" disabled={saving} onClick={() => void save()}>{saving ? '保存中' : '保存'}</button>
           {form.id && (

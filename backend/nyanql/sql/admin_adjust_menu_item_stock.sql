@@ -1,11 +1,12 @@
 UPDATE menu_items
 SET
-    track_stock = COALESCE(/*track_stock*/FALSE, FALSE),
-    stock_quantity = GREATEST(0, /*stock_quantity*/0),
-    low_stock_threshold = GREATEST(0, /*low_stock_threshold*/0),
-    sold_out = CASE WHEN COALESCE(/*track_stock*/FALSE, FALSE) = TRUE AND GREATEST(0, /*stock_quantity*/0) = 0 THEN TRUE ELSE sold_out END,
+    stock_quantity = stock_quantity + /*delta*/1,
+    sold_out = CASE WHEN stock_quantity + /*delta*/1 = 0 THEN TRUE ELSE sold_out END,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = /*item_id*/'item-admin'
+  AND track_stock = TRUE
+  AND /*delta*/1 <> 0
+  AND stock_quantity + /*delta*/1 >= 0
 RETURNING
     id,
     category_id,

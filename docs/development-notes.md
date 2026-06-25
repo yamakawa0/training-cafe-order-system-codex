@@ -355,3 +355,20 @@
 - 原価仕様: `cost_price` は 0 以上の整数。販売価格を超えても登録可能で、管理画面では赤字警告を出す。オプション追加料金は売上に含めるが、MVP の追加原価は 0 とする。
 - 更新した smoke script: `scripts/smoke-admin-menu.sh`, `scripts/smoke-e2e.sh`, `scripts/smoke-admin-orders.sh`, `scripts/smoke-checkout-csv.sh` に原価・粗利・顧客 API 非漏洩・CSV 列・取消明細除外の検証を追加した。
 - 未対応事項: 仕入、入荷、棚卸、廃棄、原材料別原価、レシピ原価、複数店舗別原価、日別原価履歴、仕入先管理、自動原価計算、原価改定予約、高度な価格履歴管理。
+
+## 2026-06-25 Phase 11 商品・在庫・オプション強化 第5段階
+
+- 実装範囲: 在庫変動履歴 `inventory_movements`、在庫差分調整 `adjust-stock` API、商品別在庫履歴 API、`/admin/menu` の在庫調整フォームと履歴表示、注文確定 / 取消時の在庫履歴記録を実装した。
+- DB / SQL: `inventory_movements` テーブルと `menu_item_id, occurred_at`, `movement_type, occurred_at`, `order_item_id` index を追加した。`insert_inventory_movement.sql`, `admin_adjust_menu_item_stock.sql`, `admin_list_menu_item_inventory_movements.sql` を追加し、`admin_update_menu_item_stock.sql` は在庫 0 の直接設定で `sold_out=true` にする。
+- NyanQL API: `admin/menu/items/adjust-stock`, `admin/menu/items/inventory-movements`, `inventory-movements` を追加した。
+- Nyan8 API: `POST /api/admin/menu/items/adjust-stock`, `GET /api/admin/menu/items/inventory-movements` を追加した。manager のみ利用可能。
+- frontend API client: `InventoryMovement` 型、`cafeApi.adminAdjustMenuItemStock()`, `cafeApi.adminMenuItemInventoryMovements()` を追加した。
+- 更新した画面: `/admin/menu` の在庫セクションに差分調整の `delta` / `reason` 入力、履歴種別 filter、直近履歴、在庫増減前後表示を追加した。
+- 在庫履歴仕様: `manual_set`, `manual_adjust`, `order_reserved`, `order_cancel_restored` を記録する。注文確定時は同一注文内の同一商品数量を合算した商品単位の `order_reserved` を記録し、取消時は明細 ID を持つ `order_cancel_restored` を記録する。
+- adjust-stock 仕様: `delta` は 0 以外の整数。`track_stock=true` 商品だけ対象。調整後在庫が 0 未満になる場合は 409。調整後在庫が 0 の場合は `sold_out=true` にするが、在庫が戻っても `sold_out=false` へは自動解除しない。
+- audit log: `admin_menu_item_stock_adjusted`, `admin_menu_item_inventory_movements_viewed` を追加し、既存の `customer_order_stock_reserved`, `admin_order_item_stock_restored`, `admin_order_stock_restored`, `admin_menu_item_auto_sold_out` を維持した。`inventory_movements` は在庫変動履歴、`audit_logs` は操作監査として分ける。
+- 更新した smoke script: `scripts/smoke-inventory.sh` を追加し、`scripts/ci-repo-consistency.sh` の必須 script に含めた。
+- 更新した docs: README、`docs/03_data_model.md`, `docs/04_api_design.md`, `docs/05_screen_spec.md`, `docs/06_acceptance_criteria.md`, `docs/07_development_plan.md`, `docs/08_operations.md`, `docs/assumptions.md`, `docs/development-notes.md` を更新した。
+- 検証結果: `node --check backend/nyan8/javascript/lib/runtime.js`, Nyan8 / NyanQL API 定義整合チェック, `bash -n scripts/smoke-inventory.sh`, `bash -n scripts/smoke-admin-menu.sh`, `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `git diff --check`, frontend `npm ci`, `npm audit --audit-level=high`, `npm run build` は成功した。システム既定 Node.js / npm では要件未満のため、frontend build と production readiness smoke は Codex bundled Node.js `v24.14.0` と npm `10.9.8` 相当で確認した。
+- smoke 結果: `./scripts/smoke-inventory.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-prod-readiness.sh` は成功した。`smoke-inventory.sh` は `manual_set`, `manual_adjust`, `order_reserved`, `order_cancel_restored`, 在庫 0 自動売切、売切自動解除なし、非 manager 拒否を確認した。
+- 未対応事項: 仕入 / 入荷 / 棚卸、廃棄専用フロー、原材料別在庫、複数店舗別在庫、バーコード、発注、在庫 CSV import / export、本格的な商品画像アップロード、画像 resize / CDN、レシピ原価。

@@ -78,6 +78,14 @@
 - 在庫が戻っても `sold_out` は自動解除されない。
 - manager 以外は在庫管理 API を使えない。
 - 在庫更新、在庫引当、在庫戻し、自動売切が audit log に記録される。
+- 在庫調整 API で在庫を増減できる。
+- 在庫が 0 未満になる調整は拒否される。
+- 在庫更新時に `inventory_movements.manual_set` が記録される。
+- 在庫調整時に `inventory_movements.manual_adjust` が記録される。
+- 注文確定時に `inventory_movements.order_reserved` が記録される。
+- キャンセル時に `inventory_movements.order_cancel_restored` が記録される。
+- `/admin/menu` で在庫履歴を確認できる。
+- manager 以外は在庫調整・在庫履歴 API を使えない。
 - 席・端末管理で席一覧、席詳細、端末一覧、端末有効 / 無効、条件付きセッション強制クローズができる。
 - 注文管理で注文一覧、注文詳細、明細取消、注文全体取消ができる。
 - 監査ログで重要操作と認証イベントの一覧・詳細を確認できる。
@@ -139,6 +147,7 @@
 | `scripts/smoke-audit-logs.sh` | 注文、会計依頼、精算、商品売切、明細取消、非管理者拒否、監査ログ一覧・詳細、action / role / keyword filter、manager CSV 出力、非 manager CSV 拒否、CSV 秘匿情報除外、CSV 操作ログ |
 | `scripts/smoke-admin-orders.sh` | 注文一覧・詳細、明細取消、注文全体取消、注文詳細の原価・粗利、取消明細の会計・分析・粗利集計除外、ready / 精算済み取消拒否 |
 | `scripts/smoke-admin-menu.sh` | 商品追加・編集、原価登録・更新・赤字商品許可・audit log・顧客 API 非漏洩、商品画像 URL 登録・更新・空戻し・不正 URL 拒否・audit log、表示 / 非表示、売切 / 売切解除、並び順変更、カテゴリ・オプション管理、在庫設定、在庫不足拒否、在庫引当、自動売切、取消時在庫戻し、顧客メニュー反映 |
+| `scripts/smoke-inventory.sh` | 在庫直接設定履歴、差分調整履歴、0 未満調整拒否、注文引当履歴、明細取消戻し履歴、在庫 0 自動売切、売切自動解除なし、非 manager 拒否 |
 | `scripts/smoke-admin-tables.sh` | 席一覧・詳細、席状態更新、端末有効 / 無効、強制クローズ条件 |
 | `scripts/smoke-menu.sh` | 顧客メニュー取得、端末判定、active / sold out の扱い |
 | `scripts/smoke-e2e.sh` | 顧客注文、キッチン、ホール、会計依頼、精算、片付け、売上・原価・粗利の分析反映 |

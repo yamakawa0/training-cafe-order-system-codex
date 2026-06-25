@@ -51,6 +51,14 @@
     "sql": ["./sql/admin_update_menu_item_stock.sql"],
     "description": "管理画面からメニュー商品の在庫設定を更新する"
   },
+  "admin/menu/items/adjust-stock": {
+    "sql": ["./sql/admin_adjust_menu_item_stock.sql"],
+    "description": "管理画面からメニュー商品の在庫数を差分調整する"
+  },
+  "admin/menu/items/inventory-movements": {
+    "sql": ["./sql/admin_list_menu_item_inventory_movements.sql"],
+    "description": "管理画面向けメニュー商品別在庫変動履歴を取得する"
+  },
   "admin/menu/items/move": {
     "sql": ["./sql/admin_move_menu_item.sql"],
     "description": "管理画面からメニュー商品の表示順を変更する"
@@ -238,6 +246,10 @@
   "audit-logs": {
     "sql": ["./sql/insert_audit_log.sql"],
     "description": "監査ログを登録する"
+  },
+  "inventory-movements": {
+    "sql": ["./sql/insert_inventory_movement.sql"],
+    "description": "在庫変動履歴を登録する"
   },
   "auth/users/by-login-id": {
     "sql": ["./sql/auth_find_user_by_login_id.sql"],

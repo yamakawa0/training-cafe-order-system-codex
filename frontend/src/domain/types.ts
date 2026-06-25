@@ -209,6 +209,28 @@ export interface AdminMenuItem {
   updatedAt: string | null;
 }
 
+export interface InventoryMovement {
+  id: string;
+  menuItemId: string;
+  itemName: string;
+  movementType: string;
+  quantityDelta: number;
+  quantityBefore: number;
+  quantityAfter: number;
+  reason: string;
+  sourceType?: string;
+  sourceId?: string;
+  orderId?: string;
+  orderNo?: string;
+  orderItemId?: string;
+  actorUserId?: string;
+  actorUserDisplayName?: string;
+  actorUserRole?: string;
+  actorTerminalCode?: string;
+  occurredAt: string;
+  createdAt?: string;
+}
+
 export type AdminMenuItemInput = {
   item_id?: string;
   category_id: string;

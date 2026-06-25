@@ -82,6 +82,7 @@ for script in \
   "scripts/smoke-audit-logs.sh" \
   "scripts/smoke-admin-orders.sh" \
   "scripts/smoke-admin-menu.sh" \
+  "scripts/smoke-inventory.sh" \
   "scripts/smoke-admin-tables.sh" \
   "scripts/smoke-menu.sh" \
   "scripts/smoke-e2e.sh" \

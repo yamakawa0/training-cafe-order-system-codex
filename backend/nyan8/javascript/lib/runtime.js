@@ -391,6 +391,20 @@ function customerSubmitOrder() {
         nyanqlPost("order-item-options", { id: newId("oio"), order_item_id: orderItem.id, option_name: choice.optionName, choice_name: choice.choiceName, price_delta: choice.priceDelta });
       });
     });
+    reservedStock.forEach(function(row) {
+      writeInventoryMovement({
+        menuItemId: row.itemId,
+        movementType: "order_reserved",
+        quantityDelta: -row.quantity,
+        quantityBefore: stockQuantityOf(row.before),
+        quantityAfter: stockQuantityOf(row.after),
+        reason: "注文確定",
+        sourceType: "order",
+        sourceId: order.id,
+        orderId: order.id,
+        actorTerminalCode: terminal.terminal_code
+      });
+    });
     writeAuditLog({
       actorTerminalCode: terminal.terminal_code,
       actorTerminalType: terminal.terminal_type,
@@ -756,6 +770,77 @@ function stockAuditData(row, extra) {
   return data;
 }
 
+function stockQuantityOf(row) {
+  if (!row) return 0;
+  return Number(row.stock_quantity !== undefined ? row.stock_quantity : row.stockQuantity || 0);
+}
+
+function currentUserForInventory() {
+  if (typeof getCurrentUser !== "function") return null;
+  try {
+    return getCurrentUser();
+  } catch (event) {
+    return null;
+  }
+}
+
+function inventoryMovement(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    menuItemId: row.menu_item_id,
+    itemName: row.item_name,
+    movementType: row.movement_type,
+    quantityDelta: Number(row.quantity_delta || 0),
+    quantityBefore: Number(row.quantity_before || 0),
+    quantityAfter: Number(row.quantity_after || 0),
+    reason: row.reason || "",
+    sourceType: row.source_type || "",
+    sourceId: row.source_id || "",
+    orderId: row.order_id || "",
+    orderNo: row.order_no || "",
+    orderItemId: row.order_item_id || "",
+    actorUserId: row.actor_user_id || "",
+    actorUserDisplayName: row.actor_user_display_name || "",
+    actorUserRole: row.actor_user_role || "",
+    actorTerminalCode: row.actor_terminal_code || "",
+    occurredAt: row.occurred_at,
+    createdAt: row.created_at
+  };
+}
+
+function writeInventoryMovement(input) {
+  var user = currentUserForInventory();
+  return first(nyanqlPost("inventory-movements", {
+    id: newId("mov"),
+    menu_item_id: input.menuItemId,
+    movement_type: input.movementType,
+    quantity_delta: input.quantityDelta,
+    quantity_before: input.quantityBefore,
+    quantity_after: input.quantityAfter,
+    reason: input.reason || "",
+    source_type: input.sourceType || "",
+    source_id: input.sourceId || "",
+    order_id: input.orderId || "",
+    order_item_id: input.orderItemId || "",
+    actor_user_id: input.actorUserId || (user ? user.id : ""),
+    actor_user_display_name: input.actorUserDisplayName || (user ? user.displayName : ""),
+    actor_user_role: input.actorUserRole || (user ? user.role : ""),
+    actor_terminal_code: input.actorTerminalCode || ""
+  }));
+}
+
+function validateStockAdjustInput(input) {
+  requireField(input.item_id, "item_id");
+  var delta = integerValue(input.delta, "調整数");
+  if (delta === 0) throw error(400, "調整数は 0 以外の整数で入力してください");
+  return {
+    item_id: input.item_id,
+    delta: delta,
+    reason: String(input.reason || "").slice(0, 1000)
+  };
+}
+
 function findAdminMenuItem(itemId) {
   return rows(nyanqlGet("admin/menu/items")).filter(function(row) { return (row.item_id || row.id) === itemId; })[0] || null;
 }
@@ -988,6 +1073,20 @@ function adminUpdateMenuItemStock() {
     before = findAdminMenuItem(input.item_id);
     var item = first(nyanqlPost("admin/menu/items/update-stock", values));
     if (!item) throw error(404, "商品が見つかりません");
+    var delta = before ? stockQuantityOf(item) - stockQuantityOf(before) : 0;
+    if (before && delta !== 0) {
+      writeInventoryMovement({
+        menuItemId: menuItemAuditId(item),
+        movementType: "manual_set",
+        quantityDelta: delta,
+        quantityBefore: stockQuantityOf(before),
+        quantityAfter: stockQuantityOf(item),
+        reason: "在庫設定更新",
+        sourceType: "admin_update_stock",
+        sourceId: menuItemAuditId(item),
+        actorTerminalCode: actor.terminal_code
+      });
+    }
     writeAuditLog({
       actorTerminalCode: actor.terminal_code,
       actorTerminalType: actor.terminal_type,
@@ -996,8 +1095,8 @@ function adminUpdateMenuItemStock() {
       targetId: menuItemAuditId(item),
       targetLabel: menuItemAuditName(item),
       status: "success",
-      beforeData: stockAuditData(before),
-      afterData: stockAuditData(item),
+      beforeData: stockAuditData(before, { quantity_delta: delta }),
+      afterData: stockAuditData(item, { quantity_delta: delta }),
       requestData: input
     });
     return ok({ item: adminMenuItem(item) });
@@ -1005,6 +1104,87 @@ function adminUpdateMenuItemStock() {
     auditFailure(input, "admin_menu_item_stock_updated", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
     throw event;
   }
+}
+
+function adminAdjustMenuItemStock() {
+  var input = params();
+  var before = null;
+  try {
+    var actor = assertAdminTerminal(input);
+    var values = validateStockAdjustInput(input);
+    before = findAdminMenuItem(input.item_id);
+    if (!before) throw error(404, "商品が見つかりません");
+    if (!Boolean(before.track_stock !== undefined ? before.track_stock : before.trackStock)) throw error(409, "在庫管理対象の商品ではありません");
+    if (stockQuantityOf(before) + values.delta < 0) throw error(409, "在庫数が 0 未満になる調整はできません");
+    var item = first(nyanqlPost("admin/menu/items/adjust-stock", values));
+    if (!item) throw error(409, "在庫数を調整できませんでした");
+    var movement = writeInventoryMovement({
+      menuItemId: menuItemAuditId(item),
+      movementType: "manual_adjust",
+      quantityDelta: values.delta,
+      quantityBefore: stockQuantityOf(before),
+      quantityAfter: stockQuantityOf(item),
+      reason: values.reason,
+      sourceType: "admin_adjust_stock",
+      sourceId: menuItemAuditId(item),
+      actorTerminalCode: actor.terminal_code
+    });
+    writeAuditLog({
+      actorTerminalCode: actor.terminal_code,
+      actorTerminalType: actor.terminal_type,
+      action: "admin_menu_item_stock_adjusted",
+      targetType: "menu_item",
+      targetId: menuItemAuditId(item),
+      targetLabel: menuItemAuditName(item),
+      status: "success",
+      beforeData: stockAuditData(before, { quantity_delta: values.delta, reason: values.reason }),
+      afterData: stockAuditData(item, { quantity_delta: values.delta, reason: values.reason }),
+      requestData: input
+    });
+    if (Boolean(item.sold_out) && !Boolean(before.sold_out !== undefined ? before.sold_out : before.soldOut)) {
+      writeAuditLog({
+        actorTerminalCode: actor.terminal_code,
+        actorTerminalType: actor.terminal_type,
+        action: "admin_menu_item_auto_sold_out",
+        targetType: "menu_item",
+        targetId: menuItemAuditId(item),
+        targetLabel: menuItemAuditName(item),
+        status: "success",
+        beforeData: stockAuditData(before, { quantity_delta: values.delta }),
+        afterData: stockAuditData(item, { quantity_delta: values.delta }),
+        requestData: input
+      });
+    }
+    return ok({ item: adminMenuItem(item), movement: inventoryMovement(movement) });
+  } catch (event) {
+    auditFailure(input, "admin_menu_item_stock_adjusted", "menu_item", input.item_id || "", menuItemAuditName(before), event, before);
+    throw event;
+  }
+}
+
+function adminListMenuItemInventoryMovements() {
+  var input = params();
+  var actor = assertAdminTerminal(input);
+  requireField(input.item_id, "item_id");
+  var query = {
+    item_id: input.item_id,
+    movement_type: input.movement_type || "",
+    limit: input.limit === undefined || input.limit === "" ? 20 : integerValue(input.limit, "limit", 1),
+    offset: input.offset === undefined || input.offset === "" ? 0 : integerValue(input.offset, "offset", 0)
+  };
+  var movements = rows(nyanqlGet("admin/menu/items/inventory-movements", query)).map(inventoryMovement);
+  writeAuditLog({
+    actorTerminalCode: actor.terminal_code,
+    actorTerminalType: actor.terminal_type,
+    action: "admin_menu_item_inventory_movements_viewed",
+    targetType: "menu_item",
+    targetId: input.item_id,
+    targetLabel: "",
+    status: "success",
+    afterData: { item_id: input.item_id, movement_type: query.movement_type, count: movements.length },
+    requestData: input
+  });
+  return ok({ movements: movements });
 }
 
 function adminMoveMenuItem() {
@@ -1593,6 +1773,19 @@ function restoreStockForOrderItems(items, context) {
       delta: quantity,
       reason: context.reason || "cancel"
     };
+    writeInventoryMovement({
+      menuItemId: item.menuItemId,
+      movementType: "order_cancel_restored",
+      quantityDelta: quantity,
+      quantityBefore: stockQuantityOf(before),
+      quantityAfter: stockQuantityOf(updated),
+      reason: context.reason === "item_cancel" ? "明細取消" : "注文取消",
+      sourceType: "order_cancel",
+      sourceId: item.orderItemId || context.orderId || "",
+      orderId: context.orderId || "",
+      orderItemId: item.orderItemId || "",
+      actorTerminalCode: context.actor.terminal_code
+    });
     writeAuditLog({
       actorTerminalCode: context.actor.terminal_code,
       actorTerminalType: context.actor.terminal_type,

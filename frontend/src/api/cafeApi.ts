@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, ItemRanking, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -151,6 +151,17 @@ export const cafeApi = {
   adminUpdateMenuItemStock: (input: { item_id: string; track_stock: boolean; stock_quantity: number; low_stock_threshold: number }) => post<{ item: AdminMenuItem }>('/api/admin/menu/items/update-stock', {
     terminal_code: terminals.analytics,
     ...input
+  }),
+  adminAdjustMenuItemStock: (input: { item_id: string; delta: number; reason: string }) => post<{ item: AdminMenuItem; movement: InventoryMovement }>('/api/admin/menu/items/adjust-stock', {
+    terminal_code: terminals.analytics,
+    ...input
+  }),
+  adminMenuItemInventoryMovements: (itemId: string, filters: { movementType?: string; limit?: number; offset?: number } = {}) => get<{ movements: InventoryMovement[] }>('/api/admin/menu/items/inventory-movements', {
+    terminal_code: terminals.analytics,
+    item_id: itemId,
+    movement_type: filters.movementType,
+    limit: filters.limit,
+    offset: filters.offset
   }),
   adminMoveMenuItem: (itemId: string, direction: 'up' | 'down') => post<{ item: AdminMenuItem }>('/api/admin/menu/items/move', {
     terminal_code: terminals.analytics,
