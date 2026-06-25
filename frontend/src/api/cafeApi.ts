@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentAttempt, PaymentMethod, PaymentProvider, PaymentReceipt, PaymentRefund, PaymentWebhookEvent, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, DailyCashClosure, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentAttempt, PaymentMethod, PaymentProvider, PaymentReceipt, PaymentRefund, PaymentWebhookEvent, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -150,6 +150,37 @@ export const cafeApi = {
     to_date: toDate
   }),
   exportSalesCsv: (fromDate: string, toDate: string) => get<{ contentType: string; filename: string; csv: string }>('/api/analytics/export-sales-csv', {
+    terminal_code: terminals.analytics,
+    from_date: fromDate,
+    to_date: toDate
+  }),
+  dailyClosePreview: (businessDate: string) => get<{ preview: DailyCashClosure }>('/api/analytics/daily-close/preview', {
+    terminal_code: terminals.analytics,
+    business_date: businessDate
+  }),
+  dailyCloseClose: (input: { businessDate: string; note?: string }) => post<{ closure: DailyCashClosure }>('/api/analytics/daily-close/close', {
+    terminal_code: terminals.analytics,
+    business_date: input.businessDate,
+    note: input.note || ''
+  }),
+  dailyCloseDetail: (businessDate: string) => get<{ closure: DailyCashClosure }>('/api/analytics/daily-close/detail', {
+    terminal_code: terminals.analytics,
+    business_date: businessDate
+  }),
+  dailyCloseList: (filters: { fromDate?: string; toDate?: string; status?: string; limit?: number; offset?: number } = {}) => get<{ closures: DailyCashClosure[] }>('/api/analytics/daily-close/list', {
+    terminal_code: terminals.analytics,
+    from_date: filters.fromDate,
+    to_date: filters.toDate,
+    status: filters.status,
+    limit: filters.limit,
+    offset: filters.offset
+  }),
+  dailyCloseReopen: (input: { businessDate: string; reason: string }) => post<{ closure: DailyCashClosure }>('/api/analytics/daily-close/reopen', {
+    terminal_code: terminals.analytics,
+    business_date: input.businessDate,
+    reason: input.reason
+  }),
+  exportDailyCloseCsv: (fromDate: string, toDate: string) => get<{ contentType: string; filename: string; csv: string }>('/api/analytics/daily-close/export-csv', {
     terminal_code: terminals.analytics,
     from_date: fromDate,
     to_date: toDate

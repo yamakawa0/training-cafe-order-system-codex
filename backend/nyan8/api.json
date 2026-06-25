@@ -129,6 +129,36 @@
     "script": "./javascript/apis/analytics_export_sales_csv.js",
     "description": "売上 CSV 出力"
   },
+  "api/analytics/daily-close/preview": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_daily_close_preview.js",
+    "description": "日次締め preview"
+  },
+  "api/analytics/daily-close/close": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_daily_close_close.js",
+    "description": "日次締め確定"
+  },
+  "api/analytics/daily-close/detail": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_daily_close_detail.js",
+    "description": "日次締め詳細"
+  },
+  "api/analytics/daily-close/list": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_daily_close_list.js",
+    "description": "日次締め一覧"
+  },
+  "api/analytics/daily-close/reopen": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_daily_close_reopen.js",
+    "description": "日次締め再オープン"
+  },
+  "api/analytics/daily-close/export-csv": {
+    "type": "api",
+    "script": "./javascript/apis/analytics_daily_close_export_csv.js",
+    "description": "日次締め CSV 出力"
+  },
   "api/admin/menu/categories": {
     "type": "api",
     "script": "./javascript/apis/admin_menu_categories.js",

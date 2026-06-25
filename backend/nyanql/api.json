@@ -295,6 +295,30 @@
     "sql": ["./sql/analytics_sales_csv.sql"],
     "description": "売上 CSV 出力用の明細を取得する"
   },
+  "analytics/daily-close/preview": {
+    "sql": ["./sql/preview_daily_cash_closure.sql"],
+    "description": "日次締めの集計 preview を取得する"
+  },
+  "analytics/daily-close/close": {
+    "sql": ["./sql/close_daily_cash_closure.sql"],
+    "description": "日次締めを確定保存する"
+  },
+  "analytics/daily-close/detail": {
+    "sql": ["./sql/get_daily_cash_closure.sql"],
+    "description": "日次締め詳細を取得する"
+  },
+  "analytics/daily-close/list": {
+    "sql": ["./sql/list_daily_cash_closures.sql"],
+    "description": "日次締め一覧を取得する"
+  },
+  "analytics/daily-close/reopen": {
+    "sql": ["./sql/reopen_daily_cash_closure.sql"],
+    "description": "日次締めを再オープンする"
+  },
+  "analytics/daily-close/export-csv": {
+    "sql": ["./sql/export_daily_cash_closure_csv.sql"],
+    "description": "日次締め CSV 出力用の明細を取得する"
+  },
   "payment-webhook-events": {
     "sql": ["./sql/list_payment_webhook_events.sql"],
     "description": "外部決済 webhook event 履歴を取得する"

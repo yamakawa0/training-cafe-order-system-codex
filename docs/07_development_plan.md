@@ -206,14 +206,24 @@
 - mock provider webhook
 - webhook 冪等処理
 
+第5段階完了:
+
+- 日次締め
+- 会計締め
+- 決済手段別集計
+- provider 別集計
+- 日次締め CSV
+- 締め後の reopen / 再 close
+
 残課題:
 
 - 実 Stripe / Square / PayPay 連携
-- 外部決済 API key の本番運用
 - 外部 webhook 署名検証
+- 実決済 provider との残高照合
 - 分割決済
 - 返金取消
-- 日次締め
+- 月次締め
+- 複数店舗別締め
 - 外部レシートプリンタ
 - 電子レシート
 

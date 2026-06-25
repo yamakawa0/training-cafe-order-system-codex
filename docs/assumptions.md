@@ -17,8 +17,8 @@
 - 顧客端末は席に固定され、端末コードにより席を判定する。
 - 商品価格・税額・会計金額は DB の商品価格、選択肢差額、税率から計算し、フロントエンドから送信された金額を正としない。
 - 消費税は明細ごとに `tax_rate` を使って計算し、精算時にも DB 取得明細から再計算する。
-- 在庫管理は現行スコープ外とし、売切フラグのみ扱う。
-- 実決済連携は行わず、支払い方法 `cash` / `card` / `qr` のダミー決済記録だけを行う。
+- 在庫管理は商品単位の現在在庫、差分調整、在庫変動履歴まで扱う。
+- 実決済連携は `mock` provider までとし、実 Stripe / Square / PayPay 連携は行わない。
 
 ## 認証・session
 
@@ -96,7 +96,7 @@
 - `payments.status='refunded'` は売上対象外とする。
 - 返金しても注文・明細は削除しない。
 - レシートはブラウザ表示・再発行までとする。
-- 外部プリンタ連携、電子レシート送信、日次締めは未対応とする。
+- 外部プリンタ連携、電子レシート送信は未対応とする。
 
 ## Phase 12 第2段階 支払い失敗 flow / 決済取消
 
@@ -143,6 +143,18 @@
 - 外部 provider payload に API key、webhook secret、署名値、カード番号、個人情報などの秘匿情報を保存しない。
 - 将来 provider 候補は `stripe`, `square`, `paypay`, `other` とするが、現行 DB の許可値は `internal`, `mock` のみ。
 
+## Phase 12 第5段階 日次締め / 会計締め
+
+- MVP の日次締めは単一店舗、営業日 1 日単位で扱う。
+- `business_date` は `paid_at::date` / `attempted_at::date` に基づくローカル日付として扱う。
+- 日次締め対象の売上は `paid` / `partial_refunded` / `refunded` payment とする。
+- `gross_sales_total` は元支払額合計、`refund_total` は `payment_refunds.status='refunded'` の返金合計、`net_sales_total` は差引純売上とする。
+- `partial_refunded` は元支払額、返金額、純売上を分けて集計し、`refunded` は純売上 0 とする。
+- failed / cancelled attempt は売上金額に含めず、状態別件数として日次締めに含める。
+- `closed` の二重 close は拒否し、`reopened` 後の再 close は同じ `daily_cash_closures` row を更新する。
+- 日次締め close / reopen は manager のみ許可し、viewer は preview / detail / list / CSV の閲覧だけ可能とする。
+- 締め後差分の別履歴、承認ワークフロー、月次締め、実 provider 残高照合、複数店舗別締めは未対応。
+
 ## 今後の未対応事項
 
 - 実 Stripe / Square / PayPay 連携
@@ -151,6 +163,9 @@
 - 外部 webhook 署名検証
 - 返金取消
 - 返金手数料
+- 月次締め
+- 実 provider 残高照合
+- 複数店舗別締め
 - 複数店舗管理
 - 予約管理
 - 顧客会員機能

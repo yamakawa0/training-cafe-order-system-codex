@@ -248,6 +248,46 @@ export interface AnalyticsSummary {
   average_cooking_seconds?: number;
 }
 
+export interface DailyCashClosure {
+  id: string | null;
+  businessDate: string;
+  status: 'closed' | 'reopened' | null;
+  periodStartedAt: string | null;
+  periodEndedAt: string | null;
+  grossSalesTotal: number;
+  refundTotal: number;
+  netSalesTotal: number;
+  taxTotal: number;
+  costTotal: number;
+  grossProfit: number;
+  cashTotal: number;
+  cardTotal: number;
+  qrTotal: number;
+  internalProviderTotal: number;
+  mockProviderTotal: number;
+  paidCount: number;
+  partialRefundedCount: number;
+  refundedCount: number;
+  failedCount: number;
+  cancelledCount: number;
+  refundCount: number;
+  alreadyClosed: boolean;
+  closureStatus: 'closed' | 'reopened' | null;
+  closureId: string | null;
+  closedByUserId: string | null;
+  closedByUserDisplayName: string | null;
+  closedByUserRole: string | null;
+  closedByTerminalCode: string | null;
+  closedAt: string | null;
+  reopenedByUserId: string | null;
+  reopenedByUserDisplayName: string | null;
+  reopenedByUserRole: string | null;
+  reopenedByTerminalCode: string | null;
+  reopenedAt: string | null;
+  reopenReason: string;
+  note: string;
+}
+
 export interface ItemRanking {
   menu_item_id?: string;
   item_name: string;

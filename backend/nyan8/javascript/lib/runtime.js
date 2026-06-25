@@ -171,6 +171,56 @@ function paymentDto(row) {
   };
 }
 
+function dailyClosureDto(row) {
+  if (!row) return null;
+  var businessDate = String(row.business_date || row.businessDate || "");
+  if (businessDate.length >= 10) businessDate = businessDate.slice(0, 10);
+  return {
+    id: row.id || null,
+    businessDate: businessDate,
+    status: row.status || row.closure_status || null,
+    periodStartedAt: row.period_started_at || null,
+    periodEndedAt: row.period_ended_at || null,
+    grossSalesTotal: Number(row.gross_sales_total || 0),
+    refundTotal: Number(row.refund_total || 0),
+    netSalesTotal: Number(row.net_sales_total || 0),
+    taxTotal: Number(row.tax_total || 0),
+    costTotal: Number(row.cost_total || 0),
+    grossProfit: Number(row.gross_profit || 0),
+    cashTotal: Number(row.cash_total || 0),
+    cardTotal: Number(row.card_total || 0),
+    qrTotal: Number(row.qr_total || 0),
+    internalProviderTotal: Number(row.internal_provider_total || 0),
+    mockProviderTotal: Number(row.mock_provider_total || 0),
+    paidCount: Number(row.paid_count || 0),
+    partialRefundedCount: Number(row.partial_refunded_count || 0),
+    refundedCount: Number(row.refunded_count || 0),
+    failedCount: Number(row.failed_count || 0),
+    cancelledCount: Number(row.cancelled_count || 0),
+    refundCount: Number(row.refund_count || 0),
+    alreadyClosed: Boolean(row.already_closed),
+    closureStatus: row.closure_status || row.status || null,
+    closureId: row.closure_id || row.id || null,
+    closedByUserId: row.closed_by_user_id || null,
+    closedByUserDisplayName: row.closed_by_user_display_name || null,
+    closedByUserRole: row.closed_by_user_role || null,
+    closedByTerminalCode: row.closed_by_terminal_code || null,
+    closedAt: row.closed_at || null,
+    reopenedByUserId: row.reopened_by_user_id || null,
+    reopenedByUserDisplayName: row.reopened_by_user_display_name || null,
+    reopenedByUserRole: row.reopened_by_user_role || null,
+    reopenedByTerminalCode: row.reopened_by_terminal_code || null,
+    reopenedAt: row.reopened_at || null,
+    reopenReason: row.reopen_reason || "",
+    note: row.note || ""
+  };
+}
+
+function dateOnly(value) {
+  var text = String(value || "");
+  return text.length >= 10 ? text.slice(0, 10) : text;
+}
+
 function lineSubtotal(item, selectedChoices) {
   var optionTotal = selectedChoices.reduce(function(sum, choice) { return sum + Number(choice.priceDelta || 0); }, 0);
   return (Number(item.price) + optionTotal) * Number(item.quantity);
@@ -1356,6 +1406,201 @@ function analyticsExportSalesCsv() {
     }).join(",");
   }).join("\n");
   return ok({ contentType: "text/csv", filename: "sales-" + fromDate + "-" + toDate + ".csv", csv: csv });
+}
+
+function assertAnalyticsTerminal(input) {
+  requireField(input.terminal_code, "terminal_code");
+  var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+  assertTerminal(terminal, "analytics");
+  return terminal;
+}
+
+function dailyClosePreviewRow(businessDate) {
+  return first(nyanqlGet("analytics/daily-close/preview", { business_date: businessDate || today() }));
+}
+
+function analyticsDailyClosePreview() {
+  var input = params();
+  var user = requireRole(["manager", "viewer"]);
+  var terminal = assertAnalyticsTerminal(input);
+  var businessDate = input.business_date || today();
+  var preview = dailyClosePreviewRow(businessDate);
+  writeAuditLog({
+    actorTerminalCode: input.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: "analytics_daily_close_previewed",
+    targetType: "daily_cash_closure",
+    targetId: preview && preview.closure_id || "",
+    targetLabel: businessDate,
+    status: "success",
+    afterData: dailyClosureDto(preview),
+    requestData: { business_date: businessDate, terminal_code: input.terminal_code }
+  });
+  return ok({ preview: dailyClosureDto(preview) });
+}
+
+function analyticsDailyCloseClose() {
+  var input = params();
+  var user = requireRole(["manager"]);
+  var terminal = assertAnalyticsTerminal(input);
+  var businessDate = input.business_date || today();
+  var existing = first(nyanqlGet("analytics/daily-close/detail", { business_date: businessDate, id: "" }));
+  if (existing && existing.status === "closed") {
+    writeAuditLog({
+      actorTerminalCode: input.terminal_code,
+      actorTerminalType: terminal.terminal_type,
+      actorUserId: user.id,
+      actorUserDisplayName: user.displayName,
+      actorUserRole: user.role,
+      action: "analytics_daily_close_rejected",
+      targetType: "daily_cash_closure",
+      targetId: existing.id,
+      targetLabel: businessDate,
+      status: "failure",
+      beforeData: dailyClosureDto(existing),
+      requestData: { business_date: businessDate, terminal_code: input.terminal_code, note: input.note || "" },
+      errorMessage: "daily close is already closed"
+    });
+    throw error(409, "daily close is already closed");
+  }
+  var preview = dailyClosePreviewRow(businessDate);
+  var closure = first(nyanqlPost("analytics/daily-close/close", {
+    id: existing && existing.id || newId("dcc"),
+    business_date: businessDate,
+    period_started_at: preview.period_started_at,
+    period_ended_at: preview.period_ended_at,
+    gross_sales_total: preview.gross_sales_total,
+    refund_total: preview.refund_total,
+    net_sales_total: preview.net_sales_total,
+    tax_total: preview.tax_total,
+    cost_total: preview.cost_total,
+    gross_profit: preview.gross_profit,
+    cash_total: preview.cash_total,
+    card_total: preview.card_total,
+    qr_total: preview.qr_total,
+    internal_provider_total: preview.internal_provider_total,
+    mock_provider_total: preview.mock_provider_total,
+    paid_count: preview.paid_count,
+    partial_refunded_count: preview.partial_refunded_count,
+    refunded_count: preview.refunded_count,
+    failed_count: preview.failed_count,
+    cancelled_count: preview.cancelled_count,
+    refund_count: preview.refund_count,
+    closed_by_user_id: user.id,
+    closed_by_user_display_name: user.displayName,
+    closed_by_user_role: user.role,
+    closed_by_terminal_code: input.terminal_code,
+    note: input.note || ""
+  }));
+  if (!closure) throw error(409, "daily close could not be saved");
+  writeAuditLog({
+    actorTerminalCode: input.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: "analytics_daily_close_closed",
+    targetType: "daily_cash_closure",
+    targetId: closure.id,
+    targetLabel: businessDate,
+    status: "success",
+    beforeData: existing ? dailyClosureDto(existing) : null,
+    afterData: dailyClosureDto(closure),
+    requestData: { business_date: businessDate, terminal_code: input.terminal_code, note: input.note || "" }
+  });
+  return ok({ closure: dailyClosureDto(closure) });
+}
+
+function analyticsDailyCloseDetail() {
+  var input = params();
+  requireRole(["manager", "viewer"]);
+  assertAnalyticsTerminal(input);
+  var closure = first(nyanqlGet("analytics/daily-close/detail", { business_date: input.business_date || today(), id: input.id || "" }));
+  if (!closure) throw error(404, "daily close not found");
+  return ok({ closure: dailyClosureDto(closure) });
+}
+
+function analyticsDailyCloseList() {
+  var input = params();
+  requireRole(["manager", "viewer"]);
+  assertAnalyticsTerminal(input);
+  var closures = rows(nyanqlGet("analytics/daily-close/list", {
+    from_date: input.from_date || "",
+    to_date: input.to_date || "",
+    status: input.status || "",
+    limit: input.limit || 50,
+    offset: input.offset || 0
+  }));
+  return ok({ closures: closures.map(dailyClosureDto) });
+}
+
+function analyticsDailyCloseReopen() {
+  var input = params();
+  var user = requireRole(["manager"]);
+  var terminal = assertAnalyticsTerminal(input);
+  var businessDate = input.business_date || today();
+  requireField(input.reason, "reason");
+  var before = first(nyanqlGet("analytics/daily-close/detail", { business_date: businessDate, id: "" }));
+  if (!before) throw error(404, "daily close not found");
+  var closure = first(nyanqlPost("analytics/daily-close/reopen", {
+    business_date: businessDate,
+    reopened_by_user_id: user.id,
+    reopened_by_user_display_name: user.displayName,
+    reopened_by_user_role: user.role,
+    reopened_by_terminal_code: input.terminal_code,
+    reopen_reason: input.reason || ""
+  }));
+  if (!closure) throw error(409, "closed daily close only can be reopened");
+  writeAuditLog({
+    actorTerminalCode: input.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: "analytics_daily_close_reopened",
+    targetType: "daily_cash_closure",
+    targetId: closure.id,
+    targetLabel: businessDate,
+    status: "success",
+    beforeData: dailyClosureDto(before),
+    afterData: dailyClosureDto(closure),
+    requestData: { business_date: businessDate, terminal_code: input.terminal_code, reason: input.reason || "" }
+  });
+  return ok({ closure: dailyClosureDto(closure) });
+}
+
+function analyticsDailyCloseExportCsv() {
+  var input = params();
+  var user = requireRole(["manager", "viewer"]);
+  var terminal = assertAnalyticsTerminal(input);
+  var fromDate = input.from_date || input.business_date || today();
+  var toDate = input.to_date || input.business_date || today();
+  var closureRows = rows(nyanqlGet("analytics/daily-close/export-csv", { from_date: fromDate, to_date: toDate }));
+  var header = ["business_date", "status", "period_started_at", "period_ended_at", "gross_sales_total", "refund_total", "net_sales_total", "tax_total", "cost_total", "gross_profit", "cash_total", "card_total", "qr_total", "internal_provider_total", "mock_provider_total", "paid_count", "partial_refunded_count", "refunded_count", "failed_count", "cancelled_count", "refund_count", "closed_at", "closed_by_user_id", "closed_by_user_role", "reopened_at", "reopen_reason", "note"];
+  var lines = [header].concat(closureRows.map(function(row) {
+    return [dateOnly(row.business_date), row.status, row.period_started_at, row.period_ended_at, row.gross_sales_total, row.refund_total, row.net_sales_total, row.tax_total, row.cost_total, row.gross_profit, row.cash_total, row.card_total, row.qr_total, row.internal_provider_total, row.mock_provider_total, row.paid_count, row.partial_refunded_count, row.refunded_count, row.failed_count, row.cancelled_count, row.refund_count, row.closed_at, row.closed_by_user_id, row.closed_by_user_role, row.reopened_at, row.reopen_reason, row.note];
+  }));
+  var csv = lines.map(function(line) {
+    return line.map(csvEscape).join(",");
+  }).join("\n");
+  writeAuditLog({
+    actorTerminalCode: input.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: "analytics_daily_close_exported",
+    targetType: "daily_cash_closure",
+    targetId: "",
+    targetLabel: fromDate + "-" + toDate,
+    status: "success",
+    afterData: { fromDate: fromDate, toDate: toDate, rowCount: closureRows.length },
+    requestData: { from_date: fromDate, to_date: toDate, terminal_code: input.terminal_code }
+  });
+  return ok({ contentType: "text/csv; charset=utf-8", filename: "daily-close-" + fromDate + "-" + toDate + ".csv", csv: csv });
 }
 
 function csvEscape(value) {

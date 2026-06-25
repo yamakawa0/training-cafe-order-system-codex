@@ -85,8 +85,16 @@
 | GET | `/api/analytics/summary` | 売上分析サマリ |
 | GET | `/api/analytics/item-ranking` | 商品別ランキング |
 | GET | `/api/analytics/export-sales-csv` | 売上 CSV 出力 |
+| GET | `/api/analytics/daily-close/preview` | 日次締め preview |
+| POST | `/api/analytics/daily-close/close` | 日次締め確定 |
+| GET | `/api/analytics/daily-close/detail` | 日次締め詳細 |
+| GET | `/api/analytics/daily-close/list` | 日次締め一覧 |
+| POST | `/api/analytics/daily-close/reopen` | 日次締め reopen |
+| GET | `/api/analytics/daily-close/export-csv` | 日次締め CSV 出力 |
 
 CSV は Nyan8 ランタイム制約に合わせ、JSON の `result.csv` として返し、フロントエンドが Blob 化して保存する。売上分析は `paid` / `partial_refunded` / `refunded` payment を支払記録として扱い、`gross_sales_total`, `refund_total`, `net_sales_total` を返す。`paid` は net sales が支払額、`partial_refunded` は支払額から返金累計を控除、`refunded` は net sales 0、failed / cancelled attempt は売上 0 とする。MVP では明細別返金を持たないため、商品別ランキングの返金反映は支払単位の net 比率による概算で、完全な明細別原価按分は未対応。売上 CSV は返金・失敗・取消確認用に末尾列 `payment_status`, `refund_amount`, `refunded_at`, `refund_reason`, `gross_amount`, `refund_total`, `refund_remaining`, `net_amount`, `refund_count`, `last_refunded_at`, `attempt_status`, `failure_reason`, `cancelled_reason` を持つ。
+
+日次締め API は analytics 端末の `terminal_code` を要求する。`preview`, `detail`, `list`, `export-csv` は `manager` / `viewer` が利用でき、`close`, `reopen` は `manager` のみ利用できる。`preview` と `close` は `business_date` を受け取り、`paid` / `partial_refunded` / `refunded` payment の元支払額、返金累計、純売上、税額、原価、粗利、支払い方法別、provider 別、支払い状態別件数を返す。failed / cancelled attempt は売上対象外だが件数として返す。`closed` の二重 close は 409 で拒否し、`reopened` 後の再 close は同じ `daily_cash_closures` row を更新する。日次締め CSV も JSON の `result.csv` として返す。
 
 ## メニュー管理 API
 
@@ -165,4 +173,4 @@ CSV 列は `occurred_at`, `status`, `action`, `actor_user_id`, `actor_user_displ
 
 ## NyanQL 内部 API
 
-NyanQL は `backend/nyanql/api.json` に定義された SQL-first API を提供する。代表例は `menu`, `orders`, `order-items/status`, `hall/tasks/status`, `payments`, `analytics/summary`, `admin/*`, `auth/*`, `audit-logs`, `inventory-movements` である。外部公開せず Nyan8 からの内部呼び出しに限定する。
+NyanQL は `backend/nyanql/api.json` に定義された SQL-first API を提供する。代表例は `menu`, `orders`, `order-items/status`, `hall/tasks/status`, `payments`, `analytics/summary`, `analytics/daily-close/*`, `admin/*`, `auth/*`, `audit-logs`, `inventory-movements` である。外部公開せず Nyan8 からの内部呼び出しに限定する。

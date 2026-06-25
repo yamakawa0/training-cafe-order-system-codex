@@ -21,6 +21,16 @@
 - 実 Stripe / Square / PayPay 連携、外部決済 API key の本番運用、本番 webhook endpoint 公開、webhook 署名検証、実カード / QR 決済、実返金は未対応です。
 - `scripts/smoke-payment-provider.sh` は mock provider 決済、external id 保存、settle / refund idempotency、mock webhook processed / duplicate / ignored、receipt provider 情報、webhook event 一覧権限、audit を確認します。
 
+## Phase 12 第5段階: 日次締め / 会計締め
+
+- `/analytics` で営業日ごとの日次締め preview、close、reopen、日次締め CSV 出力ができます。
+- `gross_sales_total` は `paid` / `partial_refunded` / `refunded` の元支払額合計、`refund_total` は返金履歴合計、`net_sales_total` は差引純売上です。
+- 決済手段別 `cash` / `card` / `qr` と provider 別 `internal` / `mock` を net sales ベースで集計します。
+- `failed` / `cancelled` attempt は売上対象外です。`partial_refunded` は `total_amount - refund_total`、`refunded` は net sales 0 として扱います。
+- manager は close / reopen できます。viewer は preview / detail / list / CSV の閲覧のみ可能です。cashier / kitchen / hall は日次締め API を使えません。
+- reopen 後の再 close は同じ `daily_cash_closures` row を上書き更新します。MVP では締め後の差分調整履歴、月次締め、外部 provider との実残高照合は未対応です。
+- `scripts/smoke-daily-close.sh` は paid / partial_refunded / failed / cancelled を含む日次集計、二重 close 拒否、viewer 権限、reopen / 再 close、CSV、audit を確認します。
+
 ## Phase 12 第2段階: 支払い失敗 flow / 決済取消
 
 - `/checkout` で MVP 用の支払い失敗を扱えます。`simulate_result='failed'` の内部 flow により `payment_attempts` に failed attempt を記録し、`payments` は作成しません。
@@ -28,7 +38,7 @@
 - pending / failed attempt は取消できます。取消後も再試行可能です。
 - paid 後の取消は不可です。精算成立後は `/api/checkout/refund` による返金を使います。
 - failed / cancelled attempt は分析売上対象外です。売上 CSV には `attempt_status`, `failure_reason`, `cancelled_reason` が出力されます。
-- 実 Stripe / Square / PayPay 連携、実オーソリ、外部 webhook 署名検証、QR 決済実連携、分割決済、返金取消、日次締め、外部レシートプリンタ、電子レシート送信は未対応です。
+- 実 Stripe / Square / PayPay 連携、実オーソリ、外部 webhook 署名検証、QR 決済実連携、分割決済、返金取消、外部レシートプリンタ、電子レシート送信は未対応です。
 - `scripts/smoke-payment-failure-cancel.sh` は支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否を確認します。
 
 ## 技術構成
@@ -236,6 +246,7 @@ git diff --check
 ./scripts/smoke-refund-receipt.sh
 ./scripts/smoke-payment-failure-cancel.sh
 ./scripts/smoke-payment-provider.sh
+./scripts/smoke-daily-close.sh
 ./scripts/smoke-checkout-csv.sh
 ./scripts/smoke-invalid-operations.sh
 ```
@@ -369,7 +380,7 @@ psql "$DATABASE_URL" < backup.sql
 - キッチン画面: `ordered`, `accepted`, `cooking`, `ready` を列に分けたカンバンで注文明細を表示します。経過時間、オプション、メモ、アレルギー、状態更新ボタンをカード単位で確認できます。
 - ホール画面: 配膳、片付け、スタッフ呼び出し、会計サポートをタスク種別ごとに表示します。簡易フロアマップで席ごとの状態を確認できます。
 - レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法、支払い失敗、決済試行履歴、レシート再発行、返金額入力、返金可能残額、部分返金、残額全額返金、mock provider 決済テスト、webhook event 履歴を表示します。会計依頼済みの席だけ精算できます。
-- 分析画面: 総支払額、返金額、純売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV を保存できます。
+- 分析画面: 総支払額、返金額、純売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、日次締め preview / close / reopen、決済手段別・provider 別日次集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV、`日次締め CSV` で締め CSV を保存できます。
 - メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、標準原価、粗利 / 粗利率、商品画像、在庫設定、在庫差分調整、在庫履歴、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
 - 席・端末管理画面: 店長 PC から席一覧、席状態、顧客端末紐付け、現在セッション、注文・会計状態、端末一覧を確認できます。注文なしまたは精算済みセッションの強制クローズ、席の `available` / `disabled` 変更、端末の有効 / 無効切り替えを行えます。
 - 注文管理画面: 店長 PC から注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細の売上 / 原価 / 粗利、支払い情報、provider / external id / provider status、関連ホールタスクを確認できます。`ordered`, `accepted`, `cooking` の明細取消と、ready / served を含まない未精算注文の全体取消を行えます。CSV 出力は `/analytics` の売上 CSV へ誘導します。
@@ -530,7 +541,7 @@ CSRF 方針は MVP として SameSite=Lax + JSON API 前提です。state changi
 
 ## CSV API 仕様
 
-`GET /api/analytics/export-sales-csv` と `GET /api/admin/audit-logs/export-csv` は Nyan8 ランタイムが JavaScript 戻り値を JSON として処理する制約に合わせ、CSV 本文を直接返さず JSON API として返します。
+`GET /api/analytics/export-sales-csv`、`GET /api/analytics/daily-close/export-csv`、`GET /api/admin/audit-logs/export-csv` は Nyan8 ランタイムが JavaScript 戻り値を JSON として処理する制約に合わせ、CSV 本文を直接返さず JSON API として返します。
 
 ```json
 {

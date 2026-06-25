@@ -134,7 +134,7 @@ psql "$DATABASE_URL" < backup.sql
 - MVP の返金は `paid` / `partial_refunded` payment に対する payment 単位の金額指定に対応する。
 - paid 後の取消は行わず、返金 API を使う。
 - 返金可能残額を超える返金は拒否する。返金累計が支払額未満なら `partial_refunded`、支払額と等しければ `refunded` にする。
-- 実決済サービスへの返金、明細別返金、返金取消、日次締めは未対応。
+- 実決済サービスへの返金、明細別返金、返金取消は未対応。
 - 分析は `net_sales = total_amount - refund_total` を使い、`refunded` は net sales 0 とする。返金履歴は `payment_refunds` に保持する。
 - 返金しても注文・明細・席セッションの履歴は削除しない。
 - レシート再発行はブラウザ表示・印刷で扱い、外部レシートプリンタ連携と電子レシート送信は未対応。
@@ -157,6 +157,16 @@ psql "$DATABASE_URL" < backup.sql
 - API key、webhook secret、署名値、カード番号、個人情報などの秘匿情報は audit log や provider payload に保存しない。
 - 本番 webhook endpoint は署名検証が必要。今回の `/api/checkout/mock-provider/webhook` は開発用で、role 認可だけを使う。
 - 外部 provider 障害時は `payment_attempts`, `payment_webhook_events`, `audit_logs`, Nyan8 / NyanQL logs の順に確認する。
+
+日次締め運用:
+
+- 営業日単位の締めは `/analytics` または `/api/analytics/daily-close/*` で行う。
+- preview で `gross_sales_total`, `refund_total`, `net_sales_total`, `tax_total`, `cost_total`, `gross_profit`, 決済手段別、provider 別、状態別件数を確認してから close する。
+- close は manager のみ実行でき、viewer は preview / detail / list / CSV の閲覧だけ可能。
+- failed / cancelled attempt は売上金額に含めず、件数として確認する。
+- close 済み営業日の二重 close は拒否される。締め直しが必要な場合は manager が理由を入力して reopen し、再 close する。
+- reopen 後の再 close は同じ `daily_cash_closures` row を更新する。MVP では締め後差分の別履歴、承認ワークフロー、月次締め、実 provider 残高照合、複数店舗別締めは未対応。
+- 日次締め結果の提出・保管には `日次締め CSV` を利用する。CSV も Nyan8 制約により JSON 内の `csv` 文字列として返し、フロントエンドが Blob 化する。
 
 障害時の確認順:
 
@@ -191,7 +201,7 @@ GitHub Actions CI は本番 DB、開発 DB、NyanQL / Nyan8 runtime を操作し
 
 CI 失敗時は、原因を修正して CI が成功してから `master` へ反映する。GitHub Actions の警告や runtime 更新がある場合は、workflow の `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`、`actions/checkout`、`actions/setup-node` の更新可否を確認する。
 
-local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh`、返金・レシート再発行の確認は `./scripts/smoke-refund-receipt.sh`、支払い失敗・再試行・決済取消の確認は `./scripts/smoke-payment-failure-cancel.sh`、mock provider 連携の確認は `./scripts/smoke-payment-provider.sh` で行う。
+local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh`、返金・レシート再発行の確認は `./scripts/smoke-refund-receipt.sh`、支払い失敗・再試行・決済取消の確認は `./scripts/smoke-payment-failure-cancel.sh`、mock provider 連携の確認は `./scripts/smoke-payment-provider.sh`、日次締めの確認は `./scripts/smoke-daily-close.sh` で行う。
 
 本番デプロイ前は、frontend build 後に `./scripts/smoke-prod-readiness.sh` を実行する。この script も本番 DB を初期化せず、`.env.production.example` または `.env.production`、Nginx 設定例、runtime 実行ファイル、docs 反映状況を確認する。
 

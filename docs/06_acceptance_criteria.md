@@ -209,6 +209,28 @@
 - 既存 smoke が成功する。
 - CI checks が成功する。
 
+## Phase 12 第5段階 日次締め / 会計締め
+
+- manager / viewer は営業日ごとの日次締め preview を取得できる。
+- manager は日次締め close を実行できる。
+- viewer は日次締め close / reopen を実行できない。
+- cashier / kitchen / hall は日次締め API を使えない。
+- `gross_sales_total`, `refund_total`, `net_sales_total`, `tax_total`, `cost_total`, `gross_profit` が保存・表示される。
+- cash / card / qr の決済手段別日次集計が保存・表示される。
+- internal / mock の provider 別日次集計が保存・表示される。
+- paid / partial_refunded / refunded / failed / cancelled 件数と refund 件数が保存・表示される。
+- failed / cancelled attempt は売上金額から除外され、件数として集計される。
+- `partial_refunded` は元支払額、返金額、純売上に分けて集計される。
+- `closed` の二重 close は拒否される。
+- manager は closed 日次締めを reopen できる。
+- reopen 後の再 close は同じ日次締め row を更新して `closed` に戻す。
+- 日次締め close / reopen / preview / CSV 出力 / 拒否が audit log に記録される。
+- 日次締め CSV を JSON 内の CSV 文字列として出力できる。
+- `/analytics` で日次締め preview / close / reopen / CSV ダウンロードができる。
+- `smoke-daily-close.sh` が成功する。
+- 既存 smoke が成功する。
+- CI checks が成功する。
+
 ## smoke script 対応表
 
 | Script | 主な受け入れ条件 |
@@ -228,5 +250,6 @@
 | `scripts/smoke-refund-receipt.sh` | receipt 取得・再発行、部分返金、返金可能残額、残額全額返金、複数返金履歴、分析 net sales、CSV 返金列、返金 audit、権限拒否 |
 | `scripts/smoke-payment-failure-cancel.sh` | 支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否 |
 | `scripts/smoke-payment-provider.sh` | mock provider 決済、external id、settle / refund idempotency、mock webhook processed / duplicate / ignored、receipt provider 情報、webhook event 一覧権限、audit |
+| `scripts/smoke-daily-close.sh` | paid / partial_refunded / failed / cancelled を含む日次締め集計、二重 close 拒否、viewer 権限、reopen / 再 close、CSV、audit |
 | `scripts/smoke-checkout-csv.sh` | 精算後の売上 CSV、原価・粗利 CSV 列、フロントエンド CSV ダウンロード形式 |
 | `scripts/smoke-invalid-operations.sh` | 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否 |

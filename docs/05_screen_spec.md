@@ -76,13 +76,13 @@
 
 ![分析画面 UI デザイン](assets/ui-design/analytics-dashboard.png)
 
-- 目的: 売上、会計件数、客単価、商品別ランキング、支払い方法別集計を確認する。
+- 目的: 売上、会計件数、客単価、商品別ランキング、支払い方法別集計、日次締めを確認する。
 - 主な利用者: 店長 / 管理者、閲覧専用ユーザー。
-- 主な表示項目: 総支払額、返金額、純売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、最終更新時刻。
-- 主な操作: 期間指定、売上 / 原価 / 粗利 / 粗利率の確認、商品別粗利確認、CSV ダウンロード、管理画面への遷移。
+- 主な表示項目: 総支払額、返金額、純売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、日次締め status、日次 gross / refund / net / tax / cost / gross profit、決済手段別日次集計、provider 別日次集計、paid / partial_refunded / refunded / failed / cancelled 件数、最終更新時刻。
+- 主な操作: 期間指定、売上 / 原価 / 粗利 / 粗利率の確認、商品別粗利確認、売上 CSV ダウンロード、日次締め preview、日次締め close、reopen、日次締め CSV ダウンロード、管理画面への遷移。
 - 必要な role: `manager` / `viewer`
-- 関連 API: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
-- 注意点: CSV は JSON 内の `csv` をフロントエンドが Blob 化して保存する。原価・粗利は管理 / 分析向け情報で、顧客画面には表示しない。部分返金後の売上は純売上を表示する。明細別返金と原価按分は未対応のため、商品別ランキングの返金反映は payment 単位の概算である。
+- 関連 API: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`, `GET /api/analytics/daily-close/preview`, `POST /api/analytics/daily-close/close`, `GET /api/analytics/daily-close/detail`, `GET /api/analytics/daily-close/list`, `POST /api/analytics/daily-close/reopen`, `GET /api/analytics/daily-close/export-csv`
+- 注意点: CSV は JSON 内の `csv` をフロントエンドが Blob 化して保存する。原価・粗利は管理 / 分析向け情報で、顧客画面には表示しない。部分返金後の売上は純売上を表示する。明細別返金と原価按分は未対応のため、商品別ランキングの返金反映は payment 単位の概算である。日次締めの close / reopen は manager のみ操作でき、viewer は preview / detail / list / CSV の閲覧だけ可能。failed / cancelled attempt は日次締めの売上金額に含めず、件数として表示する。
 
 ## `/admin/menu`
 

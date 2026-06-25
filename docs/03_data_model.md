@@ -151,6 +151,14 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - 関連テーブル: `payments`, `payment_refunds`
 - 注意点: `provider + external_event_id` を一意に扱い、同じ webhook event の再送を二重処理しない。該当する payment / refund / attempt が見つからない場合は `ignored` として保存する。本番では payload に API key、署名 secret、カード番号、個人情報などの秘匿情報を保存しない。
 
+### daily_cash_closures
+
+- 目的: 営業日単位の日次締め結果を確定履歴として管理する。
+- 主なカラム: `id`, `business_date`, `status`, `period_started_at`, `period_ended_at`, `gross_sales_total`, `refund_total`, `net_sales_total`, `tax_total`, `cost_total`, `gross_profit`, `cash_total`, `card_total`, `qr_total`, `internal_provider_total`, `mock_provider_total`, `paid_count`, `partial_refunded_count`, `refunded_count`, `failed_count`, `cancelled_count`, `refund_count`, `closed_by_user_id`, `closed_at`, `reopened_by_user_id`, `reopened_at`, `reopen_reason`, `note`
+- 主な状態値: `status` は `closed`, `reopened`
+- 関連テーブル: `payments`, `payment_refunds`, `payment_attempts`, `orders`, `order_items`, `users`, `audit_logs`
+- 注意点: `business_date` は 1 店舗前提の営業日で一意に扱う。preview は現在の支払い・返金・試行履歴から再計算し、close は同じ値を `daily_cash_closures` に保存する。`closed` の二重 close は拒否し、`reopened` 後の再 close は同じ row を上書きして `closed` に戻す。集計対象の成立支払いは `paid` / `partial_refunded` / `refunded` payment とし、`gross_sales_total` は元支払額、`refund_total` は返金履歴合計、`net_sales_total` は差引純売上とする。failed / cancelled attempt は売上 0 の件数として集計する。
+
 ### audit_logs
 
 - 目的: 重要操作と認証イベントを追跡する。
@@ -171,3 +179,4 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - MVP の外部決済連携は `mock` provider による内部シミュレーションまでとし、実 Stripe / Square / PayPay 連携、実カード決済、実 QR 決済、実返金は未対応。
 - MVP の支払い失敗は `simulate_result` による内部 flow とし、本番外部決済 API callback / webhook は未対応。
 - paid 後の取消は不可で、返金を使う。
+- MVP の日次締めは単一店舗・営業日単位で、月次締め、複数店舗別締め、実 provider 残高照合、締め後差分調整履歴は未対応。

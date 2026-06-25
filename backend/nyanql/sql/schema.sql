@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS inventory_movements CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS daily_cash_closures CASCADE;
 DROP TABLE IF EXISTS payment_webhook_events CASCADE;
 DROP TABLE IF EXISTS payment_attempts CASCADE;
 DROP TABLE IF EXISTS payment_refunds CASCADE;
@@ -332,6 +333,51 @@ CREATE TABLE payment_webhook_events (
     CHECK (status IN ('received', 'processed', 'ignored', 'failed'))
 );
 
+CREATE TABLE daily_cash_closures (
+    id VARCHAR(50) PRIMARY KEY,
+    business_date DATE NOT NULL UNIQUE,
+    status VARCHAR(30) NOT NULL DEFAULT 'closed',
+    period_started_at TIMESTAMP NOT NULL,
+    period_ended_at TIMESTAMP NOT NULL,
+    gross_sales_total INTEGER NOT NULL DEFAULT 0,
+    refund_total INTEGER NOT NULL DEFAULT 0,
+    net_sales_total INTEGER NOT NULL DEFAULT 0,
+    tax_total INTEGER NOT NULL DEFAULT 0,
+    cost_total INTEGER NOT NULL DEFAULT 0,
+    gross_profit INTEGER NOT NULL DEFAULT 0,
+    cash_total INTEGER NOT NULL DEFAULT 0,
+    card_total INTEGER NOT NULL DEFAULT 0,
+    qr_total INTEGER NOT NULL DEFAULT 0,
+    internal_provider_total INTEGER NOT NULL DEFAULT 0,
+    mock_provider_total INTEGER NOT NULL DEFAULT 0,
+    paid_count INTEGER NOT NULL DEFAULT 0,
+    partial_refunded_count INTEGER NOT NULL DEFAULT 0,
+    refunded_count INTEGER NOT NULL DEFAULT 0,
+    failed_count INTEGER NOT NULL DEFAULT 0,
+    cancelled_count INTEGER NOT NULL DEFAULT 0,
+    refund_count INTEGER NOT NULL DEFAULT 0,
+    closed_by_user_id VARCHAR(50),
+    closed_by_user_display_name VARCHAR(100),
+    closed_by_user_role VARCHAR(50),
+    closed_by_terminal_code VARCHAR(100),
+    closed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reopened_by_user_id VARCHAR(50),
+    reopened_by_user_display_name VARCHAR(100),
+    reopened_by_user_role VARCHAR(50),
+    reopened_by_terminal_code VARCHAR(100),
+    reopened_at TIMESTAMP,
+    reopen_reason TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (status IN ('closed', 'reopened')),
+    CHECK (gross_sales_total >= 0),
+    CHECK (refund_total >= 0),
+    CHECK (net_sales_total >= 0),
+    CHECK (tax_total >= 0),
+    CHECK (cost_total >= 0)
+);
+
 CREATE TABLE audit_logs (
     id VARCHAR(50) PRIMARY KEY,
     occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -379,6 +425,8 @@ CREATE UNIQUE INDEX idx_payment_webhook_events_provider_event ON payment_webhook
 CREATE INDEX idx_payment_webhook_events_payment ON payment_webhook_events(payment_id);
 CREATE INDEX idx_payment_webhook_events_refund ON payment_webhook_events(refund_id);
 CREATE INDEX idx_payment_webhook_events_received ON payment_webhook_events(received_at DESC);
+CREATE INDEX idx_daily_cash_closures_date ON daily_cash_closures(business_date DESC);
+CREATE INDEX idx_daily_cash_closures_status ON daily_cash_closures(status);
 CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
 CREATE INDEX idx_audit_logs_action ON audit_logs (action);
 CREATE INDEX idx_audit_logs_target_type_id ON audit_logs (target_type, target_id);
