@@ -3,7 +3,7 @@ set -euo pipefail
 
 export SMOKE_NAME="smoke-daily-close"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/smoke-lib.sh
+# shellcheck source=scripts/lib/smoke-lib.sh
 source "$SCRIPT_DIR/lib/smoke-lib.sh"
 
 prepare_payment_requested_order() {
