@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cafeApi } from '../api/cafeApi';
 import { AppHeader, Badge, Banner, EmptyState, SectionTitle, StatusPill } from '../components/ui';
 import { yen } from '../domain/money';
-import type { CheckoutSummary, PaymentAttempt, PaymentMethod, PaymentReceipt } from '../domain/types';
+import type { CheckoutSummary, PaymentAttempt, PaymentMethod, PaymentProvider, PaymentReceipt, PaymentWebhookEvent } from '../domain/types';
 
 const tables = ['T01', 'T02', 'T03', 'T04'];
 const paymentLabels: Record<PaymentMethod, string> = {
@@ -27,6 +27,16 @@ export function CheckoutPage() {
   const [failureReason, setFailureReason] = useState('カード承認エラー');
   const [cancelReason, setCancelReason] = useState('顧客が支払い方法を変更');
   const [attempts, setAttempts] = useState<PaymentAttempt[]>([]);
+  const [provider, setProvider] = useState<PaymentProvider>('internal');
+  const [externalPaymentId, setExternalPaymentId] = useState('');
+  const [settleIdempotencyKey, setSettleIdempotencyKey] = useState('');
+  const [externalRefundId, setExternalRefundId] = useState('');
+  const [refundIdempotencyKey, setRefundIdempotencyKey] = useState('');
+  const [webhookEventId, setWebhookEventId] = useState('');
+  const [webhookEventType, setWebhookEventType] = useState('payment.succeeded');
+  const [webhookExternalPaymentId, setWebhookExternalPaymentId] = useState('');
+  const [webhookExternalRefundId, setWebhookExternalRefundId] = useState('');
+  const [webhookEvents, setWebhookEvents] = useState<PaymentWebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
@@ -41,6 +51,11 @@ export function CheckoutPage() {
       .then((data) => setAttempts(data.attempts))
       .catch(() => setAttempts([]));
 
+  const loadWebhookEvents = () =>
+    cafeApi.webhookEvents({ provider: 'mock', limit: 10 })
+      .then((data) => setWebhookEvents(data.events))
+      .catch(() => setWebhookEvents([]));
+
   const load = () => {
     setLoading(true);
     setError('');
@@ -51,6 +66,7 @@ export function CheckoutPage() {
         const requested = entries.find(([, candidate]) => candidate.sessionStatus === 'payment_requested')?.[0];
         if (requested && (!next[tableCode] || next[tableCode].sessionStatus !== 'payment_requested')) setTableCode(requested);
         void loadAttempts(requested || tableCode);
+        void loadWebhookEvents();
       })
       .catch((event: Error) => setError(event.message))
       .finally(() => setLoading(false));
@@ -78,18 +94,25 @@ export function CheckoutPage() {
     setError('');
     setReceiptNo('');
     try {
-      const result = await cafeApi.settle(tableCode, method, { simulateResult, failureReason });
+      const result = await cafeApi.settle(tableCode, method, {
+        simulateResult,
+        failureReason,
+        provider,
+        externalPaymentId: externalPaymentId.trim() || undefined,
+        idempotencyKey: settleIdempotencyKey.trim() || undefined
+      });
       if (result.paymentAttempt?.status === 'failed') {
-        setMessage(`${tableCode} の支払いを失敗として記録しました`);
+        setMessage(result.duplicate ? `${tableCode} の支払い失敗を冪等再送として確認しました` : `${tableCode} の支払いを失敗として記録しました`);
       } else if (result.receiptNo) {
         setReceiptNo(result.receiptNo);
         const receiptResult = await cafeApi.receipt({ paymentNo: result.receiptNo });
         setReceipt(receiptResult.receipt);
         setReceiptQuery(result.receiptNo);
-        setMessage(`${tableCode} の精算が完了しました`);
+        setMessage(result.duplicate ? `${tableCode} の精算済み結果を冪等再送として確認しました` : `${tableCode} の精算が完了しました`);
       }
       await load();
       await loadAttempts(tableCode);
+      await loadWebhookEvents();
     } catch (event) {
       setError(event instanceof Error ? event.message : '精算に失敗しました');
     } finally {
@@ -148,15 +171,48 @@ export function CheckoutPage() {
     setRefunding(true);
     setError('');
     try {
-      const data = await cafeApi.refundPayment(receipt.paymentId, refundReason, { amount, refundType });
+      const data = await cafeApi.refundPayment(receipt.paymentId, refundReason, {
+        amount,
+        refundType,
+        provider,
+        externalRefundId: externalRefundId.trim() || undefined,
+        idempotencyKey: refundIdempotencyKey.trim() || undefined
+      });
       setReceipt(data.receipt);
       setRefundAmount('');
-      setMessage(`${receipt.paymentNo} を返金しました`);
+      setMessage(data.duplicate ? `${receipt.paymentNo} の返金済み結果を冪等再送として確認しました` : `${receipt.paymentNo} を返金しました`);
       await load();
+      await loadWebhookEvents();
     } catch (event) {
       setError(event instanceof Error ? event.message : '返金できませんでした');
     } finally {
       setRefunding(false);
+    }
+  }
+
+  async function sendWebhook() {
+    if (!webhookEventId.trim()) {
+      setError('webhook event id を入力してください');
+      return;
+    }
+    setError('');
+    try {
+      const data = await cafeApi.mockProviderWebhook({
+        provider: 'mock',
+        externalEventId: webhookEventId.trim(),
+        eventType: webhookEventType,
+        externalPaymentId: webhookExternalPaymentId.trim() || undefined,
+        externalRefundId: webhookExternalRefundId.trim() || undefined,
+        payload: { source: 'checkout-dev-panel', status: webhookEventType.split('.')[1] || '' }
+      });
+      setMessage(data.duplicate ? '重複 webhook として受信しました' : `webhook を ${data.event.status} として記録しました`);
+      await loadWebhookEvents();
+      if (receipt) {
+        const data = await cafeApi.receipt({ paymentId: receipt.paymentId });
+        setReceipt(data.receipt);
+      }
+    } catch (event) {
+      setError(event instanceof Error ? event.message : 'webhook を送信できませんでした');
     }
   }
 
@@ -249,6 +305,7 @@ export function CheckoutPage() {
               <strong>{attempt.attemptNo}</strong>
               <span>{paymentLabels[attempt.method]} / <Badge tone={attempt.status === 'paid' ? 'success' : attempt.status === 'failed' || attempt.status === 'cancelled' ? 'danger' : 'warning'}>{attempt.status}</Badge> / {yen(attempt.amount)}</span>
               <small>{formatDate(attempt.attemptedAt)} / {attempt.failureReason || attempt.cancelReason || '-'}</small>
+              <small>{attempt.provider || 'internal'} / external {attempt.externalAttemptId || '-'} / provider status {attempt.providerStatus || '-'}</small>
               <button disabled={settling || !['pending', 'failed'].includes(attempt.status)} onClick={() => void cancelAttempt(attempt.attemptId)}>取消</button>
             </div>
           ))}
@@ -270,6 +327,10 @@ export function CheckoutPage() {
             <dl className="totals receiptTotals">
               <dt>支払日時</dt><dd>{formatDate(receipt.paidAt)}</dd>
               <dt>支払方法</dt><dd>{paymentLabels[receipt.method] || receipt.method}</dd>
+              <dt>provider</dt><dd>{receipt.provider}</dd>
+              <dt>external payment id</dt><dd>{receipt.externalPaymentId || '-'}</dd>
+              <dt>provider status</dt><dd>{receipt.providerStatus || '-'}</dd>
+              <dt>idempotency key</dt><dd>{receipt.idempotencyKey || '-'}</dd>
               <dt>返金済み合計</dt><dd>{yen(receipt.refundTotal)}</dd>
               <dt>返金可能残額</dt><dd>{yen(receipt.refundRemaining)}</dd>
             </dl>
@@ -295,6 +356,7 @@ export function CheckoutPage() {
                   <div className="adminLine" key={refundItem.refundId}>
                     <strong>{refundItem.refundNo}</strong>
                     <span>{yen(refundItem.amount)} / {formatDate(refundItem.refundedAt)}</span>
+                    <small>{refundItem.provider || receipt.provider} / external {refundItem.externalRefundId || '-'} / provider status {refundItem.providerStatus || '-'}</small>
                     <small>{refundItem.reason || '理由なし'}</small>
                   </div>
                 ))}
@@ -303,11 +365,52 @@ export function CheckoutPage() {
             <div className="cancelNoteBox">
               <label className="fieldLabel">返金額<input inputMode="numeric" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder={`${receipt.refundRemaining}`} /></label>
               <label className="fieldLabel">返金理由<textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} placeholder="任意" /></label>
+              <label className="fieldLabel">external refund id<input value={externalRefundId} onChange={(event) => setExternalRefundId(event.target.value)} placeholder="mock-ref-001" /></label>
+              <label className="fieldLabel">refund idempotency key<input value={refundIdempotencyKey} onChange={(event) => setRefundIdempotencyKey(event.target.value)} placeholder="refund-idem-001" /></label>
               <button className="dangerButton" disabled={refunding || !canRefundReceipt || !refundAmount.trim()} onClick={() => void refund('partial')}>部分返金</button>
               <button className="dangerButton" disabled={refunding || !canRefundReceipt} onClick={() => void refund('full')}>残額全額返金</button>
             </div>
           </div>
         )}
+      </section>
+      <section className="panel receiptLookupPanel">
+        <SectionTitle title="外部決済連携テスト" subtitle="mock provider / 開発用" />
+        <details open>
+          <summary>mock provider 設定</summary>
+          <div className="adminOrderTools">
+            <select value={provider} onChange={(event) => setProvider(event.target.value as PaymentProvider)}>
+              <option value="internal">internal</option>
+              <option value="mock">mock</option>
+            </select>
+            <input value={externalPaymentId} onChange={(event) => setExternalPaymentId(event.target.value)} placeholder="external payment id" />
+            <input value={settleIdempotencyKey} onChange={(event) => setSettleIdempotencyKey(event.target.value)} placeholder="settle idempotency key" />
+          </div>
+          <div className="adminOrderTools">
+            <input value={webhookEventId} onChange={(event) => setWebhookEventId(event.target.value)} placeholder="external event id" />
+            <select value={webhookEventType} onChange={(event) => setWebhookEventType(event.target.value)}>
+              <option value="payment.succeeded">payment.succeeded</option>
+              <option value="payment.failed">payment.failed</option>
+              <option value="payment.cancelled">payment.cancelled</option>
+              <option value="refund.succeeded">refund.succeeded</option>
+              <option value="refund.failed">refund.failed</option>
+            </select>
+            <input value={webhookExternalPaymentId} onChange={(event) => setWebhookExternalPaymentId(event.target.value)} placeholder="webhook external payment id" />
+            <input value={webhookExternalRefundId} onChange={(event) => setWebhookExternalRefundId(event.target.value)} placeholder="webhook external refund id" />
+            <button onClick={() => void sendWebhook()}>webhook 送信</button>
+            <button onClick={() => void loadWebhookEvents()}>履歴更新</button>
+          </div>
+        </details>
+        <div className="adminLines">
+          {webhookEvents.length === 0 && <EmptyState>webhook event はありません。</EmptyState>}
+          {webhookEvents.map((event) => (
+            <div className="adminLine" key={event.id}>
+              <strong>{event.externalEventId}</strong>
+              <span>{event.eventType} / <Badge tone={event.status === 'processed' ? 'success' : event.status === 'ignored' ? 'warning' : 'info'}>{event.status}</Badge></span>
+              <small>payment {event.externalPaymentId || event.paymentId || '-'} / refund {event.externalRefundId || event.refundId || '-'} / {formatDate(event.receivedAt)}</small>
+              {event.errorMessage && <small>{event.errorMessage}</small>}
+            </div>
+          ))}
+        </div>
       </section>
     </main>
   );

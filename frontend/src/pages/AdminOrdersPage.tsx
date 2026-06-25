@@ -269,9 +269,10 @@ export function AdminOrdersPage() {
                     <strong>{payment.paymentNo}</strong>
                     <span>{payment.method} / <Badge tone={statusTone(payment.status)}>{statusLabel(payment.status)}</Badge></span>
                     <small>{yen(payment.totalAmount)} / {formatDate(payment.paidAt)}</small>
+                    <small>{payment.provider || 'internal'} / external {payment.externalPaymentId || '-'} / provider status {payment.providerStatus || '-'}</small>
                     <small>返金済み {yen(payment.refundTotal || 0)} / 返金可能残額 {yen(payment.refundRemaining || 0)}</small>
                     {(payment.refunds || []).map((refund) => (
-                      <small key={refund.refundId}>返金 {refund.refundNo}: {yen(refund.amount)} / {formatDate(refund.refundedAt)} / {refund.reason || '理由なし'}</small>
+                      <small key={refund.refundId}>返金 {refund.refundNo}: {yen(refund.amount)} / external {refund.externalRefundId || '-'} / provider status {refund.providerStatus || '-'} / {formatDate(refund.refundedAt)} / {refund.reason || '理由なし'}</small>
                     ))}
                   </div>
                 ))}
@@ -283,6 +284,7 @@ export function AdminOrdersPage() {
                   <div className="adminLine" key={attempt.attemptId}>
                     <strong>{attempt.attemptNo}</strong>
                     <span>{attempt.method} / <Badge tone={statusTone(attempt.status)}>{statusLabel(attempt.status)}</Badge> / {yen(attempt.amount)}</span>
+                    <small>{attempt.provider || 'internal'} / external {attempt.externalAttemptId || '-'} / provider status {attempt.providerStatus || '-'}</small>
                     <small>{formatDate(attempt.attemptedAt)} / {attempt.failureReason || attempt.cancelReason || '理由なし'}</small>
                   </div>
                 ))}

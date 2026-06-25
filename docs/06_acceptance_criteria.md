@@ -192,6 +192,23 @@
 - 既存 smoke が成功する。
 - CI checks が成功する。
 
+## Phase 12 第4段階 実決済連携の土台
+
+- mock provider の payment を記録できる。
+- `payments.external_payment_id` を保存できる。
+- settle `idempotency_key` により二重決済を防止できる。
+- mock provider の refund を記録できる。
+- `payment_refunds.external_refund_id` を保存できる。
+- refund `idempotency_key` により二重返金を防止できる。
+- `payment_webhook_events` に mock webhook event を保存できる。
+- 重複 webhook が二重処理されない。
+- 存在しない payment / refund の webhook は `ignored` になる。
+- receipt / admin orders で provider、external id、provider status を確認できる。
+- audit log に provider / webhook / idempotency 関連操作が記録される。
+- `smoke-payment-provider.sh` が成功する。
+- 既存 smoke が成功する。
+- CI checks が成功する。
+
 ## smoke script 対応表
 
 | Script | 主な受け入れ条件 |
@@ -210,5 +227,6 @@
 | `scripts/smoke-staff-call.sh` | 注文なしセッションでの staff_call、ホール対応、完了済み再完了拒否 |
 | `scripts/smoke-refund-receipt.sh` | receipt 取得・再発行、部分返金、返金可能残額、残額全額返金、複数返金履歴、分析 net sales、CSV 返金列、返金 audit、権限拒否 |
 | `scripts/smoke-payment-failure-cancel.sh` | 支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否 |
+| `scripts/smoke-payment-provider.sh` | mock provider 決済、external id、settle / refund idempotency、mock webhook processed / duplicate / ignored、receipt provider 情報、webhook event 一覧権限、audit |
 | `scripts/smoke-checkout-csv.sh` | 精算後の売上 CSV、原価・粗利 CSV 列、フロントエンド CSV ダウンロード形式 |
 | `scripts/smoke-invalid-operations.sh` | 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否 |

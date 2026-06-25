@@ -5,6 +5,7 @@ export type HallTaskStatus = 'todo' | 'doing' | 'done' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card' | 'qr';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'partial_refunded' | 'cancelled';
 export type PaymentAttemptStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
+export type PaymentProvider = 'internal' | 'mock';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -124,6 +125,10 @@ export interface Payment {
   subtotal: number;
   taxAmount: number;
   totalAmount: number;
+  provider?: PaymentProvider;
+  externalPaymentId?: string | null;
+  idempotencyKey?: string | null;
+  providerStatus?: string | null;
   paidAt: string;
 }
 
@@ -138,6 +143,10 @@ export interface PaymentRefund {
   actorUserDisplayName?: string | null;
   actorUserRole?: string | null;
   actorTerminalCode?: string | null;
+  provider?: PaymentProvider;
+  externalRefundId?: string | null;
+  idempotencyKey?: string | null;
+  providerStatus?: string | null;
 }
 
 export interface PaymentReceipt {
@@ -149,6 +158,10 @@ export interface PaymentReceipt {
   paidAt: string;
   method: PaymentMethod;
   status: PaymentStatus;
+  provider: PaymentProvider;
+  externalPaymentId: string | null;
+  idempotencyKey: string | null;
+  providerStatus: string | null;
   subtotal: number;
   taxAmount: number;
   totalAmount: number;
@@ -184,6 +197,10 @@ export interface PaymentAttempt {
   amount: number;
   failureReason: string;
   cancelReason: string;
+  provider: PaymentProvider;
+  externalAttemptId?: string | null;
+  idempotencyKey?: string | null;
+  providerStatus?: string | null;
   terminalCode?: string | null;
   actorUserId?: string | null;
   actorUserDisplayName?: string | null;
@@ -192,6 +209,22 @@ export interface PaymentAttempt {
   cancelledAt: string | null;
   tableCode?: string | null;
   tableName?: string | null;
+}
+
+export interface PaymentWebhookEvent {
+  id: string;
+  provider: PaymentProvider;
+  externalEventId: string;
+  eventType: string;
+  externalPaymentId: string | null;
+  externalRefundId: string | null;
+  paymentId: string | null;
+  refundId: string | null;
+  status: 'received' | 'processed' | 'ignored' | 'failed';
+  payload?: unknown;
+  receivedAt: string;
+  processedAt: string | null;
+  errorMessage: string | null;
 }
 
 export interface AnalyticsSummary {
@@ -419,6 +452,10 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     paymentNo: string;
     method: string;
     status: string;
+    provider?: PaymentProvider;
+    externalPaymentId?: string | null;
+    idempotencyKey?: string | null;
+    providerStatus?: string | null;
     subtotal: number;
     taxAmount: number;
     totalAmount: number;

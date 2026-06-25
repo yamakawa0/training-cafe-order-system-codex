@@ -171,7 +171,7 @@
 
 目的:
 
-- 会計後の店舗運用に必要な返金、レシート再発行、支払い失敗、決済取消を扱えるようにする。
+- 会計後の店舗運用に必要な返金、レシート再発行、支払い失敗、決済取消、将来の実決済連携の土台を扱えるようにする。
 
 第1段階完了:
 
@@ -197,10 +197,20 @@
 - 一部返金済み status
 - 部分返金後の分析・CSV・レシート反映
 
+第4段階完了:
+
+- 実決済連携の設計整理
+- provider / external_payment_id / external_refund_id
+- idempotency_key
+- webhook event 履歴
+- mock provider webhook
+- webhook 冪等処理
+
 残課題:
 
-- 実決済連携
-- 外部決済 webhook
+- 実 Stripe / Square / PayPay 連携
+- 外部決済 API key の本番運用
+- 外部 webhook 署名検証
 - 分割決済
 - 返金取消
 - 日次締め

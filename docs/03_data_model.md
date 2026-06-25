@@ -122,26 +122,34 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 ### payments
 
 - 目的: 精算記録を管理する。
-- 主なカラム: `id`, `session_id`, `payment_no`, `method`, `status`, `subtotal`, `tax_amount`, `total_amount`, `paid_at`
+- 主なカラム: `id`, `session_id`, `payment_no`, `method`, `status`, `subtotal`, `tax_amount`, `total_amount`, `provider`, `external_payment_id`, `idempotency_key`, `provider_status`, `provider_payload`, `paid_at`
 - 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `partial_refunded`, `refunded`, `cancelled`
-- 関連テーブル: `table_sessions`, `payment_refunds`, `payment_attempts`
-- 注意点: 現行はダミー決済。`payments` は成立した決済または返金対象の支払い記録として扱い、MVP の支払い失敗は原則 `payments` ではなく `payment_attempts` に記録する。返金累計が 0 円なら `paid`、支払額未満なら `partial_refunded`、支払額と等しければ `refunded` にする。分析は `net_sales = total_amount - refund_total` を使い、`refunded` は net sales 0、`failed` / `cancelled` は売上対象外とする。paid 後の取消は行わず返金 API を使う。返金しても注文・明細は削除しない。実決済サービス連携は未対応。
+- 関連テーブル: `table_sessions`, `payment_refunds`, `payment_attempts`, `payment_webhook_events`
+- 注意点: 現行は内部決済または `mock` provider のシミュレーション。`provider='internal'` は既存の内部ダミー決済、`mock` は外部決済サービスを模した開発用 provider とする。`external_payment_id` は provider 側の決済 ID、`idempotency_key` は二重決済防止用、`provider_status` は webhook / mock 応答後の外部状態を保持する。`provider_payload` は provider 応答の保存領域だが、本番では秘匿情報を保存しない。`payments` は成立した決済または返金対象の支払い記録として扱い、MVP の支払い失敗は原則 `payments` ではなく `payment_attempts` に記録する。返金累計が 0 円なら `paid`、支払額未満なら `partial_refunded`、支払額と等しければ `refunded` にする。分析は `net_sales = total_amount - refund_total` を使い、`refunded` は net sales 0、`failed` / `cancelled` は売上対象外とする。paid 後の取消は行わず返金 API を使う。
 
 ### payment_attempts
 
 - 目的: 決済試行履歴を管理する。成功、失敗、取消を含め、支払い失敗後の再試行を追跡する。
-- 主なカラム: `id`, `session_id`, `payment_id`, `attempt_no`, `method`, `status`, `amount`, `failure_reason`, `cancel_reason`, `terminal_code`, `actor_user_id`, `actor_user_role`, `attempted_at`, `cancelled_at`
+- 主なカラム: `id`, `session_id`, `payment_id`, `attempt_no`, `method`, `status`, `amount`, `failure_reason`, `cancel_reason`, `provider`, `external_attempt_id`, `idempotency_key`, `provider_status`, `provider_payload`, `terminal_code`, `actor_user_id`, `actor_user_role`, `attempted_at`, `cancelled_at`
 - 主な状態値: `method` は `cash`, `card`, `qr`。`status` は `pending`, `paid`, `failed`, `cancelled`
 - 関連テーブル: `table_sessions`, `payments`
-- 注意点: `simulate_result='failed'` による MVP 支払い失敗は `payment_attempts.status='failed'` として保存し、`table_sessions.status='payment_requested'` を維持する。`pending` / `failed` attempt は取消でき、取消後も再試行可能。`failed` / `cancelled` attempt は売上対象外だが、売上 CSV には状態確認用の行として出す。
+- 注意点: `simulate_result='failed'` による MVP 支払い失敗は `payment_attempts.status='failed'` として保存し、`table_sessions.status='payment_requested'` を維持する。`provider`, `external_attempt_id`, `idempotency_key`, `provider_status`, `provider_payload` は外部決済試行の識別と webhook 後の照合に使う。`pending` / `failed` attempt は取消でき、取消後も再試行可能。`failed` / `cancelled` attempt は売上対象外だが、売上 CSV には状態確認用の行として出す。
 
 ### payment_refunds
 
 - 目的: 支払い単位の返金履歴を管理する。
-- 主なカラム: `id`, `payment_id`, `refund_no`, `amount`, `reason`, `status`, `refunded_at`, `actor_user_id`, `actor_user_role`, `actor_terminal_code`
+- 主なカラム: `id`, `payment_id`, `refund_no`, `amount`, `reason`, `status`, `provider`, `external_refund_id`, `idempotency_key`, `provider_status`, `provider_payload`, `refunded_at`, `actor_user_id`, `actor_user_role`, `actor_terminal_code`
 - 主な状態値: `status` は `refunded`, `failed`, `cancelled`
-- 関連テーブル: `payments`
-- 注意点: 同一 `payment_id` に複数の返金履歴を保存できる。MVP の部分返金は payment 単位の金額指定で、明細別返金、返金取消、返金手数料、原価按分は未対応。返金履歴は audit log とは別に業務履歴として保持する。売上 CSV には支払状態、返金累計、返金可能残額、純売上、返金回数、最終返金日時、理由を出す。
+- 関連テーブル: `payments`, `payment_webhook_events`
+- 注意点: 同一 `payment_id` に複数の返金履歴を保存できる。`external_refund_id` は provider 側の返金 ID、`idempotency_key` は二重返金防止用とする。MVP の部分返金は payment 単位の金額指定で、明細別返金、返金取消、返金手数料、原価按分は未対応。返金履歴は audit log とは別に業務履歴として保持する。売上 CSV には支払状態、返金累計、返金可能残額、純売上、返金回数、最終返金日時、理由を出す。
+
+### payment_webhook_events
+
+- 目的: 外部決済 provider からの webhook 受信履歴を管理する。
+- 主なカラム: `id`, `provider`, `external_event_id`, `event_type`, `external_payment_id`, `external_refund_id`, `payment_id`, `refund_id`, `status`, `payload`, `received_at`, `processed_at`, `error_message`
+- 主な状態値: `status` は `received`, `processed`, `ignored`, `failed`
+- 関連テーブル: `payments`, `payment_refunds`
+- 注意点: `provider + external_event_id` を一意に扱い、同じ webhook event の再送を二重処理しない。該当する payment / refund / attempt が見つからない場合は `ignored` として保存する。本番では payload に API key、署名 secret、カード番号、個人情報などの秘匿情報を保存しない。
 
 ### audit_logs
 
@@ -159,7 +167,7 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 - `audit_logs` は物理削除しない前提。
 - 取消明細は会計・分析から除外する。
 - フロントエンドから送信された金額を正として会計処理しない。
-- MVP の返金は全額返金のみ対応する。
-- 実決済サービス連携、クレジットカード実返金、外部レシートプリンタ連携は未対応。
-- MVP の支払い失敗は `simulate_result` による内部 flow とし、実決済 API の callback / webhook は未対応。
+- MVP の返金は payment 単位の部分返金と残額全額返金に対応する。
+- MVP の外部決済連携は `mock` provider による内部シミュレーションまでとし、実 Stripe / Square / PayPay 連携、実カード決済、実 QR 決済、実返金は未対応。
+- MVP の支払い失敗は `simulate_result` による内部 flow とし、本番外部決済 API callback / webhook は未対応。
 - paid 後の取消は不可で、返金を使う。

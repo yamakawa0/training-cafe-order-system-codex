@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentAttempt, PaymentMethod, PaymentReceipt, PaymentRefund, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, InventoryMovement, ItemRanking, KitchenTicket, MenuCategory, PaymentAttempt, PaymentMethod, PaymentProvider, PaymentReceipt, PaymentRefund, PaymentWebhookEvent, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -82,10 +82,13 @@ export const cafeApi = {
     terminal_code: terminals.checkout,
     table_code: tableCode
   }),
-  settle: (tableCode: string, method: PaymentMethod, options: { simulateResult?: 'paid' | 'failed'; failureReason?: string } = {}) => post<{ receiptNo?: string; paymentAttempt?: PaymentAttempt; summary?: CheckoutSummary }>('/api/checkout/settle', {
+  settle: (tableCode: string, method: PaymentMethod, options: { simulateResult?: 'paid' | 'failed'; failureReason?: string; provider?: PaymentProvider; externalPaymentId?: string; idempotencyKey?: string } = {}) => post<{ receiptNo?: string; payment?: unknown; paymentAttempt?: PaymentAttempt; summary?: CheckoutSummary; duplicate?: boolean }>('/api/checkout/settle', {
     terminal_code: terminals.checkout,
     table_code: tableCode,
     method,
+    provider: options.provider,
+    external_payment_id: options.externalPaymentId,
+    idempotency_key: options.idempotencyKey,
     simulate_result: options.simulateResult,
     failure_reason: options.failureReason
   }),
@@ -108,12 +111,33 @@ export const cafeApi = {
     payment_no: input.paymentNo,
     reissue: input.reissue ? 'true' : undefined
   }),
-  refundPayment: (paymentId: string, reason: string, options: { amount?: number; refundType?: 'full' | 'partial' } = {}) => post<{ refund: PaymentRefund; receipt: PaymentReceipt }>('/api/checkout/refund', {
+  refundPayment: (paymentId: string, reason: string, options: { amount?: number; refundType?: 'full' | 'partial'; provider?: PaymentProvider; externalRefundId?: string; idempotencyKey?: string } = {}) => post<{ refund: PaymentRefund; receipt: PaymentReceipt; duplicate?: boolean }>('/api/checkout/refund', {
     terminal_code: terminals.checkout,
     payment_id: paymentId,
     amount: options.amount,
     refund_type: options.refundType,
+    provider: options.provider,
+    external_refund_id: options.externalRefundId,
+    idempotency_key: options.idempotencyKey,
     reason
+  }),
+  mockProviderWebhook: (input: { provider?: PaymentProvider; externalEventId: string; eventType: string; externalPaymentId?: string; externalRefundId?: string; payload?: unknown }) => post<{ event: PaymentWebhookEvent; duplicate?: boolean }>('/api/checkout/mock-provider/webhook', {
+    terminal_code: terminals.checkout,
+    provider: input.provider || 'mock',
+    external_event_id: input.externalEventId,
+    event_type: input.eventType,
+    external_payment_id: input.externalPaymentId,
+    external_refund_id: input.externalRefundId,
+    payload: input.payload
+  }),
+  webhookEvents: (filters: { provider?: PaymentProvider; status?: string; paymentId?: string; refundId?: string; limit?: number; offset?: number } = {}) => get<{ events: PaymentWebhookEvent[] }>('/api/checkout/webhook-events', {
+    terminal_code: terminals.checkout,
+    provider: filters.provider,
+    status: filters.status,
+    payment_id: filters.paymentId,
+    refund_id: filters.refundId,
+    limit: filters.limit,
+    offset: filters.offset
   }),
   analyticsSummary: (fromDate: string, toDate: string) => get<{ summary: AnalyticsSummary }>('/api/analytics/summary', {
     terminal_code: terminals.analytics,

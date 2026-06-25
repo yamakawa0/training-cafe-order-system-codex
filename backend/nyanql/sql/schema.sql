@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS inventory_movements CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS payment_webhook_events CASCADE;
 DROP TABLE IF EXISTS payment_attempts CASCADE;
 DROP TABLE IF EXISTS payment_refunds CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
@@ -245,11 +246,17 @@ CREATE TABLE payments (
     subtotal INTEGER NOT NULL,
     tax_amount INTEGER NOT NULL,
     total_amount INTEGER NOT NULL,
+    provider VARCHAR(50) NOT NULL DEFAULT 'internal',
+    external_payment_id VARCHAR(100),
+    idempotency_key VARCHAR(100),
+    provider_status VARCHAR(50),
+    provider_payload JSONB,
     paid_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (method IN ('cash', 'card', 'qr')),
-    CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'partial_refunded', 'cancelled'))
+    CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'partial_refunded', 'cancelled')),
+    CHECK (provider IN ('internal', 'mock'))
 );
 
 CREATE TABLE payment_attempts (
@@ -262,6 +269,11 @@ CREATE TABLE payment_attempts (
     amount INTEGER NOT NULL,
     failure_reason TEXT NOT NULL DEFAULT '',
     cancel_reason TEXT NOT NULL DEFAULT '',
+    provider VARCHAR(50) NOT NULL DEFAULT 'internal',
+    external_attempt_id VARCHAR(100),
+    idempotency_key VARCHAR(100),
+    provider_status VARCHAR(50),
+    provider_payload JSONB,
     terminal_code VARCHAR(100),
     actor_user_id VARCHAR(50),
     actor_user_display_name VARCHAR(100),
@@ -272,6 +284,7 @@ CREATE TABLE payment_attempts (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (method IN ('cash', 'card', 'qr')),
     CHECK (status IN ('pending', 'paid', 'failed', 'cancelled')),
+    CHECK (provider IN ('internal', 'mock')),
     CHECK (amount >= 0)
 );
 
@@ -282,6 +295,11 @@ CREATE TABLE payment_refunds (
     amount INTEGER NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
     status VARCHAR(30) NOT NULL DEFAULT 'refunded',
+    provider VARCHAR(50) NOT NULL DEFAULT 'internal',
+    external_refund_id VARCHAR(100),
+    idempotency_key VARCHAR(100),
+    provider_status VARCHAR(50),
+    provider_payload JSONB,
     refunded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     actor_user_id VARCHAR(50),
     actor_user_display_name VARCHAR(100),
@@ -290,7 +308,28 @@ CREATE TABLE payment_refunds (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (amount > 0),
-    CHECK (status IN ('refunded', 'failed', 'cancelled'))
+    CHECK (status IN ('refunded', 'failed', 'cancelled')),
+    CHECK (provider IN ('internal', 'mock'))
+);
+
+CREATE TABLE payment_webhook_events (
+    id VARCHAR(50) PRIMARY KEY,
+    provider VARCHAR(50) NOT NULL,
+    external_event_id VARCHAR(100) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    external_payment_id VARCHAR(100),
+    external_refund_id VARCHAR(100),
+    payment_id VARCHAR(50) REFERENCES payments(id),
+    refund_id VARCHAR(50) REFERENCES payment_refunds(id),
+    status VARCHAR(30) NOT NULL DEFAULT 'received',
+    payload JSONB,
+    received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP,
+    error_message TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (provider IN ('internal', 'mock')),
+    CHECK (status IN ('received', 'processed', 'ignored', 'failed'))
 );
 
 CREATE TABLE audit_logs (
@@ -330,6 +369,16 @@ CREATE INDEX idx_payment_attempts_status_time ON payment_attempts(status, attemp
 CREATE INDEX idx_payment_refunds_payment_id ON payment_refunds(payment_id);
 CREATE INDEX idx_payment_refunds_refunded_at ON payment_refunds(refunded_at DESC);
 CREATE INDEX idx_payment_refunds_payment_time ON payment_refunds(payment_id, refunded_at DESC);
+CREATE INDEX idx_payments_provider_external_id ON payments(provider, external_payment_id);
+CREATE INDEX idx_payment_attempts_provider_external_id ON payment_attempts(provider, external_attempt_id);
+CREATE INDEX idx_payment_refunds_provider_external_id ON payment_refunds(provider, external_refund_id);
+CREATE UNIQUE INDEX idx_payments_idempotency_key ON payments(idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE UNIQUE INDEX idx_payment_attempts_idempotency_key ON payment_attempts(idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE UNIQUE INDEX idx_payment_refunds_idempotency_key ON payment_refunds(idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE UNIQUE INDEX idx_payment_webhook_events_provider_event ON payment_webhook_events(provider, external_event_id);
+CREATE INDEX idx_payment_webhook_events_payment ON payment_webhook_events(payment_id);
+CREATE INDEX idx_payment_webhook_events_refund ON payment_webhook_events(refund_id);
+CREATE INDEX idx_payment_webhook_events_received ON payment_webhook_events(received_at DESC);
 CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
 CREATE INDEX idx_audit_logs_action ON audit_logs (action);
 CREATE INDEX idx_audit_logs_target_type_id ON audit_logs (target_type, target_id);

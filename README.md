@@ -8,8 +8,18 @@
 - `amount` 指定ありは部分返金、`amount` 未指定または `refund_type='full'` は返金可能残額の全額返金として扱います。返金可能残額を超える返金は拒否します。
 - 返金累計が支払額未満なら `payments.status='partial_refunded'`、支払額と等しければ `refunded` に更新し、`payment_refunds` に複数返金履歴を保存します。返金しても注文・明細は削除しません。
 - 分析と CSV は `net_sales = total_amount - refund_total` を使います。売上 CSV には `payment_status`, `refund_amount`, `refunded_at`, `refund_reason`, `gross_amount`, `refund_total`, `refund_remaining`, `net_amount`, `refund_count`, `last_refunded_at` が出力されます。
-- MVP では payment 単位の返金のみ対応します。明細別返金、部分返金の原価按分、実決済サービス連携、クレジットカード実返金、外部レシートプリンタ連携は未対応です。
+- MVP では payment 単位の返金のみ対応します。明細別返金、部分返金の原価按分、実決済サービスへの実返金、クレジットカード実返金、外部レシートプリンタ連携は未対応です。
 - `scripts/smoke-refund-receipt.sh` は receipt 取得・再発行、部分返金、返金可能残額、残額全額返金、複数返金履歴、分析 net sales、CSV 返金列、返金 audit、権限拒否を確認します。
+
+## Phase 12 第4段階: 実決済連携の土台
+
+- `provider='internal'` は既存の内部ダミー決済、`provider='mock'` は外部決済サービスを模した開発用 provider です。
+- `/api/checkout/settle` と `/api/checkout/refund` は `external_payment_id`, `external_refund_id`, `idempotency_key`, `provider_status` を保存できます。
+- 同じ `idempotency_key` の settle / refund 再送は既存結果を返し、二重決済・二重返金を防ぎます。内容不一致は 409 で拒否します。
+- `payment_webhook_events` に mock webhook event を保存し、`provider + external_event_id` で重複受信を冪等処理します。
+- `/checkout` には開発用の外部決済連携テストセクションがあり、mock webhook 送信と webhook event 履歴確認ができます。
+- 実 Stripe / Square / PayPay 連携、外部決済 API key の本番運用、本番 webhook endpoint 公開、webhook 署名検証、実カード / QR 決済、実返金は未対応です。
+- `scripts/smoke-payment-provider.sh` は mock provider 決済、external id 保存、settle / refund idempotency、mock webhook processed / duplicate / ignored、receipt provider 情報、webhook event 一覧権限、audit を確認します。
 
 ## Phase 12 第2段階: 支払い失敗 flow / 決済取消
 
@@ -18,7 +28,7 @@
 - pending / failed attempt は取消できます。取消後も再試行可能です。
 - paid 後の取消は不可です。精算成立後は `/api/checkout/refund` による返金を使います。
 - failed / cancelled attempt は分析売上対象外です。売上 CSV には `attempt_status`, `failure_reason`, `cancelled_reason` が出力されます。
-- 実決済サービス連携、実オーソリ、外部決済 webhook、QR 決済実連携、分割決済、返金取消、日次締め、外部レシートプリンタ、電子レシート送信は未対応です。
+- 実 Stripe / Square / PayPay 連携、実オーソリ、外部 webhook 署名検証、QR 決済実連携、分割決済、返金取消、日次締め、外部レシートプリンタ、電子レシート送信は未対応です。
 - `scripts/smoke-payment-failure-cancel.sh` は支払い失敗、再試行成功、attempt 取消、failed / cancelled 売上除外、CSV attempt 列、receipt 拒否、audit、権限拒否を確認します。
 
 ## 技術構成
@@ -225,6 +235,7 @@ git diff --check
 ./scripts/smoke-staff-call.sh
 ./scripts/smoke-refund-receipt.sh
 ./scripts/smoke-payment-failure-cancel.sh
+./scripts/smoke-payment-provider.sh
 ./scripts/smoke-checkout-csv.sh
 ./scripts/smoke-invalid-operations.sh
 ```
@@ -357,11 +368,11 @@ psql "$DATABASE_URL" < backup.sql
 - 顧客注文画面: カテゴリ別メニュー、商品カード、オプション選択モーダル、カート、注文履歴、スタッフ呼び出し、会計依頼を表示します。会計依頼後または精算済みの席では注文操作がロックされます。
 - キッチン画面: `ordered`, `accepted`, `cooking`, `ready` を列に分けたカンバンで注文明細を表示します。経過時間、オプション、メモ、アレルギー、状態更新ボタンをカード単位で確認できます。
 - ホール画面: 配膳、片付け、スタッフ呼び出し、会計サポートをタスク種別ごとに表示します。簡易フロアマップで席ごとの状態を確認できます。
-- レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法、支払い失敗、決済試行履歴、レシート再発行、返金額入力、返金可能残額、部分返金、残額全額返金を表示します。会計依頼済みの席だけ精算できます。
+- レジ精算画面: T01 から T04 の席カード、レシート風明細、小計、税、合計、支払い方法、支払い失敗、決済試行履歴、レシート再発行、返金額入力、返金可能残額、部分返金、残額全額返金、mock provider 決済テスト、webhook event 履歴を表示します。会計依頼済みの席だけ精算できます。
 - 分析画面: 総支払額、返金額、純売上、原価、粗利、粗利率、商品ランキング、支払い方法別集計、最終更新時刻を表示します。`CSV ダウンロード` で売上 CSV を保存できます。
 - メニュー管理画面: 店長 PC からカテゴリ一覧、商品一覧、商品追加、商品編集、標準原価、粗利 / 粗利率、商品画像、在庫設定、在庫差分調整、在庫履歴、表示 / 非表示、売切 / 売切解除、商品並び順変更、カテゴリ絞り込み、商品名検索を行えます。`/analytics` から遷移できます。
 - 席・端末管理画面: 店長 PC から席一覧、席状態、顧客端末紐付け、現在セッション、注文・会計状態、端末一覧を確認できます。注文なしまたは精算済みセッションの強制クローズ、席の `available` / `disabled` 変更、端末の有効 / 無効切り替えを行えます。
-- 注文管理画面: 店長 PC から注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細の売上 / 原価 / 粗利、支払い情報、関連ホールタスクを確認できます。`ordered`, `accepted`, `cooking` の明細取消と、ready / served を含まない未精算注文の全体取消を行えます。CSV 出力は `/analytics` の売上 CSV へ誘導します。
+- 注文管理画面: 店長 PC から注文一覧、日付・席・注文番号・注文状態・精算状態フィルタ、注文詳細、注文明細の売上 / 原価 / 粗利、支払い情報、provider / external id / provider status、関連ホールタスクを確認できます。`ordered`, `accepted`, `cooking` の明細取消と、ready / served を含まない未精算注文の全体取消を行えます。CSV 出力は `/analytics` の売上 CSV へ誘導します。
 
 ## サンプル端末コード
 
@@ -546,7 +557,7 @@ CSRF 方針は MVP として SameSite=Lax + JSON API 前提です。state changi
 - Phase 11 第3段階では `/admin/menu` で商品画像 URL を管理できます。商品一覧にはサムネイルまたは「画像なし」を表示し、商品編集フォームではプレビューを表示します。顧客注文画面の商品カードにも画像 URL が反映され、未設定または読み込み失敗時は固定サイズの fallback を表示します。MVP では画像ファイル本体を DB に保存せず、`http(s)` URL または `/` から始まるパスだけを扱います。
 - Phase 11 第4段階では `/admin/menu` で商品ごとの標準原価を管理できます。注文確定時に注文時点の原価を `order_items.unit_cost_price` へ保存し、分析サマリ、商品ランキング、売上 CSV、注文管理詳細に原価・粗利・粗利率を表示します。顧客 API / 顧客画面には原価・粗利を返しません。
 - Phase 11 第5段階では `/admin/menu` で在庫差分調整と商品別在庫履歴を確認できます。在庫履歴は `inventory_movements` に保存し、注文確定時の引当と取消時の在庫戻しも記録します。
-- 本格的な商品画像アップロード、画像リサイズ / 圧縮、画像 CDN / 外部 storage、仕入 / 入荷 / 棚卸、廃棄、原材料別原価、レシピ原価、日別原価履歴、原価改定予約、複数店舗別在庫、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、明細別返金、返金取消、実決済連携は後続以降の対象です。
+- 本格的な商品画像アップロード、画像リサイズ / 圧縮、画像 CDN / 外部 storage、仕入 / 入荷 / 棚卸、廃棄、原材料別原価、レシピ原価、日別原価履歴、原価改定予約、複数店舗別在庫、商品一括 import / export、高度な価格履歴管理、クーポン / 割引、明細別返金、返金取消、実 Stripe / Square / PayPay 連携、外部 webhook 署名検証は後続以降の対象です。
 - 精算はダミー決済です。金額はフロントエンド送信値ではなく、DB の注文明細から Nyan8 側で再計算します。
 - API ランタイムが起動していない場合、フロントエンドには API エラーメッセージが表示されます。
 - Nyan8 から NyanQL への呼び出し先は `backend/nyan8/javascript/lib/runtime.js` の `NYANQL_BASE_URL` で定義しています。開発既定値は `http://nyanql:change-me@localhost:8890` です。

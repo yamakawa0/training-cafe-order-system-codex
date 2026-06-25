@@ -132,6 +132,45 @@ function businessNo(prefix) {
   return prefix + "-" + stamp + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
 }
 
+function providerValue(value, fallback) {
+  var provider = value === undefined || value === null || value === "" ? fallback || "internal" : String(value);
+  if (["internal", "mock"].indexOf(provider) < 0) throw error(400, "invalid payment provider");
+  return provider;
+}
+
+function jsonText(value) {
+  if (value === undefined || value === null || value === "") return "";
+  try {
+    return JSON.stringify(value);
+  } catch (event) {
+    return JSON.stringify({ serializationError: String(event) });
+  }
+}
+
+function providerStatusFromEventType(eventType) {
+  var parts = String(eventType || "").split(".");
+  return parts.length > 1 ? parts[1] : "";
+}
+
+function paymentDto(row) {
+  return {
+    id: row.id,
+    session_id: row.session_id,
+    payment_no: row.payment_no,
+    method: row.method,
+    status: row.status,
+    subtotal: Number(row.subtotal || 0),
+    tax_amount: Number(row.tax_amount || 0),
+    total_amount: Number(row.total_amount || 0),
+    provider: row.provider || "internal",
+    external_payment_id: row.external_payment_id || null,
+    idempotency_key: row.idempotency_key || null,
+    provider_status: row.provider_status || null,
+    provider_payload: parseJsonValue(row.provider_payload, row.provider_payload || null),
+    paid_at: row.paid_at
+  };
+}
+
 function lineSubtotal(item, selectedChoices) {
   var optionTotal = selectedChoices.reduce(function(sum, choice) { return sum + Number(choice.priceDelta || 0); }, 0);
   return (Number(item.price) + optionTotal) * Number(item.quantity);
@@ -581,8 +620,77 @@ function checkoutSettle() {
     requireField(input.table_code, "table_code");
     requireField(input.method, "method");
     if (["cash", "card", "qr"].indexOf(input.method) < 0) throw error(400, "invalid payment method");
+    var provider = providerValue(input.provider, "internal");
+    var idempotencyKey = input.idempotency_key || "";
+    var externalPaymentId = input.external_payment_id || "";
+    var providerStatus = provider === "mock" ? (input.simulate_result === "failed" ? "failed" : "succeeded") : "";
+    var providerPayload = {
+      provider: provider,
+      externalPaymentId: externalPaymentId,
+      simulateResult: input.simulate_result || "paid"
+    };
     var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
     assertTerminal(terminal, "checkout");
+    if (idempotencyKey) {
+      var existingPayment = first(nyanqlGet("payments/by-idempotency-key", { idempotency_key: idempotencyKey }));
+      if (existingPayment) {
+        if (existingPayment.table_code !== input.table_code || existingPayment.method !== input.method || existingPayment.provider !== provider) {
+          writeAuditLog({
+            actorTerminalCode: terminal.terminal_code,
+            actorTerminalType: terminal.terminal_type,
+            actorUserId: user.id,
+            actorUserDisplayName: user.displayName,
+            actorUserRole: user.role,
+            action: "checkout_provider_idempotency_rejected",
+            targetType: "payment",
+            targetId: existingPayment.id,
+            targetLabel: existingPayment.payment_no,
+            status: "failure",
+            beforeData: existingPayment,
+            requestData: { table_code: input.table_code, method: input.method, provider: provider, idempotency_key: idempotencyKey },
+            errorMessage: "idempotency_key conflicts with existing payment"
+          });
+          throw error(409, "idempotency_key conflicts with existing payment");
+        }
+        writeAuditLog({
+          actorTerminalCode: terminal.terminal_code,
+          actorTerminalType: terminal.terminal_type,
+          actorUserId: user.id,
+          actorUserDisplayName: user.displayName,
+          actorUserRole: user.role,
+          action: "checkout_provider_payment_recorded",
+          targetType: "payment",
+          targetId: existingPayment.id,
+          targetLabel: existingPayment.payment_no,
+          status: "success",
+          afterData: { duplicate: true, provider: provider, externalPaymentId: existingPayment.external_payment_id || null, idempotencyKey: idempotencyKey, providerStatus: existingPayment.provider_status || null },
+          requestData: { table_code: input.table_code, method: input.method, provider: provider, idempotency_key: idempotencyKey }
+        });
+        return ok({ receiptNo: existingPayment.payment_no, payment: paymentDto(existingPayment), duplicate: true });
+      }
+      var existingAttempt = first(nyanqlGet("payment-attempts/by-idempotency-key", { idempotency_key: idempotencyKey }));
+      if (existingAttempt) {
+        if (existingAttempt.table_code !== input.table_code || existingAttempt.method !== input.method || existingAttempt.provider !== provider) {
+          writeAuditLog({
+            actorTerminalCode: terminal.terminal_code,
+            actorTerminalType: terminal.terminal_type,
+            actorUserId: user.id,
+            actorUserDisplayName: user.displayName,
+            actorUserRole: user.role,
+            action: "checkout_provider_idempotency_rejected",
+            targetType: "payment_attempt",
+            targetId: existingAttempt.id,
+            targetLabel: existingAttempt.attempt_no,
+            status: "failure",
+            beforeData: existingAttempt,
+            requestData: { table_code: input.table_code, method: input.method, provider: provider, idempotency_key: idempotencyKey },
+            errorMessage: "idempotency_key conflicts with existing payment attempt"
+          });
+          throw error(409, "idempotency_key conflicts with existing payment attempt");
+        }
+        return ok({ paymentAttempt: paymentAttemptDto(existingAttempt), duplicate: true });
+      }
+    }
     rawRows = rows(nyanqlGet("checkout/summary", { table_code: input.table_code }));
     if (rawRows.length === 0) throw error(404, "checkout target not found");
     if (rawRows[0].session_status !== "payment_requested") throw error(409, "payment has not been requested or is already settled");
@@ -601,6 +709,11 @@ function checkoutSettle() {
         status: "failed",
         amount: totalAmount,
         failure_reason: input.failure_reason || "支払い失敗",
+        provider: provider,
+        external_attempt_id: externalPaymentId,
+        idempotency_key: idempotencyKey,
+        provider_status: providerStatus,
+        provider_payload: jsonText(providerPayload),
         terminal_code: terminal.terminal_code,
         actor_user_id: user.id,
         actor_user_display_name: user.displayName,
@@ -618,12 +731,25 @@ function checkoutSettle() {
         targetLabel: failedAttempt.attempt_no,
         status: "success",
         beforeData: { sessionId: sessionId, tableCode: input.table_code, sessionStatus: rawRows[0].session_status },
-        afterData: { attemptId: failedAttempt.id, attemptNo: failedAttempt.attempt_no, method: input.method, amount: totalAmount, failureReason: failedAttempt.failure_reason, status: failedAttempt.status },
-        requestData: { table_code: input.table_code, method: input.method, simulate_result: input.simulate_result, failure_reason: input.failure_reason || "" }
+        afterData: { attemptId: failedAttempt.id, attemptNo: failedAttempt.attempt_no, method: input.method, amount: totalAmount, failureReason: failedAttempt.failure_reason, status: failedAttempt.status, provider: provider, externalAttemptId: failedAttempt.external_attempt_id || null, idempotencyKey: failedAttempt.idempotency_key || null, providerStatus: failedAttempt.provider_status || null },
+        requestData: { table_code: input.table_code, method: input.method, provider: provider, external_payment_id: externalPaymentId, idempotency_key: idempotencyKey, simulate_result: input.simulate_result, failure_reason: input.failure_reason || "" }
       });
       return ok({ paymentAttempt: paymentAttemptDto(failedAttempt), summary: summarizeCheckout(rows(nyanqlGet("checkout/summary", { table_code: input.table_code }))) });
     }
-    var payment = first(nyanqlPost("payments", { id: newId("pay"), session_id: sessionId, payment_no: businessNo("PAY"), method: input.method, subtotal: subtotal, tax_amount: taxAmount, total_amount: subtotal + taxAmount }));
+    var payment = first(nyanqlPost("payments", {
+      id: newId("pay"),
+      session_id: sessionId,
+      payment_no: businessNo("PAY"),
+      method: input.method,
+      subtotal: subtotal,
+      tax_amount: taxAmount,
+      total_amount: subtotal + taxAmount,
+      provider: provider,
+      external_payment_id: externalPaymentId,
+      idempotency_key: idempotencyKey,
+      provider_status: providerStatus,
+      provider_payload: jsonText(providerPayload)
+    }));
     var paidAttempt = first(nyanqlPost("payment-attempts/create", {
       id: newId("attempt"),
       session_id: sessionId,
@@ -633,6 +759,11 @@ function checkoutSettle() {
       status: "paid",
       amount: totalAmount,
       failure_reason: "",
+      provider: provider,
+      external_attempt_id: externalPaymentId,
+      idempotency_key: "",
+      provider_status: providerStatus,
+      provider_payload: jsonText(providerPayload),
       terminal_code: terminal.terminal_code,
       actor_user_id: user.id,
       actor_user_display_name: user.displayName,
@@ -650,9 +781,25 @@ function checkoutSettle() {
       targetLabel: payment.payment_no,
       status: "success",
       beforeData: { sessionId: sessionId, tableCode: input.table_code, sessionStatus: rawRows[0].session_status },
-      afterData: { paymentNo: payment.payment_no, attemptNo: paidAttempt.attempt_no, method: input.method, totalAmount: totalAmount, sessionStatus: closed.status },
-      requestData: { table_code: input.table_code, method: input.method, simulate_result: input.simulate_result || "paid" }
+      afterData: { paymentNo: payment.payment_no, attemptNo: paidAttempt.attempt_no, method: input.method, totalAmount: totalAmount, sessionStatus: closed.status, provider: provider, externalPaymentId: payment.external_payment_id || null, idempotencyKey: payment.idempotency_key || null, providerStatus: payment.provider_status || null },
+      requestData: { table_code: input.table_code, method: input.method, provider: provider, external_payment_id: externalPaymentId, idempotency_key: idempotencyKey, simulate_result: input.simulate_result || "paid" }
     });
+    if (provider !== "internal" || externalPaymentId || idempotencyKey) {
+      writeAuditLog({
+        actorTerminalCode: terminal.terminal_code,
+        actorTerminalType: terminal.terminal_type,
+        actorUserId: user.id,
+        actorUserDisplayName: user.displayName,
+        actorUserRole: user.role,
+        action: "checkout_provider_payment_recorded",
+        targetType: "payment",
+        targetId: payment.id,
+        targetLabel: payment.payment_no,
+        status: "success",
+        afterData: { provider: provider, externalPaymentId: payment.external_payment_id || null, idempotencyKey: payment.idempotency_key || null, providerStatus: payment.provider_status || null },
+        requestData: { table_code: input.table_code, method: input.method, provider: provider, external_payment_id: externalPaymentId, idempotency_key: idempotencyKey }
+      });
+    }
     if (previousAttempts.some(function(attempt) { return attempt.status === "failed" || attempt.status === "cancelled"; })) {
       writeAuditLog({
         actorTerminalCode: terminal.terminal_code,
@@ -670,7 +817,7 @@ function checkoutSettle() {
         requestData: { table_code: input.table_code, method: input.method }
       });
     }
-    return ok({ receiptNo: payment.payment_no, payment: payment });
+    return ok({ receiptNo: payment.payment_no, payment: paymentDto(payment) });
   } catch (event) {
     auditFailure(input, "checkout_settle_rejected", "session", rawRows[0] ? rawRows[0].session_id : "", input.table_code || "", event, rawRows[0] || null);
     throw event;
@@ -689,6 +836,10 @@ function paymentAttemptDto(row) {
     amount: Number(row.amount || 0),
     failureReason: row.failure_reason || "",
     cancelReason: row.cancel_reason || "",
+    provider: row.provider || "internal",
+    externalAttemptId: row.external_attempt_id || null,
+    idempotencyKey: row.idempotency_key || null,
+    providerStatus: row.provider_status || null,
     terminalCode: row.terminal_code || null,
     actorUserId: row.actor_user_id || null,
     actorUserDisplayName: row.actor_user_display_name || null,
@@ -804,6 +955,10 @@ function receiptDto(row) {
     paidAt: row.paid_at,
     method: row.method,
     status: row.status,
+    provider: row.provider || "internal",
+    externalPaymentId: row.external_payment_id || null,
+    idempotencyKey: row.idempotency_key || null,
+    providerStatus: row.provider_status || null,
     subtotal: Number(row.subtotal || 0),
     taxAmount: Number(row.tax_amount || 0),
     totalAmount: Number(row.total_amount || 0),
@@ -859,6 +1014,48 @@ function checkoutRefund() {
     terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
     assertTerminal(terminal, "checkout");
     receipt = getReceiptByPayment({ payment_id: input.payment_id });
+    var provider = providerValue(input.provider, receipt.provider || "internal");
+    var idempotencyKey = input.idempotency_key || "";
+    if (idempotencyKey) {
+      var existingRefund = first(nyanqlGet("payments/refunds/by-idempotency-key", { idempotency_key: idempotencyKey }));
+      if (existingRefund) {
+        var requestedAmount = input.amount === undefined || input.amount === null || input.amount === "" || input.refund_type === "full" ? null : Number(input.amount);
+        if (existingRefund.payment_id !== receipt.paymentId || (requestedAmount !== null && Number(existingRefund.amount || 0) !== requestedAmount) || existingRefund.provider !== provider) {
+          writeAuditLog({
+            actorTerminalCode: terminal.terminal_code,
+            actorTerminalType: terminal.terminal_type,
+            actorUserId: user.id,
+            actorUserDisplayName: user.displayName,
+            actorUserRole: user.role,
+            action: "checkout_provider_idempotency_rejected",
+            targetType: "payment_refund",
+            targetId: existingRefund.id,
+            targetLabel: existingRefund.refund_no,
+            status: "failure",
+            beforeData: existingRefund,
+            requestData: { payment_id: input.payment_id, amount: input.amount || "", provider: provider, idempotency_key: idempotencyKey },
+            errorMessage: "idempotency_key conflicts with existing refund"
+          });
+          throw error(409, "idempotency_key conflicts with existing refund");
+        }
+        var duplicateReceipt = getReceiptByPayment({ payment_id: receipt.paymentId });
+        writeAuditLog({
+          actorTerminalCode: terminal.terminal_code,
+          actorTerminalType: terminal.terminal_type,
+          actorUserId: user.id,
+          actorUserDisplayName: user.displayName,
+          actorUserRole: user.role,
+          action: "checkout_provider_refund_recorded",
+          targetType: "payment_refund",
+          targetId: existingRefund.id,
+          targetLabel: existingRefund.refund_no,
+          status: "success",
+          afterData: { duplicate: true, provider: provider, externalRefundId: existingRefund.external_refund_id || null, idempotencyKey: idempotencyKey, providerStatus: existingRefund.provider_status || null },
+          requestData: { payment_id: input.payment_id, provider: provider, idempotency_key: idempotencyKey }
+        });
+        return ok({ refund: existingRefund, receipt: duplicateReceipt, duplicate: true });
+      }
+    }
     if (!["paid", "partial_refunded"].includes(receipt.status)) throw error(409, "paid or partial_refunded payment only can be refunded");
     var remaining = Number(receipt.refundRemaining || receipt.totalAmount || 0);
     if (remaining <= 0) throw error(409, "payment is already refunded");
@@ -876,6 +1073,11 @@ function checkoutRefund() {
       refund_no: businessNo("REF"),
       amount: refundAmount,
       reason: input.reason || "",
+      provider: provider,
+      external_refund_id: input.external_refund_id || "",
+      idempotency_key: idempotencyKey,
+      provider_status: provider === "mock" ? "succeeded" : "",
+      provider_payload: jsonText({ provider: provider, externalRefundId: input.external_refund_id || "", paymentId: receipt.paymentId, amount: refundAmount }),
       actor_user_id: user.id,
       actor_user_display_name: user.displayName,
       actor_user_role: user.role,
@@ -897,8 +1099,8 @@ function checkoutRefund() {
       targetLabel: receipt.paymentNo,
       status: "success",
       beforeData: { paymentId: receipt.paymentId, paymentNo: receipt.paymentNo, sessionId: receipt.sessionId, tableCode: receipt.tableCode, amount: receipt.totalAmount, status: receipt.status, refundTotal: receipt.refundTotal, refundRemaining: receipt.refundRemaining },
-      afterData: { paymentId: payment.id, paymentNo: payment.payment_no, refundId: refund.id, amount: refund.amount, refundNo: refund.refund_no, reason: refund.reason, refundTotal: refundedReceipt.refundTotal, refundRemaining: refundedReceipt.refundRemaining, oldStatus: receipt.status, status: payment.status },
-      requestData: { payment_id: input.payment_id, amount: input.amount || "", refund_type: input.refund_type || "", reason: input.reason || "", terminal_code: input.terminal_code }
+      afterData: { paymentId: payment.id, paymentNo: payment.payment_no, refundId: refund.id, amount: refund.amount, refundNo: refund.refund_no, reason: refund.reason, refundTotal: refundedReceipt.refundTotal, refundRemaining: refundedReceipt.refundRemaining, oldStatus: receipt.status, status: payment.status, provider: provider, externalRefundId: refund.external_refund_id || null, idempotencyKey: refund.idempotency_key || null, providerStatus: refund.provider_status || null },
+      requestData: { payment_id: input.payment_id, amount: input.amount || "", refund_type: input.refund_type || "", reason: input.reason || "", terminal_code: input.terminal_code, provider: provider, external_refund_id: input.external_refund_id || "", idempotency_key: idempotencyKey }
     });
     writeAuditLog({
       actorTerminalCode: terminal.terminal_code,
@@ -912,9 +1114,25 @@ function checkoutRefund() {
       targetLabel: receipt.paymentNo,
       status: "success",
       beforeData: { paymentId: receipt.paymentId, paymentNo: receipt.paymentNo, status: receipt.status },
-      afterData: { paymentId: payment.id, paymentNo: payment.payment_no, refundId: refund.id, amount: refund.amount, refundNo: refund.refund_no, refundTotal: refundedReceipt.refundTotal, refundRemaining: refundedReceipt.refundRemaining, status: payment.status },
-      requestData: { payment_id: input.payment_id, amount: input.amount || "", refund_type: input.refund_type || "", reason: input.reason || "", terminal_code: input.terminal_code }
+      afterData: { paymentId: payment.id, paymentNo: payment.payment_no, refundId: refund.id, amount: refund.amount, refundNo: refund.refund_no, refundTotal: refundedReceipt.refundTotal, refundRemaining: refundedReceipt.refundRemaining, status: payment.status, provider: provider, externalRefundId: refund.external_refund_id || null, idempotencyKey: refund.idempotency_key || null, providerStatus: refund.provider_status || null },
+      requestData: { payment_id: input.payment_id, amount: input.amount || "", refund_type: input.refund_type || "", reason: input.reason || "", terminal_code: input.terminal_code, provider: provider, external_refund_id: input.external_refund_id || "", idempotency_key: idempotencyKey }
     });
+    if (provider !== "internal" || input.external_refund_id || idempotencyKey) {
+      writeAuditLog({
+        actorTerminalCode: terminal.terminal_code,
+        actorTerminalType: terminal.terminal_type,
+        actorUserId: user.id,
+        actorUserDisplayName: user.displayName,
+        actorUserRole: user.role,
+        action: "checkout_provider_refund_recorded",
+        targetType: "payment_refund",
+        targetId: refund.id,
+        targetLabel: refund.refund_no,
+        status: "success",
+        afterData: { provider: provider, externalRefundId: refund.external_refund_id || null, idempotencyKey: refund.idempotency_key || null, providerStatus: refund.provider_status || null },
+        requestData: { payment_id: input.payment_id, amount: input.amount || "", provider: provider, external_refund_id: input.external_refund_id || "", idempotency_key: idempotencyKey }
+      });
+    }
     return ok({ refund: refund, receipt: refundedReceipt });
   } catch (event) {
     writeAuditLog({
@@ -931,6 +1149,173 @@ function checkoutRefund() {
     });
     throw event;
   }
+}
+
+function webhookEventDto(row) {
+  return {
+    id: row.id,
+    provider: row.provider,
+    externalEventId: row.external_event_id,
+    eventType: row.event_type,
+    externalPaymentId: row.external_payment_id || null,
+    externalRefundId: row.external_refund_id || null,
+    paymentId: row.payment_id || null,
+    refundId: row.refund_id || null,
+    status: row.status,
+    payload: parseJsonValue(row.payload, row.payload || null),
+    receivedAt: row.received_at,
+    processedAt: row.processed_at || null,
+    errorMessage: row.error_message || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function checkoutMockProviderWebhook() {
+  var input = params();
+  var user = requireRole(["cashier", "manager"]);
+  requireField(input.terminal_code, "terminal_code");
+  requireField(input.external_event_id, "external_event_id");
+  requireField(input.event_type, "event_type");
+  var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+  assertTerminal(terminal, "checkout");
+  var provider = providerValue(input.provider, "mock");
+  if (provider !== "mock") throw error(400, "mock provider webhook accepts provider=mock only");
+  var allowedEvents = ["payment.succeeded", "payment.failed", "payment.cancelled", "refund.succeeded", "refund.failed"];
+  if (allowedEvents.indexOf(input.event_type) < 0) throw error(400, "unsupported webhook event_type");
+  var existing = first(nyanqlGet("payment-webhook-events/by-external-id", { provider: provider, external_event_id: input.external_event_id }));
+  if (existing) {
+    writeAuditLog({
+      actorTerminalCode: terminal.terminal_code,
+      actorTerminalType: terminal.terminal_type,
+      actorUserId: user.id,
+      actorUserDisplayName: user.displayName,
+      actorUserRole: user.role,
+      action: "checkout_provider_webhook_duplicate",
+      targetType: "payment_webhook_event",
+      targetId: existing.id,
+      targetLabel: existing.external_event_id,
+      status: "success",
+      afterData: { provider: provider, externalEventId: input.external_event_id, eventType: existing.event_type, status: existing.status },
+      requestData: { terminal_code: input.terminal_code, provider: provider, external_event_id: input.external_event_id, event_type: input.event_type }
+    });
+    return ok({ event: webhookEventDto(existing), duplicate: true });
+  }
+  var event = first(nyanqlPost("payment-webhook-events/create", {
+    id: newId("wh"),
+    provider: provider,
+    external_event_id: input.external_event_id,
+    event_type: input.event_type,
+    external_payment_id: input.external_payment_id || "",
+    external_refund_id: input.external_refund_id || "",
+    payload: jsonText(input.payload || {})
+  }));
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: "checkout_provider_webhook_received",
+    targetType: "payment_webhook_event",
+    targetId: event.id,
+    targetLabel: event.external_event_id,
+    status: "success",
+    afterData: { provider: provider, externalEventId: event.external_event_id, eventType: event.event_type, externalPaymentId: event.external_payment_id || null, externalRefundId: event.external_refund_id || null },
+    requestData: { terminal_code: input.terminal_code, provider: provider, external_event_id: input.external_event_id, event_type: input.event_type, external_payment_id: input.external_payment_id || "", external_refund_id: input.external_refund_id || "" }
+  });
+  var providerStatus = providerStatusFromEventType(input.event_type);
+  var linkedPayment = null;
+  var linkedRefund = null;
+  var linkedAttempt = null;
+  var status = "ignored";
+  var errorMessage = "";
+  if (input.event_type.indexOf("payment.") === 0 && input.external_payment_id) {
+    linkedPayment = first(nyanqlGet("payments/by-external-id", { provider: provider, external_payment_id: input.external_payment_id }));
+    if (linkedPayment) {
+      linkedPayment = first(nyanqlPost("payments/provider-status", {
+        payment_id: linkedPayment.id,
+        provider_status: providerStatus,
+        provider_payload: jsonText(input.payload || {})
+      })) || linkedPayment;
+      status = "processed";
+    } else {
+      linkedAttempt = first(nyanqlGet("payment-attempts/by-external-id", { provider: provider, external_attempt_id: input.external_payment_id }));
+      if (linkedAttempt) {
+        linkedAttempt = first(nyanqlPost("payment-attempts/provider-status", {
+          attempt_id: linkedAttempt.id,
+          provider_status: providerStatus,
+          provider_payload: jsonText(input.payload || {})
+        })) || linkedAttempt;
+        status = "processed";
+      }
+    }
+  }
+  if (input.event_type.indexOf("refund.") === 0 && input.external_refund_id) {
+    linkedRefund = first(nyanqlGet("payments/refunds/by-external-id", { provider: provider, external_refund_id: input.external_refund_id }));
+    if (linkedRefund) {
+      linkedRefund = first(nyanqlPost("payments/refunds/provider-status", {
+        refund_id: linkedRefund.id,
+        provider_status: providerStatus,
+        provider_payload: jsonText(input.payload || {})
+      })) || linkedRefund;
+      status = "processed";
+    }
+  }
+  if (status === "ignored") errorMessage = "matching payment, attempt, or refund was not found";
+  var updatedEvent = first(nyanqlPost("payment-webhook-events/status", {
+    id: event.id,
+    payment_id: linkedPayment ? linkedPayment.id : (linkedAttempt && linkedAttempt.payment_id ? linkedAttempt.payment_id : ""),
+    refund_id: linkedRefund ? linkedRefund.id : "",
+    status: status,
+    error_message: errorMessage
+  })) || event;
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: status === "processed" ? "checkout_provider_webhook_processed" : "checkout_provider_webhook_ignored",
+    targetType: "payment_webhook_event",
+    targetId: updatedEvent.id,
+    targetLabel: updatedEvent.external_event_id,
+    status: "success",
+    afterData: { provider: provider, externalEventId: updatedEvent.external_event_id, eventType: updatedEvent.event_type, externalPaymentId: updatedEvent.external_payment_id || null, externalRefundId: updatedEvent.external_refund_id || null, paymentId: updatedEvent.payment_id || null, refundId: updatedEvent.refund_id || null, status: updatedEvent.status, errorMessage: updatedEvent.error_message || "" },
+    requestData: { terminal_code: input.terminal_code, provider: provider, external_event_id: input.external_event_id, event_type: input.event_type }
+  });
+  return ok({ event: webhookEventDto(updatedEvent), payment: linkedPayment ? paymentDto(linkedPayment) : null, refund: linkedRefund || null, attempt: linkedAttempt ? paymentAttemptDto(linkedAttempt) : null });
+}
+
+function checkoutWebhookEvents() {
+  var input = params();
+  var user = requireRole(["manager"]);
+  requireField(input.terminal_code, "terminal_code");
+  var terminal = first(nyanqlGet("bootstrap", { terminal_code: input.terminal_code }));
+  assertTerminal(terminal, "checkout");
+  var events = rows(nyanqlGet("payment-webhook-events", {
+    provider: input.provider || "",
+    status: input.status || "",
+    payment_id: input.payment_id || "",
+    refund_id: input.refund_id || "",
+    limit: input.limit || "50",
+    offset: input.offset || "0"
+  })).map(webhookEventDto);
+  writeAuditLog({
+    actorTerminalCode: terminal.terminal_code,
+    actorTerminalType: terminal.terminal_type,
+    actorUserId: user.id,
+    actorUserDisplayName: user.displayName,
+    actorUserRole: user.role,
+    action: "checkout_provider_webhook_events_viewed",
+    targetType: "payment_webhook_event",
+    targetId: "",
+    targetLabel: "",
+    status: "success",
+    afterData: { count: events.length },
+    requestData: input
+  });
+  return ok({ events: events });
 }
 
 function today() {

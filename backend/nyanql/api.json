@@ -211,6 +211,18 @@
     "sql": ["./sql/insert_payment.sql"],
     "description": "支払い記録を作成する"
   },
+  "payments/by-idempotency-key": {
+    "sql": ["./sql/get_payment_by_idempotency_key.sql"],
+    "description": "idempotency key から支払い記録を取得する"
+  },
+  "payments/by-external-id": {
+    "sql": ["./sql/get_payment_by_external_id.sql"],
+    "description": "外部決済 ID から支払い記録を取得する"
+  },
+  "payments/provider-status": {
+    "sql": ["./sql/update_payment_provider_status.sql"],
+    "description": "支払いの外部 provider 状態を更新する"
+  },
   "payments/receipt": {
     "sql": ["./sql/get_payment_receipt.sql"],
     "description": "レシート再発行用に支払いと明細を取得する"
@@ -218,6 +230,18 @@
   "payments/refunds": {
     "sql": ["./sql/insert_payment_refund.sql"],
     "description": "返金履歴を登録する"
+  },
+  "payments/refunds/by-idempotency-key": {
+    "sql": ["./sql/get_refund_by_idempotency_key.sql"],
+    "description": "idempotency key から返金履歴を取得する"
+  },
+  "payments/refunds/by-external-id": {
+    "sql": ["./sql/get_refund_by_external_id.sql"],
+    "description": "外部返金 ID から返金履歴を取得する"
+  },
+  "payments/refunds/provider-status": {
+    "sql": ["./sql/update_refund_provider_status.sql"],
+    "description": "返金の外部 provider 状態を更新する"
   },
   "payments/refunded": {
     "sql": ["./sql/update_payment_refunded.sql"],
@@ -230,6 +254,18 @@
   "payment-attempts/create": {
     "sql": ["./sql/insert_payment_attempt.sql"],
     "description": "決済試行履歴を登録する"
+  },
+  "payment-attempts/by-idempotency-key": {
+    "sql": ["./sql/get_payment_attempt_by_idempotency_key.sql"],
+    "description": "idempotency key から決済試行履歴を取得する"
+  },
+  "payment-attempts/by-external-id": {
+    "sql": ["./sql/get_payment_attempt_by_external_id.sql"],
+    "description": "外部決済試行 ID から決済試行履歴を取得する"
+  },
+  "payment-attempts/provider-status": {
+    "sql": ["./sql/update_payment_attempt_provider_status.sql"],
+    "description": "決済試行の外部 provider 状態を更新する"
   },
   "payment-attempts/cancel": {
     "sql": ["./sql/cancel_payment_attempt.sql"],
@@ -258,6 +294,22 @@
   "analytics/sales-csv": {
     "sql": ["./sql/analytics_sales_csv.sql"],
     "description": "売上 CSV 出力用の明細を取得する"
+  },
+  "payment-webhook-events": {
+    "sql": ["./sql/list_payment_webhook_events.sql"],
+    "description": "外部決済 webhook event 履歴を取得する"
+  },
+  "payment-webhook-events/by-external-id": {
+    "sql": ["./sql/get_payment_webhook_event_by_external_id.sql"],
+    "description": "provider と external_event_id から webhook event を取得する"
+  },
+  "payment-webhook-events/create": {
+    "sql": ["./sql/insert_payment_webhook_event.sql"],
+    "description": "外部決済 webhook event を登録する"
+  },
+  "payment-webhook-events/status": {
+    "sql": ["./sql/update_payment_webhook_event_status.sql"],
+    "description": "外部決済 webhook event の処理状態を更新する"
   },
   "admin/audit-logs": {
     "sql": ["./sql/admin_list_audit_logs.sql"],

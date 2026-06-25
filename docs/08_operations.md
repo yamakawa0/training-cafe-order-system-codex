@@ -145,7 +145,18 @@ psql "$DATABASE_URL" < backup.sql
 - failed attempt は `payment_attempts` に保存し、`payments` は作成しない。席セッションは `payment_requested` のまま維持し、再試行できる。
 - pending / failed attempt は `/api/checkout/cancel-payment` で取消できる。取消後も再試行可能。
 - failed / cancelled attempt は分析売上対象外。売上 CSV には `attempt_status`, `failure_reason`, `cancelled_reason` を出す。
-- 実決済 API callback / webhook、実オーソリ取消、QR 決済実連携は未対応。
+- 実決済 API callback、実オーソリ取消、QR 決済実連携は未対応。
+
+外部決済連携運用:
+
+- MVP の外部決済連携は `mock` provider による内部シミュレーションまでとし、実 Stripe / Square / PayPay 連携は未対応。
+- `provider`, `external_payment_id`, `external_refund_id`, `idempotency_key`, `provider_status` は外部決済連携の照合情報として DB に保存する。
+- settle / refund の `idempotency_key` は二重決済・二重返金防止に使う。同一 key の再送は既存結果を返し、内容不一致は拒否する。
+- webhook は `payment_webhook_events` に保存し、`provider + external_event_id` で冪等処理する。provider からの再送に備え、同一 event は二重処理しない。
+- 本番 API key / webhook secret は `.env.production` などサーバー側設定で管理し、frontend に出さない。
+- API key、webhook secret、署名値、カード番号、個人情報などの秘匿情報は audit log や provider payload に保存しない。
+- 本番 webhook endpoint は署名検証が必要。今回の `/api/checkout/mock-provider/webhook` は開発用で、role 認可だけを使う。
+- 外部 provider 障害時は `payment_attempts`, `payment_webhook_events`, `audit_logs`, Nyan8 / NyanQL logs の順に確認する。
 
 障害時の確認順:
 
@@ -180,7 +191,7 @@ GitHub Actions CI は本番 DB、開発 DB、NyanQL / Nyan8 runtime を操作し
 
 CI 失敗時は、原因を修正して CI が成功してから `master` へ反映する。GitHub Actions の警告や runtime 更新がある場合は、workflow の `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`、`actions/checkout`、`actions/setup-node` の更新可否を確認する。
 
-local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh`、返金・レシート再発行の確認は `./scripts/smoke-refund-receipt.sh`、支払い失敗・再試行・決済取消の確認は `./scripts/smoke-payment-failure-cancel.sh` で行う。
+local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh`、返金・レシート再発行の確認は `./scripts/smoke-refund-receipt.sh`、支払い失敗・再試行・決済取消の確認は `./scripts/smoke-payment-failure-cancel.sh`、mock provider 連携の確認は `./scripts/smoke-payment-provider.sh` で行う。
 
 本番デプロイ前は、frontend build 後に `./scripts/smoke-prod-readiness.sh` を実行する。この script も本番 DB を初期化せず、`.env.production.example` または `.env.production`、Nginx 設定例、runtime 実行ファイル、docs 反映状況を確認する。
 

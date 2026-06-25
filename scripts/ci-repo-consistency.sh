@@ -92,6 +92,7 @@ for script in \
   "scripts/smoke-staff-call.sh" \
   "scripts/smoke-refund-receipt.sh" \
   "scripts/smoke-payment-failure-cancel.sh" \
+  "scripts/smoke-payment-provider.sh" \
   "scripts/smoke-checkout-csv.sh" \
   "scripts/smoke-invalid-operations.sh"
 do

@@ -132,12 +132,23 @@
 - 返金累計が支払額未満なら `payments.status='partial_refunded'`、支払額と等しければ `refunded` にする。
 - 分析は `net_sales = total_amount - refund_total` を使い、`refunded` は net sales 0 とする。
 - MVP では部分返金の原価按分と完全な明細別粗利再計算は未対応。商品別ランキングの返金反映は payment 単位の net 比率による概算とする。
-- 実決済サービスへの実返金、返金取消、返金手数料、外部決済 webhook は未対応。
+- 実決済サービスへの実返金、返金取消、返金手数料は未対応。
+
+## Phase 12 第4段階 実決済連携の土台
+
+- MVP の外部決済連携は `mock` provider までとし、実 Stripe / Square / PayPay 連携は未対応。
+- `provider='internal'` は既存の内部ダミー決済、`provider='mock'` は外部決済 provider を模した開発用 provider とする。
+- `idempotency_key` は二重決済・二重返金防止用に使い、同一 key の再送は既存結果を返す。内容不一致は 409 で拒否する。
+- 本番 webhook は署名検証が必要。mock webhook は開発用のため role 認可で扱う。
+- 外部 provider payload に API key、webhook secret、署名値、カード番号、個人情報などの秘匿情報を保存しない。
+- 将来 provider 候補は `stripe`, `square`, `paypay`, `other` とするが、現行 DB の許可値は `internal`, `mock` のみ。
 
 ## 今後の未対応事項
 
-- 実決済サービス連携
+- 実 Stripe / Square / PayPay 連携
 - 実決済サービスへの実返金
+- 外部決済 API key の本番運用
+- 外部 webhook 署名検証
 - 返金取消
 - 返金手数料
 - 複数店舗管理
