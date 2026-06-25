@@ -79,6 +79,7 @@ CREATE TABLE menu_items (
     name VARCHAR(100) NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     price INTEGER NOT NULL,
+    cost_price INTEGER NOT NULL DEFAULT 0,
     tax_rate INTEGER NOT NULL DEFAULT 10,
     image_url TEXT,
     kitchen_station VARCHAR(50) NOT NULL DEFAULT 'main',
@@ -92,6 +93,7 @@ CREATE TABLE menu_items (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (price >= 0),
+    CHECK (cost_price >= 0),
     CHECK (stock_quantity >= 0),
     CHECK (low_stock_threshold >= 0)
 );
@@ -158,6 +160,7 @@ CREATE TABLE order_items (
     menu_item_id VARCHAR(50) NOT NULL REFERENCES menu_items(id),
     item_name VARCHAR(100) NOT NULL,
     unit_price INTEGER NOT NULL,
+    unit_cost_price INTEGER NOT NULL DEFAULT 0,
     quantity INTEGER NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'ordered',
     kitchen_station VARCHAR(50) NOT NULL DEFAULT 'main',
@@ -170,6 +173,7 @@ CREATE TABLE order_items (
     cancelled_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (unit_cost_price >= 0),
     CHECK (quantity BETWEEN 1 AND 99),
     CHECK (status IN ('ordered', 'accepted', 'cooking', 'ready', 'served', 'cancelled'))
 );

@@ -6,6 +6,7 @@ SELECT
     mi.name AS item_name,
     mi.description,
     mi.price,
+    mi.cost_price,
     mi.tax_rate,
     mi.image_url,
     mi.kitchen_station,

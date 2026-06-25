@@ -171,6 +171,7 @@ function buildMenu(rawRows) {
         id: row.item_id,
         name: row.item_name,
         price: Number(row.price),
+        costPrice: Number(row.cost_price || 0),
         taxRate: Number(row.tax_rate),
         kitchenStation: row.kitchen_station,
         allergyNote: row.allergy_note,
@@ -385,7 +386,7 @@ function customerSubmitOrder() {
     });
     var order = first(nyanqlPost("orders", { id: orderId, session_id: session.id, order_no: orderNo, subtotal: totals.subtotal, tax_amount: totals.taxAmount, total_amount: totals.totalAmount }));
     lines.forEach(function(line) {
-      var orderItem = first(nyanqlPost("order-items", { id: newId("oi"), order_id: order.id, menu_item_id: line.menuItem.id, item_name: line.menuItem.name, unit_price: line.menuItem.price, quantity: line.quantity, kitchen_station: line.menuItem.kitchenStation, allergy_note: line.menuItem.allergyNote, customer_note: line.customerNote }));
+      var orderItem = first(nyanqlPost("order-items", { id: newId("oi"), order_id: order.id, menu_item_id: line.menuItem.id, item_name: line.menuItem.name, unit_price: line.menuItem.price, unit_cost_price: line.menuItem.costPrice, quantity: line.quantity, kitchen_station: line.menuItem.kitchenStation, allergy_note: line.menuItem.allergyNote, customer_note: line.customerNote }));
       line.selectedChoices.forEach(function(choice) {
         nyanqlPost("order-item-options", { id: newId("oio"), order_item_id: orderItem.id, option_name: choice.optionName, choice_name: choice.choiceName, price_delta: choice.priceDelta });
       });
@@ -611,8 +612,8 @@ function analyticsExportSalesCsv() {
   var fromDate = input.from_date || today();
   var toDate = input.to_date || today();
   var salesRows = rows(nyanqlGet("analytics/sales-csv", { from_date: fromDate, to_date: toDate }));
-  var lines = [["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total"]].concat(salesRows.map(function(item) {
-    return [item.paid_date, item.payment_no, item.method, item.table_code, item.menu_item_id, item.item_name, item.quantity, item.sales_total];
+  var lines = [["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total", "unit_cost_price", "cost_total", "gross_profit", "gross_margin_rate"]].concat(salesRows.map(function(item) {
+    return [item.paid_date, item.payment_no, item.method, item.table_code, item.menu_item_id, item.item_name, item.quantity, item.sales_total, item.unit_cost_price, item.cost_total, item.gross_profit, item.gross_margin_rate];
   }));
   var csv = lines.map(function(line) {
     return line.map(function(value) {
@@ -709,6 +710,9 @@ function adminMenuItem(row) {
     name: row.name,
     description: row.description || "",
     price: Number(row.price),
+    costPrice: Number(row.cost_price || 0),
+    grossProfit: Number(row.gross_profit || (Number(row.price || 0) - Number(row.cost_price || 0))),
+    grossMarginRate: Number(row.gross_margin_rate || 0),
     taxRate: Number(row.tax_rate),
     imageUrl: row.image_url || "",
     displayOrder: Number(row.display_order),
@@ -776,6 +780,7 @@ function validateAdminMenuItemInput(input, requireId) {
     name: name,
     description: String(input.description || ""),
     price: integerValue(input.price, "価格", 0),
+    cost_price: input.cost_price === undefined ? 0 : integerValue(input.cost_price, "原価", 0),
     tax_rate: numberValue(input.tax_rate, "税率", 0),
     image_url: imageUrlValue(input.image_url),
     display_order: integerValue(input.display_order, "表示順"),

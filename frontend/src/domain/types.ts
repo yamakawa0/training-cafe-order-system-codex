@@ -126,7 +126,11 @@ export interface Payment {
 }
 
 export interface AnalyticsSummary {
+  [key: string]: number | undefined;
   sales_total?: number;
+  cost_total?: number;
+  gross_profit?: number;
+  gross_margin_rate?: number;
   payment_count?: number;
   average_spend?: number;
   table_turns?: number;
@@ -144,6 +148,9 @@ export interface ItemRanking {
   item_name: string;
   quantity: number;
   sales_total: number;
+  cost_total?: number;
+  gross_profit?: number;
+  gross_margin_rate?: number;
 }
 
 export interface AdminMenuCategory {
@@ -186,6 +193,9 @@ export interface AdminMenuItem {
   name: string;
   description: string;
   price: number;
+  costPrice: number;
+  grossProfit: number;
+  grossMarginRate: number;
   taxRate: number;
   imageUrl: string;
   displayOrder: number;
@@ -205,6 +215,7 @@ export type AdminMenuItemInput = {
   name: string;
   description: string;
   price: number;
+  cost_price: number;
   tax_rate: number;
   image_url: string;
   display_order: number;
@@ -296,9 +307,13 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     itemName: string;
     quantity: number;
     unitPrice: number;
+    unitCostPrice: number;
     optionTotal: number;
     optionsText: string;
     lineSubtotal: number;
+    lineCostTotal: number;
+    lineGrossProfit: number;
+    lineGrossMarginRate: number;
     lineTax: number;
     status: OrderItemStatus;
     customerNote: string | null;

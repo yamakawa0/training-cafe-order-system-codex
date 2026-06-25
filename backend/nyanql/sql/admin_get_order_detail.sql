@@ -51,9 +51,16 @@ SELECT
             'itemName', oi.item_name,
             'quantity', oi.quantity,
             'unitPrice', oi.unit_price,
+            'unitCostPrice', oi.unit_cost_price,
             'optionTotal', COALESCE(opt.option_total, 0),
             'optionsText', COALESCE(opt.options_text, ''),
             'lineSubtotal', (oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity,
+            'lineCostTotal', oi.unit_cost_price * oi.quantity,
+            'lineGrossProfit', ((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) - (oi.unit_cost_price * oi.quantity),
+            'lineGrossMarginRate', CASE
+                WHEN ((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) = 0 THEN 0
+                ELSE ROUND(((((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) - (oi.unit_cost_price * oi.quantity))::numeric / ((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity)) * 100, 1)
+            END,
             'lineTax', ROUND(((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) * 0.10)::INTEGER,
             'status', oi.status,
             'customerNote', oi.customer_note,

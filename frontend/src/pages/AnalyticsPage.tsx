@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { cafeApi } from '../api/cafeApi';
 import { AppHeader, Banner, EmptyState, SectionTitle, SummaryCard } from '../components/ui';
 import { yen } from '../domain/money';
+import type { AnalyticsSummary, ItemRanking } from '../domain/types';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function percent(value: number | undefined) {
+  return `${Number(value || 0).toFixed(1)}%`;
+}
+
 export function AnalyticsPage() {
   const [fromDate, setFromDate] = useState(today());
   const [toDate, setToDate] = useState(today());
-  const [summary, setSummary] = useState<Record<string, number>>({});
-  const [ranking, setRanking] = useState<Array<{ item_name: string; quantity: number; sales_total: number }>>([]);
+  const [summary, setSummary] = useState<AnalyticsSummary>({});
+  const [ranking, setRanking] = useState<ItemRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [csvLoading, setCsvLoading] = useState(false);
   const [error, setError] = useState('');
@@ -87,6 +92,9 @@ export function AnalyticsPage() {
       {error && <Banner tone="danger">{error}</Banner>}
       <section className="metrics">
         <SummaryCard label="本日売上" value={yen(summary.sales_total || 0)} />
+        <SummaryCard label="原価合計" value={yen(summary.cost_total || 0)} />
+        <SummaryCard label="粗利合計" value={yen(summary.gross_profit || 0)} />
+        <SummaryCard label="粗利率" value={percent(summary.gross_margin_rate)} />
         <SummaryCard label="会計件数" value={summary.payment_count || 0} />
         <SummaryCard label="注文件数" value={orderCount} />
         <SummaryCard label="平均客単価" value={yen(summary.average_spend || 0)} />
@@ -100,7 +108,8 @@ export function AnalyticsPage() {
               <div className="rankingLine" key={item.item_name}>
                 <div>
                   <strong>{index + 1}. {item.item_name}</strong>
-                  <span>{item.quantity} 点 / {yen(item.sales_total)}</span>
+                  <span>{item.quantity} 点 / 売上 {yen(item.sales_total)}</span>
+                  <small>原価 {yen(item.cost_total || 0)} / 粗利 {yen(item.gross_profit || 0)} / 粗利率 {percent(item.gross_margin_rate)}</small>
                 </div>
                 <div className="barTrack"><span style={{ width: `${Math.max(8, (item.sales_total / maxRankingSales) * 100)}%` }} /></div>
               </div>

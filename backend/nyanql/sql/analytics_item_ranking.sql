@@ -2,7 +2,13 @@ SELECT
     oi.menu_item_id,
     oi.item_name,
     SUM(oi.quantity)::INTEGER AS quantity,
-    SUM((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity)::INTEGER AS sales_total
+    SUM((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity)::INTEGER AS sales_total,
+    SUM(oi.unit_cost_price * oi.quantity)::INTEGER AS cost_total,
+    (SUM((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) - SUM(oi.unit_cost_price * oi.quantity))::INTEGER AS gross_profit,
+    CASE
+        WHEN SUM((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) = 0 THEN 0
+        ELSE ROUND(((SUM((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) - SUM(oi.unit_cost_price * oi.quantity))::numeric / SUM((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity)) * 100, 1)
+    END AS gross_margin_rate
 FROM order_items oi
 JOIN orders o ON o.id = oi.order_id
 JOIN table_sessions ts ON ts.id = o.session_id

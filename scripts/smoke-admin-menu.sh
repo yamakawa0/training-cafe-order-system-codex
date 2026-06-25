@@ -8,6 +8,9 @@ ADMIN_TERMINAL="analytics-manager"
 CUSTOMER_TERMINAL="customer-T01"
 CREATE_IMAGE_URL="/images/smoke/admin-menu-coffee.jpg"
 UPDATE_IMAGE_URL="https://example.com/menu/admin-menu-coffee.jpg"
+CREATE_COST_PRICE=220
+UPDATE_COST_PRICE=330
+LOSS_COST_PRICE=999
 ITEM_ID_FILE="/tmp/cafe-order-admin-menu-item-id.txt"
 CATEGORY_ID_FILE="/tmp/cafe-order-admin-menu-category-id.txt"
 OPTION_ID_FILE="/tmp/cafe-order-admin-menu-option-id.txt"
@@ -126,22 +129,23 @@ category_move_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/categories/m
 printf '%s\n' "$category_move_response"
 printf '%s' "$category_move_response" | node_check "data.success === true && result.category.id === '$category_id'"
 
-create_body="{\"terminal_code\":\"analytics-manager\",\"category_id\":\"$category_id\",\"name\":\"管理テストコーヒー\",\"description\":\"管理 smoke 追加商品\",\"price\":777,\"tax_rate\":10,\"image_url\":\"$CREATE_IMAGE_URL\",\"display_order\":5,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳\"}"
+create_body="{\"terminal_code\":\"analytics-manager\",\"category_id\":\"$category_id\",\"name\":\"管理テストコーヒー\",\"description\":\"管理 smoke 追加商品\",\"price\":777,\"cost_price\":$CREATE_COST_PRICE,\"tax_rate\":10,\"image_url\":\"$CREATE_IMAGE_URL\",\"display_order\":5,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳\"}"
 create_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items" "$create_body")"
 printf '%s\n' "$create_response"
-printf '%s' "$create_response" | node_check "data.success === true && result.item.name === '管理テストコーヒー' && result.item.imageUrl === '$CREATE_IMAGE_URL'"
+printf '%s' "$create_response" | node_check "data.success === true && result.item.name === '管理テストコーヒー' && result.item.imageUrl === '$CREATE_IMAGE_URL' && result.item.costPrice === $CREATE_COST_PRICE && result.item.grossProfit === 557"
 printf '%s' "$create_response" | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).result.item.id));" > "$ITEM_ID_FILE"
 item_id="$(cat "$ITEM_ID_FILE")"
 
 echo "5 created item appears in admin list"
 admin_created_response="$(json_get "$NYAN8_BASE_URL/api/admin/menu/items?terminal_code=$ADMIN_TERMINAL&keyword=%E7%AE%A1%E7%90%86%E3%83%86%E3%82%B9%E3%83%88")"
 printf '%s\n' "$admin_created_response"
-printf '%s' "$admin_created_response" | node_check "result.items.some(item => item.id === '$item_id' && item.imageUrl === '$CREATE_IMAGE_URL')"
+printf '%s' "$admin_created_response" | node_check "result.items.some(item => item.id === '$item_id' && item.imageUrl === '$CREATE_IMAGE_URL' && item.costPrice === $CREATE_COST_PRICE)"
 
 echo "6 created item appears in customer menu"
 customer_created_response="$(json_get "$NYAN8_BASE_URL/api/customer/menu?terminal_code=$CUSTOMER_TERMINAL")"
 printf '%s\n' "$customer_created_response"
 printf '%s' "$customer_created_response" | node_check "result.categories.flatMap(category => category.items).some(item => item.id === '$item_id' && item.allergyNote === '乳' && item.imageUrl === '$CREATE_IMAGE_URL')"
+printf '%s' "$customer_created_response" | node_check "!JSON.stringify(result).includes('cost_price') && !JSON.stringify(result).includes('costPrice') && !JSON.stringify(result).includes('grossProfit')"
 
 echo "6.5 inactive category hides its items from customer menu"
 category_inactive_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/categories/toggle-active" "{\"terminal_code\":\"analytics-manager\",\"category_id\":\"$category_id\",\"active\":false}")"
@@ -155,27 +159,38 @@ printf '%s\n' "$category_active_response"
 printf '%s' "$category_active_response" | node_check "result.category.active === true"
 
 echo "7 update name and price"
-update_body="{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"管理テストコーヒー改\",\"description\":\"更新済み\",\"price\":888,\"tax_rate\":10,\"image_url\":\"$UPDATE_IMAGE_URL\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳・大豆\"}"
+update_body="{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"管理テストコーヒー改\",\"description\":\"更新済み\",\"price\":888,\"cost_price\":$UPDATE_COST_PRICE,\"tax_rate\":10,\"image_url\":\"$UPDATE_IMAGE_URL\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳・大豆\"}"
 update_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "$update_body")"
 printf '%s\n' "$update_response"
-printf '%s' "$update_response" | node_check "result.item.name === '管理テストコーヒー改' && result.item.price === 888 && result.item.imageUrl === '$UPDATE_IMAGE_URL'"
+printf '%s' "$update_response" | node_check "result.item.name === '管理テストコーヒー改' && result.item.price === 888 && result.item.costPrice === $UPDATE_COST_PRICE && result.item.grossProfit === 558 && result.item.imageUrl === '$UPDATE_IMAGE_URL'"
 
 echo "8 update reflected in customer menu"
 customer_updated_response="$(json_get "$NYAN8_BASE_URL/api/customer/menu?terminal_code=$CUSTOMER_TERMINAL")"
 printf '%s\n' "$customer_updated_response"
 printf '%s' "$customer_updated_response" | node_check "result.categories.flatMap(category => category.items).some(item => item.id === '$item_id' && item.name === '管理テストコーヒー改' && item.price === 888 && item.allergyNote === '乳・大豆' && item.imageUrl === '$UPDATE_IMAGE_URL')"
+printf '%s' "$customer_updated_response" | node_check "!JSON.stringify(result).includes('cost_price') && !JSON.stringify(result).includes('costPrice') && !JSON.stringify(result).includes('grossProfit')"
 
 echo "8.1 invalid image URL is rejected and audit log keeps image URL before and after"
-invalid_image_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"管理テストコーヒー改\",\"description\":\"更新済み\",\"price\":888,\"tax_rate\":10,\"image_url\":\"javascript:alert(1)\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳・大豆\"}")"
+invalid_image_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"管理テストコーヒー改\",\"description\":\"更新済み\",\"price\":888,\"cost_price\":$UPDATE_COST_PRICE,\"tax_rate\":10,\"image_url\":\"javascript:alert(1)\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳・大豆\"}")"
 printf '%s\n' "$invalid_image_response"
 printf '%s' "$invalid_image_response" | node_check "data.success === false && data.status === 400"
 image_after_invalid="$(sql_scalar "SELECT image_url FROM menu_items WHERE id = '$item_id'")"
 [ "$image_after_invalid" = "$UPDATE_IMAGE_URL" ]
 audit_image_count="$(sql_scalar "SELECT COUNT(*) FROM audit_logs WHERE action = 'admin_menu_item_updated' AND target_id = '$item_id' AND before_data->>'image_url' = '$CREATE_IMAGE_URL' AND after_data->>'image_url' = '$UPDATE_IMAGE_URL'")"
 [ "$audit_image_count" = "1" ]
+audit_cost_count="$(sql_scalar "SELECT COUNT(*) FROM audit_logs WHERE action = 'admin_menu_item_updated' AND target_id = '$item_id' AND before_data->>'cost_price' = '$CREATE_COST_PRICE' AND after_data->>'cost_price' = '$UPDATE_COST_PRICE' AND after_data ? 'gross_profit' AND after_data ? 'gross_margin_rate'")"
+[ "$audit_cost_count" = "1" ]
+
+echo "8.1.5 cost price can exceed price and is treated as loss"
+loss_cost_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"管理テストコーヒー改\",\"description\":\"更新済み\",\"price\":888,\"cost_price\":$LOSS_COST_PRICE,\"tax_rate\":10,\"image_url\":\"$UPDATE_IMAGE_URL\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳・大豆\"}")"
+printf '%s\n' "$loss_cost_response"
+printf '%s' "$loss_cost_response" | node_check "data.success === true && result.item.costPrice === $LOSS_COST_PRICE && result.item.grossProfit === -111 && result.item.grossMarginRate < 0"
+loss_cost_reset_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "$update_body")"
+printf '%s\n' "$loss_cost_reset_response"
+printf '%s' "$loss_cost_reset_response" | node_check "data.success === true && result.item.costPrice === $UPDATE_COST_PRICE"
 
 echo "8.2 image URL can be cleared"
-clear_image_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"管理テストコーヒー改\",\"description\":\"更新済み\",\"price\":888,\"tax_rate\":10,\"image_url\":\"\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳・大豆\"}")"
+clear_image_response="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"管理テストコーヒー改\",\"description\":\"更新済み\",\"price\":888,\"cost_price\":$UPDATE_COST_PRICE,\"tax_rate\":10,\"image_url\":\"\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"乳・大豆\"}")"
 printf '%s\n' "$clear_image_response"
 printf '%s' "$clear_image_response" | node_check "data.success === true && result.item.imageUrl === ''"
 admin_image_cleared_response="$(json_get "$NYAN8_BASE_URL/api/admin/menu/items?terminal_code=$ADMIN_TERMINAL&keyword=%E7%AE%A1%E7%90%86%E3%83%86%E3%82%B9%E3%83%88")"
@@ -325,7 +340,7 @@ printf '%s' "$viewer_option_rejected" | node_check "data.success === false && da
 viewer_stock_rejected="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update-stock" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"track_stock\":true,\"stock_quantity\":5,\"low_stock_threshold\":1}")"
 printf '%s\n' "$viewer_stock_rejected"
 printf '%s' "$viewer_stock_rejected" | node_check "data.success === false && data.status === 403"
-viewer_item_image_rejected="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"viewer-ng\",\"description\":\"viewer-ng\",\"price\":999,\"tax_rate\":10,\"image_url\":\"/images/viewer-ng.jpg\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"\"}")"
+viewer_item_image_rejected="$(json_post "$NYAN8_BASE_URL/api/admin/menu/items/update" "{\"terminal_code\":\"analytics-manager\",\"item_id\":\"$item_id\",\"category_id\":\"cat-coffee\",\"name\":\"viewer-ng\",\"description\":\"viewer-ng\",\"price\":999,\"cost_price\":111,\"tax_rate\":10,\"image_url\":\"/images/viewer-ng.jpg\",\"display_order\":4,\"active\":true,\"sold_out\":false,\"allergy_note\":\"\"}")"
 printf '%s\n' "$viewer_item_image_rejected"
 printf '%s' "$viewer_item_image_rejected" | node_check "data.success === false && data.status === 403"
 

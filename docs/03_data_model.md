@@ -49,11 +49,12 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 ### menu_items
 
 - 目的: 販売商品を管理する。
-- 主なカラム: `id`, `category_id`, `name`, `description`, `price`, `tax_rate`, `image_url`, `kitchen_station`, `allergy_note`, `sold_out`, `track_stock`, `stock_quantity`, `low_stock_threshold`, `active`, `display_order`
+- 主なカラム: `id`, `category_id`, `name`, `description`, `price`, `cost_price`, `tax_rate`, `image_url`, `kitchen_station`, `allergy_note`, `sold_out`, `track_stock`, `stock_quantity`, `low_stock_threshold`, `active`, `display_order`
 - 主な状態値: `active`, `sold_out`
 - 関連テーブル: `menu_categories`, `menu_item_options`, `order_items`
 - 注意点: 金額はフロントエンド送信値を正とせず、DB の商品価格・税率から計算する。`active=false` は顧客メニュー非表示、`sold_out=true` は注文不可。`track_stock=false` の商品は在庫数を見ない。`track_stock=true` の商品は注文確定時に `stock_quantity` を引き当て、不足時は注文全体を拒否する。注文成功で `stock_quantity=0` になった場合は `sold_out=true` にする。キャンセル時は在庫を戻すが、`sold_out=false` への自動解除は行わない。将来課題として `inventory_movements`、入荷 / 棚卸 / 廃棄、在庫履歴、複数店舗別在庫を扱う。
 - `image_url`: 商品画像 URL。空値可。顧客注文画面の商品カードに表示し、管理画面から編集できる。MVP では画像ファイル本体を DB に保存しない。本格 upload / resize / CDN は将来課題。
+- `cost_price`: 商品 1 個あたりの現在の標準原価。販売価格 `price` と同じ税区分基準で扱う。顧客 API / 顧客画面には表示しない。`cost_price > price` も登録可能で、赤字商品として管理画面に警告する。
 
 ### menu_item_options
 
@@ -90,10 +91,10 @@ DB は PostgreSQL を正式対象とする。NyanQL の SQL API が DB アクセ
 ### order_items
 
 - 目的: 注文明細を管理する。
-- 主なカラム: `id`, `order_id`, `menu_item_id`, `item_name`, `unit_price`, `quantity`, `status`, `kitchen_station`, `allergy_note`, `customer_note`, `accepted_at`, `cooking_started_at`, `ready_at`, `served_at`, `cancelled_at`
+- 主なカラム: `id`, `order_id`, `menu_item_id`, `item_name`, `unit_price`, `unit_cost_price`, `quantity`, `status`, `kitchen_station`, `allergy_note`, `customer_note`, `accepted_at`, `cooking_started_at`, `ready_at`, `served_at`, `cancelled_at`
 - 主な状態値: `ordered`, `accepted`, `cooking`, `ready`, `served`, `cancelled`
 - 関連テーブル: `orders`, `menu_items`, `order_item_options`, `hall_tasks`
-- 注意点: 基本遷移は `ordered -> accepted -> cooking -> ready -> served`。`ordered`, `accepted`, `cooking` の明細だけキャンセル可能。取消明細は会計・分析から除外する。
+- 注意点: 基本遷移は `ordered -> accepted -> cooking -> ready -> served`。`ordered`, `accepted`, `cooking` の明細だけキャンセル可能。取消明細は会計・分析から除外する。`unit_cost_price` は注文確定時点の `menu_items.cost_price` を履歴保存し、後から商品マスタの原価が変わっても過去注文の原価・粗利は変えない。
 
 ### order_item_options
 

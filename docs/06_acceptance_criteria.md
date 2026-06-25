@@ -118,20 +118,33 @@
 - 既存 smoke が成功する。
 - CI checks が成功する。
 
+## Phase 11 第4段階 原価 / 粗利管理
+
+- manager は商品ごとの標準原価を登録・更新できる。
+- `cost_price` は 0 以上の整数で、販売価格を超えても登録できる。
+- 販売価格を超える原価は管理画面で赤字警告として表示される。
+- 注文確定時に注文時点の原価が `order_items.unit_cost_price` に保存される。
+- 商品マスタの原価変更後も過去注文の原価・粗利は変わらない。
+- 顧客メニュー、顧客注文履歴、顧客画面に原価・粗利が出ない。
+- 分析サマリ、商品ランキング、売上 CSV、注文管理詳細に原価・粗利・粗利率が出る。
+- 取消明細は原価・粗利集計からも除外される。
+- 原価変更が audit log の before / after に残る。
+- `smoke-admin-menu.sh`, `smoke-e2e.sh`, `smoke-admin-orders.sh`, `smoke-checkout-csv.sh` が原価・粗利条件まで検証して成功する。
+
 ## smoke script 対応表
 
 | Script | 主な受け入れ条件 |
 |---|---|
 | `scripts/smoke-auth.sh` | login / logout / me、role 制御、token なし、expired / revoked / inactive session、ログイン失敗ロック、最後の manager 保護、auth audit log |
 | `scripts/smoke-audit-logs.sh` | 注文、会計依頼、精算、商品売切、明細取消、非管理者拒否、監査ログ一覧・詳細、action / role / keyword filter、manager CSV 出力、非 manager CSV 拒否、CSV 秘匿情報除外、CSV 操作ログ |
-| `scripts/smoke-admin-orders.sh` | 注文一覧・詳細、明細取消、注文全体取消、取消明細の会計・分析除外、ready / 精算済み取消拒否 |
-| `scripts/smoke-admin-menu.sh` | 商品追加・編集、商品画像 URL 登録・更新・空戻し・不正 URL 拒否・audit log、表示 / 非表示、売切 / 売切解除、並び順変更、カテゴリ・オプション管理、在庫設定、在庫不足拒否、在庫引当、自動売切、取消時在庫戻し、顧客メニュー反映 |
+| `scripts/smoke-admin-orders.sh` | 注文一覧・詳細、明細取消、注文全体取消、注文詳細の原価・粗利、取消明細の会計・分析・粗利集計除外、ready / 精算済み取消拒否 |
+| `scripts/smoke-admin-menu.sh` | 商品追加・編集、原価登録・更新・赤字商品許可・audit log・顧客 API 非漏洩、商品画像 URL 登録・更新・空戻し・不正 URL 拒否・audit log、表示 / 非表示、売切 / 売切解除、並び順変更、カテゴリ・オプション管理、在庫設定、在庫不足拒否、在庫引当、自動売切、取消時在庫戻し、顧客メニュー反映 |
 | `scripts/smoke-admin-tables.sh` | 席一覧・詳細、席状態更新、端末有効 / 無効、強制クローズ条件 |
 | `scripts/smoke-menu.sh` | 顧客メニュー取得、端末判定、active / sold out の扱い |
-| `scripts/smoke-e2e.sh` | 顧客注文、キッチン、ホール、会計依頼、精算、片付け、分析反映 |
+| `scripts/smoke-e2e.sh` | 顧客注文、キッチン、ホール、会計依頼、精算、片付け、売上・原価・粗利の分析反映 |
 | `scripts/smoke-order-multiple-items.sh` | 同一注文の複数明細、全明細会計、ランキング反映 |
 | `scripts/smoke-multiple-tables.sh` | T01 / T02 同時進行、席・タスク・精算の分離 |
 | `scripts/smoke-cancel-flow.sh` | キャンセル可能状態、ready 以降拒否、取消明細除外 |
 | `scripts/smoke-staff-call.sh` | 注文なしセッションでの staff_call、ホール対応、完了済み再完了拒否 |
-| `scripts/smoke-checkout-csv.sh` | 精算後の売上 CSV、フロントエンド CSV ダウンロード形式 |
+| `scripts/smoke-checkout-csv.sh` | 精算後の売上 CSV、原価・粗利 CSV 列、フロントエンド CSV ダウンロード形式 |
 | `scripts/smoke-invalid-operations.sh` | 端末種別違反、状態遷移違反、存在しない ID / table_code / terminal_code の拒否 |

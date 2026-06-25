@@ -79,10 +79,10 @@
 - 目的: 売上、会計件数、客単価、商品別ランキング、支払い方法別集計を確認する。
 - 主な利用者: 店長 / 管理者、閲覧専用ユーザー。
 - 主な表示項目: KPI、商品ランキング、支払い方法別集計、最終更新時刻。
-- 主な操作: 期間指定、CSV ダウンロード、管理画面への遷移。
+- 主な操作: 期間指定、売上 / 原価 / 粗利 / 粗利率の確認、商品別粗利確認、CSV ダウンロード、管理画面への遷移。
 - 必要な role: `manager` / `viewer`
 - 関連 API: `GET /api/analytics/summary`, `GET /api/analytics/item-ranking`, `GET /api/analytics/export-sales-csv`
-- 注意点: CSV は JSON 内の `csv` をフロントエンドが Blob 化して保存する。
+- 注意点: CSV は JSON 内の `csv` をフロントエンドが Blob 化して保存する。原価・粗利は管理 / 分析向け情報で、顧客画面には表示しない。
 
 ## `/admin/menu`
 
@@ -92,7 +92,7 @@
 - 主な操作: カテゴリ追加・編集・表示 / 非表示・並び順変更、商品追加、編集、商品画像 URL 登録・更新・クリア、表示 / 非表示、売切 / 売切解除、在庫設定更新、並び順変更、カテゴリ絞り込み、商品名検索、オプショングループ追加・編集・表示 / 非表示・並び順変更、選択肢追加・編集・表示 / 非表示・並び順変更。
 - 必要な role: `manager`
 - 関連 API: `GET/POST /api/admin/menu/categories`, `POST /api/admin/menu/categories/update`, `POST /api/admin/menu/categories/toggle-active`, `POST /api/admin/menu/categories/move`, `GET /api/admin/menu/items`, `POST /api/admin/menu/items`, `POST /api/admin/menu/items/update`, `POST /api/admin/menu/items/toggle-active`, `POST /api/admin/menu/items/toggle-sold-out`, `POST /api/admin/menu/items/update-stock`, `POST /api/admin/menu/items/move`, `GET/POST /api/admin/menu/items/options`, `POST /api/admin/menu/items/options/update`, `POST /api/admin/menu/items/options/toggle-active`, `POST /api/admin/menu/items/options/move`, `POST /api/admin/menu/items/options/choices`, `POST /api/admin/menu/items/options/choices/update`, `POST /api/admin/menu/items/options/choices/toggle-active`, `POST /api/admin/menu/items/options/choices/move`
-- 注意点: 商品が属するカテゴリを非表示にすると、顧客注文画面ではカテゴリごと非表示になる。`track_stock=false` の場合は在庫数入力を無効化する。`stock_quantity=0` は売切化を促し、注文成功で在庫 0 になった場合は自動で `sold_out=true` になる。売切解除は管理者操作で行う。商品画像 URL は空値、`http(s)`、または `/` から始まるパスだけ許可する。画像未設定または読み込み失敗時は一覧とプレビューに「画像なし」を表示する。本格的な商品画像アップロード、原価 / 粗利、在庫履歴は後続対応。
+- 注意点: 商品が属するカテゴリを非表示にすると、顧客注文画面ではカテゴリごと非表示になる。`track_stock=false` の場合は在庫数入力を無効化する。`stock_quantity=0` は売切化を促し、注文成功で在庫 0 になった場合は自動で `sold_out=true` になる。売切解除は管理者操作で行う。商品画像 URL は空値、`http(s)`、または `/` から始まるパスだけ許可する。画像未設定または読み込み失敗時は一覧とプレビューに「画像なし」を表示する。標準原価は 0 以上の整数で、販売価格を超える場合は赤字警告を表示する。本格的な商品画像アップロード、仕入 / 入荷 / 棚卸、在庫履歴は後続対応。
 
 ## `/admin/tables`
 
@@ -112,7 +112,7 @@
 - 主な操作: フィルタ、詳細表示、明細取消、注文全体取消。
 - 必要な role: `manager`
 - 関連 API: `GET /api/admin/orders`, `GET /api/admin/orders/detail`, `POST /api/admin/orders/cancel-item`, `POST /api/admin/orders/cancel-order`
-- 注意点: `ordered`, `accepted`, `cooking` の明細だけ取消可能。ready / served 明細を含む注文や精算済み注文は取消不可。CSV 出力は `/analytics` の売上 CSV へ誘導する。
+- 注意点: `ordered`, `accepted`, `cooking` の明細だけ取消可能。ready / served 明細を含む注文や精算済み注文は取消不可。注文詳細では管理者向けに明細売上、明細原価、明細粗利、粗利率を表示する。CSV 出力は `/analytics` の売上 CSV へ誘導する。
 
 ## `/admin/audit-logs`
 

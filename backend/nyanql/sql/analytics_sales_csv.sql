@@ -6,7 +6,14 @@ SELECT
     oi.menu_item_id,
     oi.item_name,
     oi.quantity,
-    (oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity AS sales_total
+    (oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity AS sales_total,
+    oi.unit_cost_price,
+    (oi.unit_cost_price * oi.quantity)::INTEGER AS cost_total,
+    ((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity - (oi.unit_cost_price * oi.quantity))::INTEGER AS gross_profit,
+    CASE
+        WHEN ((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) = 0 THEN 0
+        ELSE ROUND(((((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity) - (oi.unit_cost_price * oi.quantity))::numeric / ((oi.unit_price + COALESCE(opt.option_total, 0)) * oi.quantity)) * 100, 1)
+    END AS gross_margin_rate
 FROM payments p
 JOIN table_sessions ts ON ts.id = p.session_id
 JOIN cafe_tables ct ON ct.id = ts.table_id

@@ -346,3 +346,12 @@
 - 検証結果: `node --check backend/nyan8/javascript/lib/runtime.js`, `./scripts/check-nyan8-api-files.mjs`, `./scripts/check-nyanql-sql-files.mjs`, `bash -n scripts/smoke-admin-menu.sh`, frontend `npm ci`, `npm audit --audit-level=high`, `npm run build` は成功した。`npm audit` は sandbox DNS 制限で一度失敗し、承認付き再実行で `found 0 vulnerabilities` を確認した。
 - full smoke 結果: `./scripts/dev-reset-db.sh`, `./scripts/smoke-admin-menu.sh`, `./scripts/smoke-auth.sh`, `./scripts/smoke-audit-logs.sh`, `./scripts/smoke-admin-orders.sh`, `./scripts/smoke-admin-tables.sh`, `./scripts/smoke-menu.sh`, `./scripts/smoke-e2e.sh`, `./scripts/smoke-order-multiple-items.sh`, `./scripts/smoke-multiple-tables.sh`, `./scripts/smoke-cancel-flow.sh`, `./scripts/smoke-staff-call.sh`, `./scripts/smoke-checkout-csv.sh`, `./scripts/smoke-invalid-operations.sh`, `./scripts/smoke-prod-readiness.sh` は成功した。`smoke-prod-readiness.sh` はシステム既定 Node.js / npm では要件未満かつ sandbox DNS 制限で失敗し、Codex bundled Node.js `v24.14.0` と npm `10.9.8`、承認付きネットワーク実行で成功した。
 - CI / static check 結果: `./scripts/ci-shellcheck.sh`, `./scripts/ci-repo-consistency.sh`, `./scripts/ci-prod-readiness-static.sh`, `git diff --check` は成功した。ローカルに shellcheck がないため shellcheck 実行は skip した。ローカルの `pyenv: cannot rehash` は環境由来の warning として継続している。
+
+## 2026-06-24 Phase 11 商品・在庫・オプション強化 第4段階
+
+- 実装範囲: 商品ごとの標準原価、注文時点の原価履歴、管理画面の原価入力・粗利・粗利率・赤字警告、分析サマリ / 商品ランキング / 売上 CSV / 注文管理詳細への原価・粗利反映を実装した。
+- DB / SQL: `menu_items.cost_price` と `order_items.unit_cost_price` を追加した。注文確定時は `list_menu.sql` で取得した DB 原価を Nyan8 が `insert_order_item.sql` に渡し、フロントエンド送信値は使わない。分析・CSV・注文詳細は `order_items.unit_cost_price` を使う。
+- 顧客 API 非公開: `list_menu.sql` は内部計算用に `cost_price` を返すが、`GET /api/customer/menu` の Nyan8 response には `cost_price`, `costPrice`, `grossProfit` を含めない。`smoke-admin-menu.sh` で JSON 文字列に原価・粗利キーが含まれないことを確認する。
+- 原価仕様: `cost_price` は 0 以上の整数。販売価格を超えても登録可能で、管理画面では赤字警告を出す。オプション追加料金は売上に含めるが、MVP の追加原価は 0 とする。
+- 更新した smoke script: `scripts/smoke-admin-menu.sh`, `scripts/smoke-e2e.sh`, `scripts/smoke-admin-orders.sh`, `scripts/smoke-checkout-csv.sh` に原価・粗利・顧客 API 非漏洩・CSV 列・取消明細除外の検証を追加した。
+- 未対応事項: 仕入、入荷、棚卸、廃棄、原材料別原価、レシピ原価、複数店舗別原価、日別原価履歴、仕入先管理、自動原価計算、原価改定予約、高度な価格履歴管理。

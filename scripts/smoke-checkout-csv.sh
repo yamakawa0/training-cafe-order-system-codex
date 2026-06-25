@@ -33,9 +33,12 @@ process.stdin.on("end", () => {
   const lines = input.trim().split(/\r?\n/);
   if (lines.length < 2) process.exit(1);
   const header = lines[0].split(",");
-  const required = ["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total"];
+  const required = ["paid_date", "payment_no", "method", "table_code", "menu_item_id", "item_name", "quantity", "sales_total", "unit_cost_price", "cost_total", "gross_profit", "gross_margin_rate"];
   if (!required.every((name) => header.includes(name))) process.exit(2);
   if (!/card/.test(input) || !/ブレンドコーヒー/.test(input) || !/450/.test(input)) process.exit(3);
+  const row = lines[1].split(",");
+  const index = Object.fromEntries(header.map((name, i) => [name, i]));
+  if (row[index.unit_cost_price] !== "120" || row[index.cost_total] !== "120" || row[index.gross_profit] !== "330" || row[index.gross_margin_rate] !== "73.3") process.exit(4);
 });' || fail "CSV のヘッダーまたは売上行が不正です"
 echo "CSV_CONTENT_TYPE=$(extract_json 'return root.contentType' "CSV contentType が取得できません")"
 

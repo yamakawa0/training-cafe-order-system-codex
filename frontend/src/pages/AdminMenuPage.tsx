@@ -9,6 +9,7 @@ type FormState = {
   name: string;
   description: string;
   price: string;
+  costPrice: string;
   taxRate: string;
   imageUrl: string;
   categoryId: string;
@@ -49,6 +50,7 @@ const emptyForm: FormState = {
   name: '',
   description: '',
   price: '0',
+  costPrice: '0',
   taxRate: '10',
   imageUrl: '',
   categoryId: '',
@@ -83,6 +85,7 @@ function toForm(item: AdminMenuItem): FormState {
     name: item.name,
     description: item.description,
     price: String(item.price),
+    costPrice: String(item.costPrice),
     taxRate: String(item.taxRate),
     imageUrl: item.imageUrl || '',
     categoryId: item.categoryId,
@@ -102,6 +105,7 @@ function toInput(form: FormState): AdminMenuItemInput {
     name: form.name.trim(),
     description: form.description,
     price: Number(form.price),
+    cost_price: Number(form.costPrice),
     tax_rate: Number(form.taxRate),
     image_url: form.imageUrl.trim(),
     display_order: Number(form.displayOrder),
@@ -141,6 +145,7 @@ function validate(form: FormState) {
   if (!form.name.trim()) return '商品名は必須です。';
   if (!form.categoryId) return 'カテゴリは必須です。';
   if (!Number.isInteger(Number(form.price)) || Number(form.price) < 0) return '価格は 0 以上の整数で入力してください。';
+  if (!Number.isInteger(Number(form.costPrice)) || Number(form.costPrice) < 0) return '原価は 0 以上の整数で入力してください。';
   if (!Number.isFinite(Number(form.taxRate)) || Number(form.taxRate) < 0) return '税率は 0 以上で入力してください。';
   if (!Number.isInteger(Number(form.displayOrder))) return '表示順は整数で入力してください。';
   if (!Number.isInteger(Number(form.stockQuantity)) || Number(form.stockQuantity) < 0) return '在庫数は 0 以上の整数で入力してください。';
@@ -148,6 +153,19 @@ function validate(form: FormState) {
   const imageError = validateImageUrl(form.imageUrl);
   if (imageError) return imageError;
   return '';
+}
+
+function grossProfit(price: number, costPrice: number) {
+  return price - costPrice;
+}
+
+function grossMarginRate(price: number, costPrice: number) {
+  if (price <= 0) return 0;
+  return Math.round((grossProfit(price, costPrice) / price) * 1000) / 10;
+}
+
+function percent(value: number) {
+  return `${value.toFixed(1)}%`;
 }
 
 function MenuImagePreview({ src, alt, compact = false }: { src: string; alt: string; compact?: boolean }) {
@@ -188,6 +206,11 @@ export function AdminMenuPage() {
     () => categories.find((category) => category.id === selectedCategoryId)?.name || '全カテゴリ',
     [categories, selectedCategoryId]
   );
+  const formPrice = Number(form.price) || 0;
+  const formCostPrice = Number(form.costPrice) || 0;
+  const formGrossProfit = grossProfit(formPrice, formCostPrice);
+  const formGrossMarginRate = grossMarginRate(formPrice, formCostPrice);
+  const formIsLoss = formCostPrice > formPrice;
 
   const load = () => {
     setLoading(true);
@@ -471,7 +494,7 @@ export function AdminMenuPage() {
           {items.length === 0 && !loading && <EmptyState>条件に一致する商品はありません。</EmptyState>}
           <div className="adminMenuTable" role="table">
             <div className="adminMenuRow header" role="row">
-              <span>画像</span><span>商品名</span><span>カテゴリ</span><span>価格</span><span>税率</span><span>状態</span><span>売切</span><span>在庫</span><span>更新日時</span><span>操作</span>
+              <span>画像</span><span>商品名</span><span>カテゴリ</span><span>価格</span><span>原価</span><span>粗利</span><span>状態</span><span>売切</span><span>在庫</span><span>更新日時</span><span>操作</span>
             </div>
             {items.map((item) => (
               <div className="adminMenuRow" key={item.id} role="row">
@@ -479,7 +502,8 @@ export function AdminMenuPage() {
                 <strong>{item.name}</strong>
                 <span>{item.categoryName}</span>
                 <span>{yen(item.price)}</span>
-                <span>{item.taxRate}%</span>
+                <span>{yen(item.costPrice)}</span>
+                <span className={item.costPrice > item.price ? 'lossText' : ''}>{yen(item.grossProfit)} / {percent(item.grossMarginRate)}</span>
                 <span><Badge tone={item.active ? 'success' : 'warning'}>{item.active ? '表示' : '非表示'}</Badge></span>
                 <span><Badge tone={item.soldOut ? 'danger' : 'neutral'}>{item.soldOut ? '売切' : '販売可'}</Badge></span>
                 <span>
@@ -516,6 +540,17 @@ export function AdminMenuPage() {
             <label className="fieldLabel">価格<input type="number" min="0" step="1" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} /></label>
             <label className="fieldLabel">税率<input type="number" min="0" step="1" value={form.taxRate} onChange={(event) => setForm({ ...form, taxRate: event.target.value })} /></label>
           </div>
+          <section className="profitEditor">
+            <div className="editorTwoCol">
+              <label className="fieldLabel">標準原価<input type="number" min="0" step="1" value={form.costPrice} onChange={(event) => setForm({ ...form, costPrice: event.target.value })} /></label>
+              <div className="profitPreview">
+                <span>粗利</span>
+                <strong className={formIsLoss ? 'lossText' : ''}>{yen(formGrossProfit)}</strong>
+                <small>粗利率 {percent(formGrossMarginRate)}</small>
+              </div>
+            </div>
+            {formIsLoss && <Banner tone="danger">標準原価が販売価格を上回っています。赤字商品として扱われます。</Banner>}
+          </section>
           <label className="fieldLabel">表示順<input type="number" step="1" value={form.displayOrder} onChange={(event) => setForm({ ...form, displayOrder: event.target.value })} /></label>
           <label className="fieldLabel">アレルギーメモ<input value={form.allergyNote} onChange={(event) => setForm({ ...form, allergyNote: event.target.value })} /></label>
           <div className="checkLine">

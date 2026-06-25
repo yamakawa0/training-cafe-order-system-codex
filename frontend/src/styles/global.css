@@ -567,6 +567,7 @@ h3 {
 .historyLine small,
 .receiptLine span,
 .rankingLine span,
+.rankingLine small,
 .helperText {
   color: #74614f;
   font-size: 0.88rem;
@@ -947,13 +948,13 @@ h3 {
 
 .adminMenuTable {
   display: grid;
-  min-width: 1100px;
+  min-width: 1280px;
   border-top: 1px solid #eadcc5;
 }
 
 .adminMenuRow {
   display: grid;
-  grid-template-columns: 76px minmax(150px, 1.3fr) minmax(100px, 0.75fr) 86px 60px 76px 76px minmax(112px, 0.9fr) minmax(140px, 1fr) minmax(300px, 1.8fr);
+  grid-template-columns: 76px minmax(150px, 1.25fr) minmax(100px, 0.7fr) 82px 82px 128px 72px 72px minmax(112px, 0.85fr) minmax(140px, 0.9fr) minmax(300px, 1.6fr);
   gap: 10px;
   align-items: center;
   min-height: 60px;
@@ -985,6 +986,33 @@ h3 {
   min-height: 36px;
   padding: 0.35rem 0.55rem;
   font-size: 0.82rem;
+}
+
+.profitEditor {
+  display: grid;
+  gap: 10px;
+}
+
+.profitPreview {
+  align-self: end;
+  display: grid;
+  gap: 4px;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid #eadcc5;
+  background: #fffaf2;
+}
+
+.profitPreview span,
+.profitPreview small {
+  color: #74614f;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.lossText {
+  color: #b42318;
+  font-weight: 950;
 }
 
 .adminMenuThumb,

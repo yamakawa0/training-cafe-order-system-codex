@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
+import type { AdminForceCloseSessionResult, AdminMenuCategory, AdminMenuItem, AdminMenuItemInput, AdminMenuItemOption, AdminMenuOptionChoice, AdminOrderDetail, AdminOrderSummary, AdminTableDetail, AdminTableStatusResult, AdminTableSummary, AdminTerminalSummary, AdminUser, AnalyticsSummary, AuditLogDetail, AuditLogSearchFilters, AuditLogSummary, AuthUser, CheckoutSummary, HallTask, ItemRanking, KitchenTicket, MenuCategory, PaymentMethod, UserRole } from '../domain/types';
 
 export const terminals = {
   customer: (tableCode: string) => `customer-${tableCode}`,
@@ -87,12 +87,12 @@ export const cafeApi = {
     table_code: tableCode,
     method
   }),
-  analyticsSummary: (fromDate: string, toDate: string) => get<{ summary: Record<string, number> }>('/api/analytics/summary', {
+  analyticsSummary: (fromDate: string, toDate: string) => get<{ summary: AnalyticsSummary }>('/api/analytics/summary', {
     terminal_code: terminals.analytics,
     from_date: fromDate,
     to_date: toDate
   }),
-  itemRanking: (fromDate: string, toDate: string) => get<{ items: Array<{ item_name: string; quantity: number; sales_total: number }> }>('/api/analytics/item-ranking', {
+  itemRanking: (fromDate: string, toDate: string) => get<{ items: ItemRanking[] }>('/api/analytics/item-ranking', {
     terminal_code: terminals.analytics,
     from_date: fromDate,
     to_date: toDate

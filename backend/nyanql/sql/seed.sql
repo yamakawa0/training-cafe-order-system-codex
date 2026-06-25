@@ -26,15 +26,15 @@ INSERT INTO menu_categories (id, name, display_order) VALUES
 ('cat-dessert', 'Dessert', 40);
 
 INSERT INTO menu_items (
-    id, category_id, name, description, price, tax_rate, image_url,
+    id, category_id, name, description, price, cost_price, tax_rate, image_url,
     kitchen_station, allergy_note, sold_out, track_stock, stock_quantity, low_stock_threshold, active, display_order
 ) VALUES
-('item-blend', 'cat-coffee', 'ブレンドコーヒー', '深煎り豆を使った定番の一杯です。', 450, 10, 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80', 'drink', '', FALSE, FALSE, 0, 0, TRUE, 10),
-('item-latte', 'cat-coffee', 'カフェラテ', 'ミルクの甘みを感じるラテです。', 550, 10, 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=900&q=80', 'drink', '乳', FALSE, FALSE, 0, 0, TRUE, 20),
-('item-iced-tea', 'cat-tea', 'アイスティー', '香りのよいストレートティーです。', 500, 10, 'https://images.unsplash.com/photo-1499638673689-79a0b5115d87?auto=format&fit=crop&w=900&q=80', 'drink', '', FALSE, FALSE, 0, 0, TRUE, 10),
-('item-croque', 'cat-food', 'クロックムッシュ', 'ハムとチーズのホットサンドです。', 900, 10, 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=900&q=80', 'food', '小麦・乳・卵', FALSE, FALSE, 0, 0, TRUE, 10),
-('item-cheesecake', 'cat-dessert', 'チーズケーキ', '濃厚でなめらかなベイクドチーズケーキです。', 650, 10, 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=900&q=80', 'dessert', '乳・卵・小麦', FALSE, FALSE, 0, 0, TRUE, 10),
-('item-pudding', 'cat-dessert', '限定プリン', 'ほろ苦いカラメルの自家製プリンです。', 500, 10, 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80', 'dessert', '乳・卵', FALSE, TRUE, 3, 2, TRUE, 20);
+('item-blend', 'cat-coffee', 'ブレンドコーヒー', '深煎り豆を使った定番の一杯です。', 450, 120, 10, 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80', 'drink', '', FALSE, FALSE, 0, 0, TRUE, 10),
+('item-latte', 'cat-coffee', 'カフェラテ', 'ミルクの甘みを感じるラテです。', 550, 180, 10, 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=900&q=80', 'drink', '乳', FALSE, FALSE, 0, 0, TRUE, 20),
+('item-iced-tea', 'cat-tea', 'アイスティー', '香りのよいストレートティーです。', 500, 150, 10, 'https://images.unsplash.com/photo-1499638673689-79a0b5115d87?auto=format&fit=crop&w=900&q=80', 'drink', '', FALSE, FALSE, 0, 0, TRUE, 10),
+('item-croque', 'cat-food', 'クロックムッシュ', 'ハムとチーズのホットサンドです。', 900, 360, 10, 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=900&q=80', 'food', '小麦・乳・卵', FALSE, FALSE, 0, 0, TRUE, 10),
+('item-cheesecake', 'cat-dessert', 'チーズケーキ', '濃厚でなめらかなベイクドチーズケーキです。', 650, 250, 10, 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=900&q=80', 'dessert', '乳・卵・小麦', FALSE, FALSE, 0, 0, TRUE, 10),
+('item-pudding', 'cat-dessert', '限定プリン', 'ほろ苦いカラメルの自家製プリンです。', 500, 210, 10, 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80', 'dessert', '乳・卵', FALSE, TRUE, 3, 2, TRUE, 20);
 
 INSERT INTO menu_item_options (id, item_id, name, required, multi_select, min_select, max_select, active, display_order) VALUES
 ('opt-blend-size', 'item-blend', 'サイズ', TRUE, FALSE, 1, 1, TRUE, 10),

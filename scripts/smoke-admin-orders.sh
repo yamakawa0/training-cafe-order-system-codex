@@ -42,6 +42,7 @@ open_session customer-T01 T01 >/dev/null
 mixed_order_no="$(submit_order customer-T01 T01 '[{"menu_item_id":"item-blend","quantity":1,"choice_ids":["choice-blend-regular"],"customer_note":""},{"menu_item_id":"item-iced-tea","quantity":1,"choice_ids":[],"customer_note":""}]')"
 mixed_order_id="$(order_id_by_no "$mixed_order_no")"
 call_get "api/admin/orders/detail?terminal_code=analytics-manager&order_id=$mixed_order_id"
+assert_json 'return root.order.items.some(item => item.itemName === "ブレンドコーヒー" && item.unitCostPrice === 120 && item.lineGrossProfit === 330) && root.order.items.some(item => item.itemName === "アイスティー" && item.unitCostPrice === 150 && item.lineGrossProfit === 350)' "注文詳細に原価・粗利が含まれていません"
 blend_item_id="$(item_id_from_detail "ブレンドコーヒー")"
 call_post "api/admin/orders/cancel-item" "{\"terminal_code\":\"analytics-manager\",\"order_item_id\":\"$blend_item_id\",\"cancel_note\":\"smoke partial\"}"
 assert_json 'return root.order.orderStatus !== "cancelled" && root.order.items.some(item => item.itemName === "ブレンドコーヒー" && item.status === "cancelled") && root.order.items.some(item => item.itemName === "アイスティー" && item.status !== "cancelled")' "一部明細取消後の注文状態が不正です"
@@ -56,7 +57,7 @@ complete_serve_task_for_item "$tea_item_id"
 request_payment T01
 settle_table T01 card >/dev/null
 call_get "api/analytics/item-ranking?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY"
-assert_json 'return (root.items || []).some(item => item.item_name === "アイスティー" && item.quantity === 1 && item.sales_total === 500) && !(root.items || []).some(item => item.item_name === "ブレンドコーヒー")' "分析ランキングに取消明細が含まれています"
+assert_json 'return (root.items || []).some(item => item.item_name === "アイスティー" && item.quantity === 1 && item.sales_total === 500 && item.cost_total === 150 && item.gross_profit === 350) && !(root.items || []).some(item => item.item_name === "ブレンドコーヒー")' "分析ランキングに取消明細が含まれています"
 
 step "ready 明細の取消が拒否されることを確認"
 reset_db

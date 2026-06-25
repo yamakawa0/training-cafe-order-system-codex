@@ -284,13 +284,16 @@ psql "${DATABASE_URL:-postgres://codex:codex@localhost:5432/cafe_order_system}" 
 log_step "22. 分析サマリ確認"
 call_get "api/analytics/summary?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY"
 assert_json 'return root.summary && root.summary.sales_total > 0' "分析サマリに売上が反映されていません"
+assert_json 'return root.summary && root.summary.cost_total > 0 && root.summary.gross_profit > 0 && root.summary.gross_margin_rate > 0' "分析サマリに原価・粗利が反映されていません"
 assert_json 'return root.summary && root.summary.payment_count > 0' "分析サマリに会計件数が反映されていません"
 echo "sales_total=$(extract_json 'return root.summary.sales_total' "sales_total が取得できません")"
+echo "gross_profit=$(extract_json 'return root.summary.gross_profit' "gross_profit が取得できません")"
 echo "payment_count=$(extract_json 'return root.summary.payment_count' "payment_count が取得できません")"
 
 log_step "23. 商品ランキング確認"
 call_get "api/analytics/item-ranking?terminal_code=analytics-manager&from_date=$TODAY&to_date=$TODAY"
 assert_json 'return root.items && root.items.length > 0' "商品ランキングが反映されていません"
+assert_json 'return root.items.some(item => item.cost_total > 0 && item.gross_profit > 0 && item.gross_margin_rate > 0)' "商品ランキングに原価・粗利が反映されていません"
 
 echo
 echo "smoke-e2e completed"

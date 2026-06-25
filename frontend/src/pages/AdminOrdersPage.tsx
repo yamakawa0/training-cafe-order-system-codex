@@ -37,6 +37,10 @@ function statusTone(status: string | null): 'neutral' | 'success' | 'warning' | 
   return 'neutral';
 }
 
+function percent(value: number | undefined) {
+  return `${Number(value || 0).toFixed(1)}%`;
+}
+
 function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleString('ja-JP') : '-';
 }
@@ -241,6 +245,7 @@ export function AdminOrdersPage() {
                     <div>
                       <strong>{item.itemName} x {item.quantity}</strong>
                       <span>{yen(item.lineSubtotal + item.lineTax)} / 単価 {yen(item.unitPrice)} / オプション {yen(item.optionTotal)}</span>
+                      <small>明細売上 {yen(item.lineSubtotal)} / 明細原価 {yen(item.lineCostTotal)} / 明細粗利 {yen(item.lineGrossProfit)} / 粗利率 {percent(item.lineGrossMarginRate)}</small>
                       {item.optionsText && <small>{item.optionsText}</small>}
                       {(item.customerNote || item.allergyNote) && <small>{item.customerNote || ''}{item.allergyNote ? ` / アレルギー: ${item.allergyNote}` : ''}</small>}
                     </div>
