@@ -8,6 +8,7 @@
 - Nyan8 は NyanQL を内部 API として呼び、NyanQL は外部公開しない。
 - PostgreSQL 接続先は `DATABASE_URL` で管理する。
 - `.env.production` と実 secret は commit しない。
+- frontend build / CI / readiness smoke は Node.js `>=20.19` と npm `>=10` を前提にする。
 
 ## 配置案
 
@@ -195,13 +196,23 @@ psql "$DATABASE_URL" < backup.sql
 - Nginx 設定例
 - README / docs の Phase 9 反映
 
+Node.js は `PATH` 上の `node` を使う。npm を明示したい場合は `NPM_BIN` を指定する。
+
+```bash
+PATH=/path/to/node/bin:$PATH NPM_BIN=/path/to/npm ./scripts/smoke-prod-readiness.sh
+```
+
+`NPM_BIN` は npm 実行ファイルの差し替え用であり、Node.js version は差し替えない。Node.js を切り替える場合は nvm / nodenv / mise / PATH などで `node -v` が `>=20.19` になる状態を作ってから実行する。
+
+npm registry へ到達できない sandbox や DNS 制限下では、`npm audit --audit-level=high` が registry 解決エラーで失敗する。その場合、ネットワーク到達可能な CI または承認済みの検証環境で audit を実行し、`found 0 vulnerabilities` または high / critical 0 件を記録する。ローカルの `smoke-prod-readiness.sh` が環境制約で失敗した場合も、Node/npm version、DNS 制限、代替で成功した `npm audit`, frontend build, `ci-prod-readiness-static` を記録する。
+
 ## CI / 自動テスト
 
 GitHub Actions CI は本番 DB、開発 DB、NyanQL / Nyan8 runtime を操作しない。CI lightweight checks として、frontend の `npm ci`, `npm audit --audit-level=high`, `npm run build`、shell script 構文チェック、Nyan8 / NyanQL 定義と実ファイルの整合チェック、production readiness static check を実行する。
 
 CI 失敗時は、原因を修正して CI が成功してから `master` へ反映する。GitHub Actions の警告や runtime 更新がある場合は、workflow の `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`、`actions/checkout`、`actions/setup-node` の更新可否を確認する。
 
-local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh`、返金・レシート再発行の確認は `./scripts/smoke-refund-receipt.sh`、支払い失敗・再試行・決済取消の確認は `./scripts/smoke-payment-failure-cancel.sh`、mock provider 連携の確認は `./scripts/smoke-payment-provider.sh`、日次締めの確認は `./scripts/smoke-daily-close.sh` で行う。
+local full smoke は開発者環境または専用検証環境で PostgreSQL、NyanQL、Nyan8 を起動して実行する。`dev-reset-db.sh` は開発 DB を初期化するため、GitHub Actions CI では実行しない。Phase 11 以降の大きな機能追加前や、DB / API / 状態遷移へ影響する変更前後では、local full smoke を順次実行して回帰を確認する。Phase 13 着手前も、Phase 12 の返金、支払い失敗、mock provider、日次締めを含む full smoke を通してから実装に入る。在庫履歴・差分調整の確認は `./scripts/smoke-inventory.sh`、返金・レシート再発行の確認は `./scripts/smoke-refund-receipt.sh`、支払い失敗・再試行・決済取消の確認は `./scripts/smoke-payment-failure-cancel.sh`、mock provider 連携の確認は `./scripts/smoke-payment-provider.sh`、日次締めの確認は `./scripts/smoke-daily-close.sh` で行う。
 
 本番デプロイ前は、frontend build 後に `./scripts/smoke-prod-readiness.sh` を実行する。この script も本番 DB を初期化せず、`.env.production.example` または `.env.production`、Nginx 設定例、runtime 実行ファイル、docs 反映状況を確認する。
 

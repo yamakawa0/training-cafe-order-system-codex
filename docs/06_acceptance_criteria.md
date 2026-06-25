@@ -231,6 +231,21 @@
 - 既存 smoke が成功する。
 - CI checks が成功する。
 
+## Phase 12.6 Phase 12 完了確認 / Phase 13 着手準備
+
+- `master` と `origin/master` が一致している。
+- Phase 12 第1〜第5段階の実装、docs、README、smoke script の記述が一致している。
+- `scripts/smoke-refund-receipt.sh` が成功する。
+- `scripts/smoke-payment-failure-cancel.sh` が成功する。
+- `scripts/smoke-payment-provider.sh` が成功する。
+- `scripts/smoke-daily-close.sh` が成功する。
+- local full smoke が PostgreSQL / NyanQL / Nyan8 起動済み環境で順次成功する。
+- frontend `npm ci`, `npm audit --audit-level=high`, `npm run build` が成功する。
+- Nyan8 / NyanQL API 定義と実ファイルの整合チェックが成功する。
+- `scripts/ci-shellcheck.sh`, `scripts/ci-repo-consistency.sh`, `scripts/ci-prod-readiness-static.sh`, `git diff --check` が成功する。
+- `smoke-prod-readiness.sh` は Node.js `>=20.19` / npm `>=10` かつ npm registry へ到達できる環境で成功する。ローカル環境制約で失敗する場合は、失敗理由と代替確認結果を記録する。
+- Phase 13 第1段階候補と未着手範囲が `docs/07_development_plan.md` に記録されている。
+
 ## smoke script 対応表
 
 | Script | 主な受け入れ条件 |

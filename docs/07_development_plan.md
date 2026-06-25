@@ -26,6 +26,11 @@
 - 本番デプロイ準備
 - GitHub Actions CI / 自動テスト
 - CI 実行確認と full smoke 回帰確認
+- 決済・返金・レシート
+- 支払い失敗 flow / 決済取消
+- 外部決済連携の土台
+- 日次締め / 会計締め
+- Phase 12 完了確認と Phase 13 着手準備
 
 ## 2. 完了済みフェーズ
 
@@ -165,49 +170,31 @@
 - 複数店舗別在庫
 - カテゴリ管理の高度化
 
-## 3. 現在フェーズ
-
 ### Phase 12: 決済・返金・レシート
 
-目的:
-
-- 会計後の店舗運用に必要な返金、レシート再発行、支払い失敗、決済取消、将来の実決済連携の土台を扱えるようにする。
-
-第1段階完了:
+完了範囲:
 
 - 全額返金
 - 返金履歴 `payment_refunds`
 - レシート再発行
 - 返金後の分析・CSV 反映
 - 返金 audit log
-
-第2段階完了:
-
 - 支払い失敗 flow
 - 支払い再試行 flow
 - 決済取消 flow
 - 決済試行履歴 `payment_attempts`
 - 支払い失敗 / 再試行成功 / 取消 audit log
-
-第3段階完了:
-
 - 部分返金
 - 複数返金履歴
 - 返金可能残額
 - 一部返金済み status
 - 部分返金後の分析・CSV・レシート反映
-
-第4段階完了:
-
 - 実決済連携の設計整理
 - provider / external_payment_id / external_refund_id
 - idempotency_key
 - webhook event 履歴
 - mock provider webhook
 - webhook 冪等処理
-
-第5段階完了:
-
 - 日次締め
 - 会計締め
 - 決済手段別集計
@@ -227,6 +214,66 @@
 - 外部レシートプリンタ
 - 電子レシート
 
+### Phase 12.6: Phase 12 完了確認・本番 readiness 再確認・Phase 13 着手準備
+
+完了。
+
+確認済み:
+
+- `master` と `origin/master` は一致しており、未 push commit はない。
+- Phase 12 第1〜第5段階の実装、docs、smoke script、README の記述は一致している。
+- `payment_refunds`, `payment_attempts`, `payment_webhook_events`, `daily_cash_closures` と関連 API / UI / smoke の存在を確認した。
+- full smoke は PostgreSQL / NyanQL / Nyan8 を起動したローカル検証環境で成功している。
+- CI lightweight checks、frontend build、npm audit、production readiness static check は成功している。
+- `smoke-prod-readiness.sh` はシステム既定 Node.js `v16.17.1` / npm `8.15.0` と sandbox DNS 制限では失敗するため、Node.js `>=20.19` / npm `>=10` と npm registry へ到達できる環境での実行を本番 readiness の前提とする。
+
+## 3. 現在フェーズ
+
+### Phase 13: 顧客・予約・複数店舗
+
+目的:
+
+- より大きな店舗システムへ拡張する。
+
+現在の状態:
+
+- 着手準備段階。
+- Phase 13 の実装はまだ開始していない。
+- Phase 12 の決済・返金・日次締めが完了した状態を前提に、顧客、予約、複数店舗の順序と境界を整理する。
+
+第1段階候補:
+
+- 顧客会員の土台
+
+候補範囲:
+
+- `customers` / `customer_profiles` 相当の顧客マスタ
+- 顧客番号
+- 氏名または表示名
+- 電話番号 / メールアドレス
+- 顧客検索
+- 顧客別来店履歴
+- 顧客別注文履歴
+- 席セッションまたは注文への任意の顧客紐付け
+- `/admin/customers` の一覧・詳細・作成・更新
+- 顧客情報の監査ログ
+
+第1段階を顧客会員にする理由:
+
+- 予約は顧客情報を参照するため、先に顧客マスタを作る方が自然である。
+- 来店履歴、注文履歴、返金履歴、日次締め後の問い合わせ対応に顧客軸が使える。
+- 複数店舗は DB、認証、メニュー、在庫、会計、締め処理への影響が大きいため、Phase 13 の後段で扱う方がリスクを分けやすい。
+
+候補:
+
+- 顧客会員
+- 予約
+- 複数店舗
+- 店舗別メニュー
+- 店舗別権限
+
+## 4. 過去の整合確認
+
 ### Phase 11.5: Phase 11 整合確認
 
 目的:
@@ -241,19 +288,3 @@
 - Phase 11 第2段階の在庫数、在庫不足時の注文拒否、在庫 0 時の自動売切、キャンセル時の在庫戻し、低在庫 / 売切表示、在庫 audit log は実装と docs が一致している。
 - `scripts/smoke-admin-menu.sh` はカテゴリ、オプション、在庫の Phase 11 第1〜第2段階を検証している。
 - full smoke、frontend build、npm audit、CI static checks は成功している。
-
-## 4. 次フェーズ
-
-### Phase 13: 顧客・予約・複数店舗
-
-目的:
-
-- より大きな店舗システムへ拡張する。
-
-候補:
-
-- 顧客会員
-- 予約
-- 複数店舗
-- 店舗別メニュー
-- 店舗別権限

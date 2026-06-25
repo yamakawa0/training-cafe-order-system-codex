@@ -4,12 +4,15 @@
 
 ## Phase 12: 決済・返金・レシート
 
+- Phase 12 第1〜第5段階は完了済みです。返金、レシート再発行、支払い失敗、決済取消、部分返金、mock provider 連携、webhook event 履歴、日次締め / 会計締めを扱います。
 - `/checkout` で精算済み payment を検索し、レシート表示・再発行・部分返金・残額全額返金ができます。
 - `amount` 指定ありは部分返金、`amount` 未指定または `refund_type='full'` は返金可能残額の全額返金として扱います。返金可能残額を超える返金は拒否します。
 - 返金累計が支払額未満なら `payments.status='partial_refunded'`、支払額と等しければ `refunded` に更新し、`payment_refunds` に複数返金履歴を保存します。返金しても注文・明細は削除しません。
 - 分析と CSV は `net_sales = total_amount - refund_total` を使います。売上 CSV には `payment_status`, `refund_amount`, `refunded_at`, `refund_reason`, `gross_amount`, `refund_total`, `refund_remaining`, `net_amount`, `refund_count`, `last_refunded_at` が出力されます。
 - MVP では payment 単位の返金のみ対応します。明細別返金、部分返金の原価按分、実決済サービスへの実返金、クレジットカード実返金、外部レシートプリンタ連携は未対応です。
 - `scripts/smoke-refund-receipt.sh` は receipt 取得・再発行、部分返金、返金可能残額、残額全額返金、複数返金履歴、分析 net sales、CSV 返金列、返金 audit、権限拒否を確認します。
+
+Phase 12.6 では、Phase 12 の実装 / docs / smoke / CI の整合確認と本番 readiness 再確認を実施しました。Phase 13 の第1段階候補は、予約や複数店舗の前提になる顧客会員の土台です。
 
 ## Phase 12 第4段階: 実決済連携の土台
 
@@ -373,6 +376,8 @@ psql "$DATABASE_URL" < backup.sql
 ```bash
 ./scripts/smoke-prod-readiness.sh
 ```
+
+`smoke-prod-readiness.sh` は Node.js `>=20.19` と npm `>=10` を前提にします。Node.js は `PATH` 上の `node`、npm は通常 `npm` を使い、npm を明示する場合は `NPM_BIN=/path/to/npm` を指定します。DNS や sandbox 制限で npm registry に到達できない環境では `npm audit --audit-level=high` が失敗するため、ネットワーク到達可能な CI または承認済み検証環境で audit を実行してください。
 
 ## 画面概要
 
