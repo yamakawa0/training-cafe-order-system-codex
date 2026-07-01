@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">調理・配膳スタッフ向け操作フロー</title>
+  <desc id="desc">ログイン後にキッチン画面とホール画面で行う操作の流れを示す説明図。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
+      <path d="M 1 1 L 13 7 L 1 13 z" fill="#31546b"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#173241" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .bg { fill: #f7f3ea; }
+      .title { font: 700 48px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #1f3544; }
+      .subtitle { font: 400 23px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #5f6f79; }
+      .laneTitle { font: 700 30px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #1f3544; }
+      .laneSub { font: 400 20px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #687780; }
+      .card { fill: #ffffff; stroke: #d8e1e4; stroke-width: 2; filter: url(#shadow); }
+      .kitchen { fill: #e8f3f1; stroke: #7db0a6; }
+      .hall { fill: #fff0df; stroke: #d99a58; }
+      .shared { fill: #eef2f7; stroke: #9aaabd; }
+      .danger { fill: #fdeceb; stroke: #dd766e; }
+      .stepNum { font: 700 22px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #ffffff; }
+      .stepTitle { font: 700 25px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #233a48; }
+      .stepBody { font: 400 19px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #4f5f68; }
+      .badgeText { font: 700 18px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #31546b; }
+      .note { font: 600 19px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #76443d; }
+      .line { stroke: #31546b; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .softLine { stroke: #8396a3; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="1000"/>
+  <text class="title" x="80" y="90">調理・配膳スタッフ 操作フロー</text>
+  <text class="subtitle" x="80" y="130">キッチンは「調理完了」まで、ホールは「配膳完了・片付け完了」までを確実に更新します。</text>
+
+  <rect class="card shared" x="80" y="175" rx="20" ry="20" width="280" height="130"/>
+  <circle cx="120" cy="225" r="24" fill="#31546b"/>
+  <text class="stepNum" x="113" y="233">1</text>
+  <text class="stepTitle" x="158" y="220">ログイン</text>
+  <text class="stepBody" x="158" y="252">担当端末を選択</text>
+  <text class="stepBody" x="158" y="280">キッチン / ホール</text>
+
+  <rect x="80" y="355" rx="26" ry="26" width="1440" height="260" fill="#ffffff" stroke="#c7d7d3" stroke-width="2"/>
+  <text class="laneTitle" x="118" y="410">キッチン画面 /kitchen</text>
+  <text class="laneSub" x="118" y="442">5秒ごとに自動更新。明細ごとに状態を進め、調理完了でホールへ配膳タスクを作成します。</text>
+
+  <rect class="card kitchen" x="120" y="480" rx="18" ry="18" width="230" height="95"/>
+  <circle cx="150" cy="514" r="20" fill="#2f7d75"/>
+  <text class="stepNum" x="144" y="522">2</text>
+  <text class="stepTitle" x="182" y="512">未受付</text>
+  <text class="stepBody" x="182" y="545">内容確認</text>
+
+  <rect class="card kitchen" x="425" y="480" rx="18" ry="18" width="230" height="95"/>
+  <circle cx="455" cy="514" r="20" fill="#2f7d75"/>
+  <text class="stepNum" x="449" y="522">3</text>
+  <text class="stepTitle" x="487" y="512">受付</text>
+  <text class="stepBody" x="487" y="545">調理準備</text>
+
+  <rect class="card kitchen" x="730" y="480" rx="18" ry="18" width="230" height="95"/>
+  <circle cx="760" cy="514" r="20" fill="#2f7d75"/>
+  <text class="stepNum" x="754" y="522">4</text>
+  <text class="stepTitle" x="792" y="512">調理開始</text>
+  <text class="stepBody" x="792" y="545">作業中に更新</text>
+
+  <rect class="card kitchen" x="1035" y="480" rx="18" ry="18" width="230" height="95"/>
+  <circle cx="1065" cy="514" r="20" fill="#2f7d75"/>
+  <text class="stepNum" x="1059" y="522">5</text>
+  <text class="stepTitle" x="1097" y="512">調理完了</text>
+  <text class="stepBody" x="1097" y="545">提供待ちへ</text>
+
+  <rect class="card danger" x="1330" y="480" rx="18" ry="18" width="150" height="95"/>
+  <text class="note" x="1355" y="518">取消は</text>
+  <text class="note" x="1355" y="548">ready 前まで</text>
+
+  <path class="line" d="M 350 528 L 415 528"/>
+  <path class="line" d="M 655 528 L 720 528"/>
+  <path class="line" d="M 960 528 L 1025 528"/>
+  <path class="softLine" d="M 1265 528 L 1320 528"/>
+
+  <rect x="80" y="670" rx="26" ry="26" width="1440" height="250" fill="#ffffff" stroke="#ead2b9" stroke-width="2"/>
+  <text class="laneTitle" x="118" y="725">ホール画面 /hall</text>
+  <text class="laneSub" x="118" y="757">配膳、スタッフ呼び出し、会計サポート、片付けを対応開始から完了まで管理します。</text>
+
+  <rect class="card hall" x="120" y="795" rx="18" ry="18" width="240" height="90"/>
+  <text class="stepTitle" x="150" y="833">タスク確認</text>
+  <text class="stepBody" x="150" y="863">席・優先度・経過時間</text>
+
+  <rect class="card hall" x="435" y="795" rx="18" ry="18" width="240" height="90"/>
+  <text class="stepTitle" x="465" y="833">対応開始</text>
+  <text class="stepBody" x="465" y="863">作業へ向かう前に更新</text>
+
+  <rect class="card hall" x="750" y="795" rx="18" ry="18" width="240" height="90"/>
+  <text class="stepTitle" x="780" y="833">実作業</text>
+  <text class="stepBody" x="780" y="863">配膳・呼び出し・片付け</text>
+
+  <rect class="card hall" x="1065" y="795" rx="18" ry="18" width="240" height="90"/>
+  <text class="stepTitle" x="1095" y="833">完了</text>
+  <text class="stepBody" x="1095" y="863">配膳済み / 空席へ反映</text>
+
+  <rect class="card danger" x="1370" y="795" rx="18" ry="18" width="110" height="90"/>
+  <text class="note" x="1393" y="833">不要なら</text>
+  <text class="note" x="1393" y="863">取消</text>
+
+  <path class="line" d="M 360 840 L 425 840"/>
+  <path class="line" d="M 675 840 L 740 840"/>
+  <path class="line" d="M 990 840 L 1055 840"/>
+  <path class="softLine" d="M 1305 840 L 1360 840"/>
+
+  <path class="line" d="M 360 240 C 520 240, 620 320, 720 355"/>
+  <path class="line" d="M 360 260 C 500 325, 590 620, 730 670"/>
+
+  <rect x="80" y="935" rx="14" ry="14" width="1440" height="42" fill="#fff8ef" stroke="#e5c8a8"/>
+  <text class="badgeText" x="110" y="962">重要: キッチンは served にしません。配膳タスクの完了で served、片付けタスクの完了で available になります。</text>
+</svg>

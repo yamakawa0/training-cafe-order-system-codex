@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" role="img" aria-labelledby="title desc">
+  <title id="title">マネージャー向け全機能操作マップ</title>
+  <desc id="desc">マネージャーが利用する顧客、キッチン、ホール、レジ、分析、管理機能の関係と日常運用順を示す説明図。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
+      <path d="M 1 1 L 13 7 L 1 13 z" fill="#375166"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#173241" flood-opacity="0.13"/>
+    </filter>
+    <style>
+      .bg { fill: #f6f4ef; }
+      .title { font: 700 48px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #203646; }
+      .subtitle { font: 400 23px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #61717b; }
+      .sectionTitle { font: 700 30px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #203646; }
+      .cardTitle { font: 700 25px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #223a49; }
+      .cardBody { font: 400 19px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #4e606a; }
+      .small { font: 600 17px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #5c6c75; }
+      .num { font: 700 20px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #ffffff; }
+      .panel { fill: #ffffff; stroke: #d9e1e4; stroke-width: 2; }
+      .card { filter: url(#shadow); stroke-width: 2; }
+      .customer { fill: #e8f2fb; stroke: #84aacf; }
+      .kitchen { fill: #e7f3ee; stroke: #77aa95; }
+      .hall { fill: #fff0df; stroke: #d99a58; }
+      .checkout { fill: #f3eafb; stroke: #af8dcc; }
+      .analytics { fill: #eef0fb; stroke: #8e9bcc; }
+      .admin { fill: #fff8e6; stroke: #d6af4f; }
+      .audit { fill: #fdeceb; stroke: #d57b76; }
+      .flow { stroke: #375166; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .thinFlow { stroke: #899ba8; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .tag { fill: #ffffff; stroke: #ccd6dc; stroke-width: 1.5; }
+      .tagText { font: 700 16px system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; fill: #31546b; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="1180"/>
+  <text class="title" x="80" y="88">マネージャー 全機能操作マップ</text>
+  <text class="subtitle" x="80" y="128">営業中の注文処理から、管理・分析・日次締めまでを俯瞰するための説明図です。</text>
+
+  <rect class="panel" x="80" y="170" rx="26" ry="26" width="1440" height="500"/>
+  <text class="sectionTitle" x="118" y="225">営業中の主要フロー</text>
+
+  <rect class="card customer" x="120" y="275" rx="20" ry="20" width="230" height="150"/>
+  <text class="cardTitle" x="150" y="320">顧客注文</text>
+  <text class="cardBody" x="150" y="356">/customer/T01</text>
+  <text class="cardBody" x="150" y="386">注文確定</text>
+  <text class="cardBody" x="150" y="416">スタッフ呼出 / 会計依頼</text>
+
+  <rect class="card kitchen" x="440" y="275" rx="20" ry="20" width="230" height="150"/>
+  <text class="cardTitle" x="470" y="320">キッチン</text>
+  <text class="cardBody" x="470" y="356">/kitchen</text>
+  <text class="cardBody" x="470" y="386">受付 → 調理開始</text>
+  <text class="cardBody" x="470" y="416">調理完了</text>
+
+  <rect class="card hall" x="760" y="275" rx="20" ry="20" width="230" height="150"/>
+  <text class="cardTitle" x="790" y="320">ホール</text>
+  <text class="cardBody" x="790" y="356">/hall</text>
+  <text class="cardBody" x="790" y="386">配膳 / 呼び出し</text>
+  <text class="cardBody" x="790" y="416">片付け完了</text>
+
+  <rect class="card checkout" x="1080" y="275" rx="20" ry="20" width="230" height="150"/>
+  <text class="cardTitle" x="1110" y="320">レジ精算</text>
+  <text class="cardBody" x="1110" y="356">/checkout</text>
+  <text class="cardBody" x="1110" y="386">支払い完了</text>
+  <text class="cardBody" x="1110" y="416">返金 / 再発行</text>
+
+  <rect class="card analytics" x="585" y="490" rx="20" ry="20" width="310" height="120"/>
+  <text class="cardTitle" x="625" y="535">分析・日次締め</text>
+  <text class="cardBody" x="625" y="570">/analytics</text>
+  <text class="cardBody" x="625" y="598">売上、返金、CSV、Close</text>
+
+  <path class="flow" d="M 350 350 L 430 350"/>
+  <path class="flow" d="M 670 350 L 750 350"/>
+  <path class="flow" d="M 990 350 L 1070 350"/>
+  <path class="thinFlow" d="M 1195 425 C 1130 520, 1010 550, 905 550"/>
+  <path class="thinFlow" d="M 235 425 C 300 525, 455 550, 575 550"/>
+
+  <rect class="tag" x="118" y="620" rx="13" ry="13" width="1362" height="32"/>
+  <text class="tagText" x="145" y="642">会計金額はサーバー側で再計算します。paid 後の取消は行わず、必要な場合は返金で処理します。</text>
+
+  <rect class="panel" x="80" y="710" rx="26" ry="26" width="685" height="360"/>
+  <text class="sectionTitle" x="118" y="765">管理画面</text>
+
+  <rect class="card admin" x="120" y="805" rx="18" ry="18" width="180" height="110"/>
+  <text class="cardTitle" x="145" y="840">メニュー</text>
+  <text class="cardBody" x="145" y="866">商品・在庫</text>
+  <text class="cardBody" x="145" y="892">オプション</text>
+
+  <rect class="card admin" x="330" y="805" rx="18" ry="18" width="180" height="110"/>
+  <text class="cardTitle" x="355" y="840">席・端末</text>
+  <text class="cardBody" x="355" y="866">状態</text>
+  <text class="cardBody" x="355" y="892">強制クローズ</text>
+
+  <rect class="card admin" x="540" y="805" rx="18" ry="18" width="180" height="110"/>
+  <text class="cardTitle" x="565" y="840">注文管理</text>
+  <text class="cardBody" x="565" y="866">詳細</text>
+  <text class="cardBody" x="565" y="892">取消判断</text>
+
+  <rect class="card audit" x="120" y="955" rx="18" ry="18" width="180" height="80"/>
+  <text class="cardTitle" x="145" y="990">操作ログ</text>
+  <text class="cardBody" x="145" y="1018">検索・CSV</text>
+
+  <rect class="card admin" x="330" y="955" rx="18" ry="18" width="180" height="80"/>
+  <text class="cardTitle" x="355" y="990">ユーザー</text>
+  <text class="cardBody" x="355" y="1018">role・有効化</text>
+
+  <rect class="card analytics" x="540" y="955" rx="18" ry="18" width="180" height="80"/>
+  <text class="cardTitle" x="565" y="990">分析</text>
+  <text class="cardBody" x="565" y="1018">売上・日次締め</text>
+
+  <rect class="panel" x="835" y="710" rx="26" ry="26" width="685" height="360"/>
+  <text class="sectionTitle" x="873" y="765">日常運用チェック</text>
+
+  <circle cx="900" cy="828" r="22" fill="#31546b"/>
+  <text class="num" x="894" y="836">1</text>
+  <text class="cardTitle" x="940" y="834">開店前</text>
+  <text class="cardBody" x="940" y="866">席・端末、売切、在庫、担当者ログインを確認</text>
+
+  <circle cx="900" cy="908" r="22" fill="#31546b"/>
+  <text class="num" x="894" y="916">2</text>
+  <text class="cardTitle" x="940" y="914">営業中</text>
+  <text class="cardBody" x="940" y="946">調理遅延、ホール滞留、会計依頼、取消、売切を確認</text>
+
+  <circle cx="900" cy="998" r="22" fill="#31546b"/>
+  <text class="num" x="894" y="1006">3</text>
+  <text class="cardTitle" x="940" y="1004">閉店後</text>
+  <text class="cardBody" x="940" y="1036">未精算確認、日次締め Close、CSV 保管、操作ログ確認</text>
+
+  <path class="thinFlow" d="M 765 875 C 820 875, 835 828, 875 828"/>
+  <path class="thinFlow" d="M 765 995 C 815 995, 835 998, 875 998"/>
+</svg>
